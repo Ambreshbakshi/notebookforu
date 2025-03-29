@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: notebookforu-backend
+    runtime: node
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: MONGODB_URI
+        value: mongodb+srv://ambreshbakshi:bakshi1@cluster0.zdqgfet.mongodb.net/notebookforu?retryWrites=true&w=majority
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BASE_URL
+        value: https://notebookforu-backend.onrender.com
+      - key: FRONTEND_URL
+        value: https://notebookforu.onrender.com
