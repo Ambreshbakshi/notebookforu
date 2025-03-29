@@ -7,9 +7,14 @@ const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const { body, validationResult } = require('express-validator');
 const winston = require('winston');
+const mongoSanitize = require('express-mongo-sanitize');
 
 // Initialize Express
 const app = express();
+
+// ======================
+// SECURITY CONFIGURATION
+// ======================
 
 // Logger configuration
 const logger = winston.createLogger({
@@ -19,141 +24,305 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ filename: 'logs/server.log' })
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    }),
+    new winston.transports.File({ 
+      filename: 'logs/combined.log',
+      level: 'info'
+    }),
+    new winston.transports.File({ 
+      filename: 'logs/errors.log', 
+      level: 'error' 
+    })
   ]
 });
 
+// Enhanced CORS Configuration
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'https://notebookforu.vercel.app',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.some(allowedOrigin => 
+      origin.startsWith(allowedOrigin)
+    ) ){  // <-- Parenthesis was missing here
+      callback(null, true);
+    } else {
+      logger.warn(`CORS blocked for origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'X-Request-ID']
+}));
+
 // Security Middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL,
-  credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS']
-}));
 app.use(express.json({ limit: '10kb' }));
+app.use(mongoSanitize());
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// Rate Limiter
+// Rate Limiter (Enhanced)
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS),
-  max: parseInt(process.env.RATE_LIMIT_MAX),
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 min default
+  max: parseInt(process.env.RATE_LIMIT_MAX || '100'), // 100 requests default
+  keyGenerator: (req) => {
+    return req.headers['x-forwarded-for'] || req.ip; // Handle proxies
+  },
   handler: (req, res) => {
     logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
-      error: 'Too many requests, please try again later'
+      error: 'Too many requests, please try again later',
+      retryAfter: '15 minutes'
     });
   }
 });
 app.use('/api', limiter);
 
-// Database Connection with Retry
+// ======================
+// DATABASE CONFIGURATION
+// ======================
+
+// Database Connection with Retry and Timeout
 const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000 // Optional: Timeout after 5s if no MongoDB server is found
-    });
-    logger.info('MongoDB connected successfully');
-  } catch (err) {
-    logger.error('MongoDB connection error:', err);
-    process.exit(1); // Exit process with failure
-  }
+  const maxRetries = 3;
+  let retryCount = 0;
+
+  const connectWithRetry = async () => {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI, {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+        connectTimeoutMS: 30000
+      });
+      logger.info('MongoDB connected successfully');
+    } catch (err) {
+      retryCount++;
+      if (retryCount < maxRetries) {
+        logger.warn(`MongoDB connection failed (attempt ${retryCount}), retrying in 5 seconds...`);
+        setTimeout(connectWithRetry, 5000);
+      } else {
+        logger.error('MongoDB connection error:', err);
+        process.exit(1);
+      }
+    }
+  };
+
+  await connectWithRetry();
 };
+
 connectDB();
 
-// Mongoose Models
+// Mongoose Models with Indexes
 const contactSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true, maxlength: 100 },
+  name: { 
+    type: String, 
+    required: [true, 'Name is required'],
+    trim: true, 
+    maxlength: [100, 'Name cannot exceed 100 characters']
+  },
   email: { 
     type: String, 
-    required: true,
+    required: [true, 'Email is required'],
+    index: true,
     validate: {
       validator: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
       message: props => `${props.value} is not a valid email!`
     }
   },
-  message: { type: String, required: true, maxlength: 1000 },
-  createdAt: { type: Date, default: Date.now }
+  message: { 
+    type: String, 
+    required: [true, 'Message is required'],
+    maxlength: [1000, 'Message cannot exceed 1000 characters']
+  },
+  createdAt: { 
+    type: Date, 
+    default: Date.now,
+    index: { expires: '365d' } // Auto-delete after 1 year
+  }
 });
 
 const Contact = mongoose.model('Contact', contactSchema);
 
-// Email Transporter
+// ======================
+// EMAIL CONFIGURATION
+// ======================
+
+// Email Transporter with Connection Pooling
 const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE,
+  service: process.env.EMAIL_SERVICE || 'gmail',
+  pool: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: process.env.NODE_ENV === 'production' // Strict TLS in prod
   }
 });
 
-// API Routes
+// Verify email connection on startup
+transporter.verify((error) => {
+  if (error) {
+    logger.error('Email transporter error:', error);
+  } else {
+    logger.info('Email transporter ready');
+  }
+});
+
+// ======================
+// API ROUTES
+// ======================
+
+// Health Check Endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date(),
+    uptime: process.uptime(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// Contact Form Endpoint
 app.post('/api/contact', 
   [
-    body('name').trim().notEmpty().escape(),
-    body('email').isEmail().normalizeEmail(),
-    body('message').trim().notEmpty().escape()
+    body('name').trim().notEmpty().withMessage('Name is required').escape(),
+    body('email').isEmail().withMessage('Invalid email').normalizeEmail(),
+    body('message').trim().notEmpty().withMessage('Message is required').escape()
   ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
     }
 
     try {
       const { name, email, message } = req.body;
 
-      // Save to database
+      // Save to database (with error handling)
       const newContact = await Contact.create({ name, email, message });
 
-      // Send email notification
-      await transporter.sendMail({
+      // Async email sending (don't block response)
+      transporter.sendMail({
         from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
         to: process.env.ADMIN_EMAIL,
         subject: `New Contact: ${name}`,
         html: `
-          <h2>New Contact Form Submission</h2>
-          <p><strong>Name:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Message:</strong> ${message}</p>
-          <p><strong>Received:</strong> ${newContact.createdAt}</p>
+          <div style="font-family: Arial, sans-serif;">
+            <h2 style="color: #4f46e5;">New Contact Submission</h2>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+            <p><strong>Message:</strong></p>
+            <div style="background: #f3f4f6; padding: 1rem; border-radius: 0.5rem;">
+              ${message.replace(/\n/g, '<br>')}
+            </div>
+            <p style="margin-top: 1rem;"><small>Received at: ${newContact.createdAt.toLocaleString()}</small></p>
+          </div>
         `
+      }).catch(emailError => {
+        logger.error('Email sending failed:', emailError);
       });
 
       res.status(201).json({ 
         success: true,
-        message: 'Contact form submitted successfully'
+        message: 'Thank you for contacting us!'
       });
+
     } catch (err) {
-      logger.error('Contact form error:', err);
+      logger.error('Contact submission error:', err);
       res.status(500).json({ 
         error: 'Internal server error',
-        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+        ...(process.env.NODE_ENV === 'development' && { 
+          details: err.message,
+          stack: err.stack 
+        })
       });
     }
   }
 );
 
-// Error Handling
-app.use((err, req, res, next) => {
-  logger.error('Unhandled error:', err);
-  res.status(500).json({ 
-    error: 'Internal server error',
-    requestId: req.id 
+// ======================
+// ERROR HANDLING
+// ======================
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not found',
+    path: req.path,
+    method: req.method
   });
 });
 
-// Start Server
-const server = app.listen(process.env.PORT, () => {
-  logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${process.env.PORT}`);
+// Global Error Handler
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  logger.error('Unhandled error:', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    ip: req.ip
+  });
+
+  res.status(statusCode).json({
+    error: statusCode === 500 ? 'Internal server error' : err.message,
+    ...(process.env.NODE_ENV === 'development' && {
+      stack: err.stack,
+      details: err.details
+    }),
+    requestId: req.id
+  });
+});
+
+// ======================
+// SERVER INITIALIZATION
+// ======================
+
+const PORT = process.env.PORT || 3000;
+const server = app.listen(PORT, () => {
+  logger.info(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  logger.info(`Allowed CORS origins: ${allowedOrigins.join(', ')}`);
 });
 
 // Graceful Shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received. Shutting down gracefully...');
+const shutdown = (signal) => {
+  logger.info(`${signal} received. Shutting down gracefully...`);
   server.close(() => {
-    mongoose.connection.close(false, () => {
+    mongoose.connection.close(false).then(() => {
       logger.info('MongoDB connection closed');
       process.exit(0);
     });
   });
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Handle unhandled rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', err);
+  shutdown('uncaughtException');
 });
