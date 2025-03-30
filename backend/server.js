@@ -8,6 +8,7 @@ const nodemailer = require('nodemailer');
 const { body, validationResult } = require('express-validator');
 const winston = require('winston');
 const mongoSanitize = require('express-mongo-sanitize');
+const crypto = require('crypto');
 
 // Initialize Express
 const app = express();
@@ -47,18 +48,17 @@ const allowedOrigins = [
   'https://notebookforu.vercel.app',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'http://localhost:3001', // Add this line
-  /\.vercel\.app$/ // Regex to allow all vercel.app subdomains
+  'http://localhost:3001',
+  /\.vercel\.app$/
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.some(allowedOrigin => 
       origin.startsWith(allowedOrigin)
-    ) ){  // <-- Parenthesis was missing here
+    )) {
       callback(null, true);
     } else {
       logger.warn(`CORS blocked for origin: ${origin}`);
@@ -77,12 +77,12 @@ app.use(express.json({ limit: '10kb' }));
 app.use(mongoSanitize());
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// Rate Limiter (Enhanced)
+// Rate Limiter
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 min default
-  max: parseInt(process.env.RATE_LIMIT_MAX || '100'), // 100 requests default
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
+  max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
   keyGenerator: (req) => {
-    return req.headers['x-forwarded-for'] || req.ip; // Handle proxies
+    return req.headers['x-forwarded-for'] || req.ip;
   },
   handler: (req, res) => {
     logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
@@ -98,7 +98,7 @@ app.use('/api', limiter);
 // DATABASE CONFIGURATION
 // ======================
 
-// Database Connection with Retry and Timeout
+// Database Connection with Retry
 const connectDB = async () => {
   const maxRetries = 3;
   let retryCount = 0;
@@ -132,7 +132,6 @@ connectDB();
 // EMAIL CONFIGURATION
 // ======================
 
-// Email Transporter with Connection Pooling
 const transporter = nodemailer.createTransport({
   service: process.env.EMAIL_SERVICE || 'gmail',
   pool: true,
@@ -141,11 +140,13 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   },
   tls: {
-    rejectUnauthorized: process.env.NODE_ENV === 'production' // Strict TLS in prod
-  }
+    rejectUnauthorized: process.env.NODE_ENV === 'production'
+  },
+  connectionTimeout: 10000,
+  socketTimeout: 20000
 });
 
-// Verify email connection on startup
+// Verify email connection
 transporter.verify((error) => {
   if (error) {
     logger.error('Email transporter error:', error);
@@ -154,8 +155,10 @@ transporter.verify((error) => {
   }
 });
 
+// ======================
+// MONGOOSE MODELS
+// ======================
 
-// Mongoose Models with Indexes
 const contactSchema = new mongoose.Schema({
   name: { 
     type: String, 
@@ -180,12 +183,12 @@ const contactSchema = new mongoose.Schema({
   createdAt: { 
     type: Date, 
     default: Date.now,
-    index: { expires: '365d' } // Auto-delete after 1 year
+    index: { expires: '365d' }
   }
 });
 
 const Contact = mongoose.model('Contact', contactSchema);
-// Add this new Mongoose model near your other models (after Contact model)
+
 const subscriberSchema = new mongoose.Schema({
   email: { 
     type: String, 
@@ -205,149 +208,75 @@ const subscriberSchema = new mongoose.Schema({
   unsubscribed: {
     type: Boolean,
     default: false
+  },
+  unsubscribedAt: Date,
+  unsubscribeToken: {
+    type: String,
+    unique: true,
+    default: () => crypto.randomBytes(32).toString('hex')
   }
 });
 
 const Subscriber = mongoose.model('Subscriber', subscriberSchema);
 
-// Add this new route after your other API routes (before the 404 handler)
-app.post('/api/subscribe', 
-  [
-    body('email').isEmail().withMessage('Invalid email').normalizeEmail()
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: errors.array() 
-      });
-    }
+// ======================
+// HELPER FUNCTIONS
+// ======================
 
-    try {
-      const { email } = req.body;
+async function sendThankYouEmail(email, isResubscribe) {
+  const subscriber = await Subscriber.findOne({ email });
+  const unsubscribeLink = `${process.env.FRONTEND_URL}/unsubscribe?token=${subscriber.unsubscribeToken}`;
 
-      // Check if already subscribed
-      const existingSubscriber = await Subscriber.findOne({ email });
-      if (existingSubscriber) {
-        if (existingSubscriber.unsubscribed) {
-          // Resubscribe if previously unsubscribed
-          existingSubscriber.unsubscribed = false;
-          await existingSubscriber.save();
-          return res.status(200).json({ 
-            success: true,
-            message: 'Welcome back! You have been resubscribed.'
-          });
-        }
-        return res.status(200).json({ 
-          success: true,
-          message: 'You are already subscribed!'
-        });
-      }
+  const mailOptions = {
+    from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Welcome to NotebookForU!',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <h2 style="color: #4f46e5; text-align: center;">Welcome to NotebookForU!</h2>
+        
+        <p style="font-size: 16px; line-height: 1.6;">
+          Thank you for subscribing to our newsletter.
+        </p>
 
-      // Create new subscriber
-      await Subscriber.create({ email });
+        <p style="font-size: 16px; line-height: 1.6;">
+          You'll be the first to know about:
+        </p>
 
-      // Send welcome email (async)
-      transporter.sendMail({
-        from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Welcome to NotebookForU!',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #4f46e5;">Welcome to NotebookForU!</h2>
-            <p>Thank you for subscribing to our newsletter.</p>
-            <p>You'll be the first to know about:</p>
-            <ul style="margin-left: 20px;">
-              <li>New notebook designs</li>
-              <li>Exclusive offers</li>
-              <li>Special promotions</li>
-            </ul>
-            <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
-              If you wish to unsubscribe at any time, simply reply to this email.
-            </p>
-          </div>
-        `
-      }).catch(emailError => {
-        logger.error('Welcome email sending failed:', emailError);
-      });
+        <ul style="font-size: 16px; line-height: 1.6; padding-left: 20px;">
+          <li>New notebook designs</li>
+          <li>Exclusive offers</li>
+          <li>Special promotions</li>
+        </ul>
 
-      res.status(201).json({ 
-        success: true,
-        message: 'Thank you for subscribing!'
-      });
+        <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin-top: 20px;">
+          <a href="${unsubscribeLink}" style="color: #4f46e5;">Unsubscribe</a> anytime by clicking this link.
+        </p>
 
-    } catch (err) {
-      if (err.code === 11000) { // MongoDB duplicate key error
-        return res.status(200).json({ 
-          success: true,
-          message: 'You are already subscribed!'
-        });
-      }
-      
-      logger.error('Subscription error:', err);
-      res.status(500).json({ 
-        error: 'Subscription failed',
-        ...(process.env.NODE_ENV === 'development' && { 
-          details: err.message
-        })
-      });
-    }
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+          <p style="font-size: 12px; color: #9ca3af;">
+            © ${new Date().getFullYear()} NotebookForU. All rights reserved.
+          </p>
+        </div>
+      </div>
+    `,
+    text: `Welcome to NotebookForU!\n\nThank you for subscribing to our newsletter.\n\nYou'll be the first to know about:\n- New notebook designs\n- Exclusive offers\n- Special promotions\n\nUnsubscribe: ${unsubscribeLink}\n\n© ${new Date().getFullYear()} NotebookForU. All rights reserved.`
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    logger.info(`Welcome email sent to ${email}`);
+  } catch (emailError) {
+    logger.error('Failed to send welcome email:', emailError);
+    throw new Error('Failed to send confirmation email');
   }
-);
-
-// Add unsubscribe endpoint
-app.post('/api/unsubscribe', 
-  [
-    body('email').isEmail().withMessage('Invalid email').normalizeEmail()
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: errors.array() 
-      });
-    }
-
-    try {
-      const { email } = req.body;
-
-      const result = await Subscriber.findOneAndUpdate(
-        { email, unsubscribed: false },
-        { $set: { unsubscribed: true } },
-        { new: true }
-      );
-
-      if (!result) {
-        return res.status(404).json({ 
-          error: 'No active subscription found for this email'
-        });
-      }
-
-      res.status(200).json({ 
-        success: true,
-        message: 'You have been unsubscribed successfully'
-      });
-
-    } catch (err) {
-      logger.error('Unsubscribe error:', err);
-      res.status(500).json({ 
-        error: 'Unsubscribe failed',
-        ...(process.env.NODE_ENV === 'development' && { 
-          details: err.message
-        })
-      });
-    }
-  }
-);
-
+}
 
 // ======================
 // API ROUTES
 // ======================
 
-// Health Check Endpoint
+// Health Check
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
@@ -357,7 +286,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Contact Form Endpoint
+// Contact Form
 app.post('/api/contact', 
   [
     body('name').trim().notEmpty().withMessage('Name is required').escape(),
@@ -375,11 +304,8 @@ app.post('/api/contact',
 
     try {
       const { name, email, message } = req.body;
-
-      // Save to database (with error handling)
       const newContact = await Contact.create({ name, email, message });
 
-      // Async email sending (don't block response)
       transporter.sendMail({
         from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
         to: process.env.ADMIN_EMAIL,
@@ -412,6 +338,150 @@ app.post('/api/contact',
         ...(process.env.NODE_ENV === 'development' && { 
           details: err.message,
           stack: err.stack 
+        })
+      });
+    }
+  }
+);
+
+// Newsletter Subscription
+app.post('/api/subscribe', 
+  [
+    body('email').isEmail().withMessage('Invalid email').normalizeEmail()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
+    }
+
+    try {
+      const { email } = req.body;
+
+      // Check if already subscribed
+      const existingSubscriber = await Subscriber.findOne({ email });
+      if (existingSubscriber) {
+        if (existingSubscriber.unsubscribed) {
+          // Resubscribe if previously unsubscribed
+          existingSubscriber.unsubscribed = false;
+          existingSubscriber.unsubscribedAt = undefined;
+          await existingSubscriber.save();
+          
+          await sendThankYouEmail(email, true);
+          
+          return res.status(200).json({ 
+            success: true,
+            message: 'Welcome back! You have been resubscribed.'
+          });
+        }
+        return res.status(200).json({ 
+          success: true,
+          message: 'You are already subscribed!'
+        });
+      }
+
+      // Create new subscriber
+      await Subscriber.create({ email });
+
+      // Send welcome email
+      await sendThankYouEmail(email, false);
+
+      res.status(201).json({ 
+        success: true,
+        message: 'Thank you for subscribing! Please check your email.'
+      });
+
+    } catch (err) {
+      if (err.code === 11000) {
+        return res.status(200).json({ 
+          success: true,
+          message: 'You are already subscribed!'
+        });
+      }
+      
+      logger.error('Subscription error:', err);
+      res.status(500).json({ 
+        error: 'Subscription failed',
+        ...(process.env.NODE_ENV === 'development' && { 
+          details: err.message
+        })
+      });
+    }
+  }
+);
+
+// Unsubscribe (Token-based)
+app.post('/api/unsubscribe', 
+  [
+    body('token').optional().isString().trim(),
+    body('email').optional().isEmail().normalizeEmail()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
+    }
+
+    try {
+      const { token, email } = req.body;
+      let query;
+
+      if (token) {
+        query = { unsubscribeToken: token };
+      } else if (email) {
+        query = { email };
+      } else {
+        return res.status(400).json({
+          error: 'Either token or email is required'
+        });
+      }
+
+      const result = await Subscriber.findOneAndUpdate(
+        { ...query, unsubscribed: false },
+        { 
+          $set: { 
+            unsubscribed: true,
+            unsubscribedAt: new Date()
+          } 
+        },
+        { new: true }
+      );
+
+      if (!result) {
+        return res.status(404).json({ 
+          error: 'No active subscription found'
+        });
+      }
+
+      // Send confirmation email
+      await transporter.sendMail({
+        from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
+        to: result.email,
+        subject: 'You have been unsubscribed',
+        html: `
+          <p>You have successfully unsubscribed from NotebookForU emails.</p>
+          <p><a href="${process.env.FRONTEND_URL}/resubscribe">Click here</a> to resubscribe.</p>
+        `,
+        text: `You have been unsubscribed. Visit ${process.env.FRONTEND_URL}/resubscribe to resubscribe.`
+      });
+
+      res.status(200).json({ 
+        success: true,
+        message: 'Unsubscribed successfully'
+      });
+
+    } catch (err) {
+      logger.error('Unsubscribe error:', err);
+      res.status(500).json({ 
+        error: 'Unsubscribe failed',
+        ...(process.env.NODE_ENV === 'development' && { 
+          details: err.message
         })
       });
     }
@@ -475,13 +545,9 @@ const shutdown = (signal) => {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-
-// Handle unhandled rejections
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
-
-// Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught Exception:', err);
   shutdown('uncaughtException');
