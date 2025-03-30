@@ -414,81 +414,113 @@ app.post('/api/subscribe',
   }
 );
 
-// Unsubscribe (Token-based)
+// Unsubscribe (Token or Email-based)
 app.post('/api/unsubscribe', 
   [
-    body('token').optional().isString().trim(),
+    body('token').optional().isString().trim().escape(),
     body('email').optional().isEmail().normalizeEmail()
   ],
   async (req, res) => {
+    // Input validation
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ 
         error: 'Validation failed',
-        details: errors.array() 
+        details: errors.array().map(e => ({
+          param: e.param,
+          message: e.msg,
+          value: e.value
+        }))
       });
     }
 
     try {
       const { token, email } = req.body;
-      let query;
-
+      
+      // Build query for active subscriptions
+      let query = { unsubscribed: false };
       if (token) {
-        query = { unsubscribeToken: token };
+        query.unsubscribeToken = token;
       } else if (email) {
-        query = { email };
+        query.email = email;
       } else {
         return res.status(400).json({
           error: 'Either token or email is required'
         });
       }
 
-      const result = await Subscriber.findOneAndUpdate(
-        { ...query, unsubscribed: false },
+      // Update subscription status
+      const updatedSubscriber = await Subscriber.findOneAndUpdate(
+        query,
         { 
           $set: { 
             unsubscribed: true,
-            unsubscribedAt: new Date()
+            unsubscribedAt: new Date(),
+            lastActionAt: new Date() // Optional tracking field
           } 
         },
-        { new: true }
+        { 
+          new: true,
+          projection: { email: 1 } // Only return email field
+        }
       );
 
-      if (!result) {
+      if (!updatedSubscriber) {
         return res.status(404).json({ 
-          error: 'No active subscription found'
+          error: 'No active subscription found',
+          suggestion: token 
+            ? 'The unsubscribe link may have expired' 
+            : 'Email may already be unsubscribed'
         });
       }
 
-      // Send confirmation email
-      await transporter.sendMail({
-        from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
-        to: result.email,
-        subject: 'You have been unsubscribed',
+      // Send confirmation email (async - don't await)
+      transporter.sendMail({
+        from: `"NotebookForU" <${process.env.EMAIL_FROM}>`,
+        to: updatedSubscriber.email,
+        subject: 'Unsubscription confirmed',
         html: `
-          <p>You have successfully unsubscribed from NotebookForU emails.</p>
-          <p><a href="${process.env.FRONTEND_URL}/resubscribe">Click here</a> to resubscribe.</p>
+          <h2>You're unsubscribed</h2>
+          <p>We've removed ${updatedSubscriber.email} from our mailing list.</p>
+          <p>Change your mind? <a href="${process.env.FRONTEND_URL}/resubscribe?email=${encodeURIComponent(updatedSubscriber.email)}">Resubscribe here</a>.</p>
+          <hr>
+          <small>NotebookForU Team</small>
         `,
-        text: `You have been unsubscribed. Visit ${process.env.FRONTEND_URL}/resubscribe to resubscribe.`
+        text: `You've been unsubscribed (${updatedSubscriber.email}).\n\nResubscribe: ${process.env.FRONTEND_URL}/resubscribe?email=${encodeURIComponent(updatedSubscriber.email)}`
+      }).catch(emailError => {
+        logger.error('Confirmation email failed:', emailError);
       });
 
+      // Successful response
       res.status(200).json({ 
         success: true,
-        message: 'Unsubscribed successfully'
+        message: 'Unsubscribed successfully',
+        email: updatedSubscriber.email,
+        timestamp: new Date().toISOString()
       });
 
     } catch (err) {
-      logger.error('Unsubscribe error:', err);
+      logger.error('Unsubscribe error:', {
+        error: err.message,
+        stack: err.stack,
+        request: {
+          body: req.body,
+          headers: req.headers
+        }
+      });
+      
       res.status(500).json({ 
         error: 'Unsubscribe failed',
-        ...(process.env.NODE_ENV === 'development' && { 
-          details: err.message
+        ...(process.env.NODE_ENV !== 'production' && {
+          debug: {
+            message: err.message,
+            stack: err.stack.split('\n')
+          }
         })
       });
     }
   }
 );
-
 // ======================
 // ERROR HANDLING
 // ======================
