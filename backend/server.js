@@ -46,7 +46,8 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
   'https://notebookforu.vercel.app',
   'http://localhost:3000',
-  'http://127.0.0.1:3000'
+  'http://127.0.0.1:3000',
+  'http://localhost:3001' // Add this line
 ];
 
 app.use(cors({
@@ -126,6 +127,33 @@ const connectDB = async () => {
 
 connectDB();
 
+// ======================
+// EMAIL CONFIGURATION
+// ======================
+
+// Email Transporter with Connection Pooling
+const transporter = nodemailer.createTransport({
+  service: process.env.EMAIL_SERVICE || 'gmail',
+  pool: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: process.env.NODE_ENV === 'production' // Strict TLS in prod
+  }
+});
+
+// Verify email connection on startup
+transporter.verify((error) => {
+  if (error) {
+    logger.error('Email transporter error:', error);
+  } else {
+    logger.info('Email transporter ready');
+  }
+});
+
+
 // Mongoose Models with Indexes
 const contactSchema = new mongoose.Schema({
   name: { 
@@ -156,32 +184,163 @@ const contactSchema = new mongoose.Schema({
 });
 
 const Contact = mongoose.model('Contact', contactSchema);
-
-// ======================
-// EMAIL CONFIGURATION
-// ======================
-
-// Email Transporter with Connection Pooling
-const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE || 'gmail',
-  pool: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+// Add this new Mongoose model near your other models (after Contact model)
+const subscriberSchema = new mongoose.Schema({
+  email: { 
+    type: String, 
+    required: [true, 'Email is required'],
+    unique: true,
+    index: true,
+    validate: {
+      validator: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+      message: props => `${props.value} is not a valid email!`
+    }
   },
-  tls: {
-    rejectUnauthorized: process.env.NODE_ENV === 'production' // Strict TLS in prod
+  subscribedAt: { 
+    type: Date, 
+    default: Date.now,
+    index: true
+  },
+  unsubscribed: {
+    type: Boolean,
+    default: false
   }
 });
 
-// Verify email connection on startup
-transporter.verify((error) => {
-  if (error) {
-    logger.error('Email transporter error:', error);
-  } else {
-    logger.info('Email transporter ready');
+const Subscriber = mongoose.model('Subscriber', subscriberSchema);
+
+// Add this new route after your other API routes (before the 404 handler)
+app.post('/api/subscribe', 
+  [
+    body('email').isEmail().withMessage('Invalid email').normalizeEmail()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
+    }
+
+    try {
+      const { email } = req.body;
+
+      // Check if already subscribed
+      const existingSubscriber = await Subscriber.findOne({ email });
+      if (existingSubscriber) {
+        if (existingSubscriber.unsubscribed) {
+          // Resubscribe if previously unsubscribed
+          existingSubscriber.unsubscribed = false;
+          await existingSubscriber.save();
+          return res.status(200).json({ 
+            success: true,
+            message: 'Welcome back! You have been resubscribed.'
+          });
+        }
+        return res.status(200).json({ 
+          success: true,
+          message: 'You are already subscribed!'
+        });
+      }
+
+      // Create new subscriber
+      await Subscriber.create({ email });
+
+      // Send welcome email (async)
+      transporter.sendMail({
+        from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Welcome to NotebookForU!',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #4f46e5;">Welcome to NotebookForU!</h2>
+            <p>Thank you for subscribing to our newsletter.</p>
+            <p>You'll be the first to know about:</p>
+            <ul style="margin-left: 20px;">
+              <li>New notebook designs</li>
+              <li>Exclusive offers</li>
+              <li>Special promotions</li>
+            </ul>
+            <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
+              If you wish to unsubscribe at any time, simply reply to this email.
+            </p>
+          </div>
+        `
+      }).catch(emailError => {
+        logger.error('Welcome email sending failed:', emailError);
+      });
+
+      res.status(201).json({ 
+        success: true,
+        message: 'Thank you for subscribing!'
+      });
+
+    } catch (err) {
+      if (err.code === 11000) { // MongoDB duplicate key error
+        return res.status(200).json({ 
+          success: true,
+          message: 'You are already subscribed!'
+        });
+      }
+      
+      logger.error('Subscription error:', err);
+      res.status(500).json({ 
+        error: 'Subscription failed',
+        ...(process.env.NODE_ENV === 'development' && { 
+          details: err.message
+        })
+      });
+    }
   }
-});
+);
+
+// Add unsubscribe endpoint
+app.post('/api/unsubscribe', 
+  [
+    body('email').isEmail().withMessage('Invalid email').normalizeEmail()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
+    }
+
+    try {
+      const { email } = req.body;
+
+      const result = await Subscriber.findOneAndUpdate(
+        { email, unsubscribed: false },
+        { $set: { unsubscribed: true } },
+        { new: true }
+      );
+
+      if (!result) {
+        return res.status(404).json({ 
+          error: 'No active subscription found for this email'
+        });
+      }
+
+      res.status(200).json({ 
+        success: true,
+        message: 'You have been unsubscribed successfully'
+      });
+
+    } catch (err) {
+      logger.error('Unsubscribe error:', err);
+      res.status(500).json({ 
+        error: 'Unsubscribe failed',
+        ...(process.env.NODE_ENV === 'development' && { 
+          details: err.message
+        })
+      });
+    }
+  }
+);
+
 
 // ======================
 // API ROUTES

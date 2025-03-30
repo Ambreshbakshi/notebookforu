@@ -1,7 +1,7 @@
 "use client";
 import { FaInstagram, FaEnvelope, FaWhatsapp, FaFacebook } from 'react-icons/fa';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiCheck, FiMail } from 'react-icons/fi';
 
 const Footer = () => {
@@ -12,10 +12,18 @@ const Footer = () => {
     error: null 
   });
 
+  useEffect(() => {
+    if (status.success) {
+      const timer = setTimeout(() => {
+        setStatus(prev => ({ ...prev, success: false }));
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [status.success]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validation
     if (!email) {
       setStatus({ ...status, error: 'Email is required' });
       return;
@@ -32,21 +40,22 @@ const Footer = () => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(response.statusText);
+        throw new Error(data.error || response.statusText);
       }
 
       setStatus({ loading: false, success: true, error: null });
       setEmail('');
-      setTimeout(() => setStatus({ ...status, success: false }), 5000);
     } catch (err) {
       setStatus({ 
         loading: false, 
         success: false, 
-        error: 'Subscription failed. Please try again.' 
+        error: err.message || 'Subscription failed. Please try again.',
       });
     }
   };
@@ -55,16 +64,14 @@ const Footer = () => {
     <footer className="bg-gray-900 text-white py-12 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          
-          {/* Newsletter */}
+          {/* Newsletter Section */}
           <div className="space-y-4">
             <h3 className="text-xl font-semibold">Newsletter</h3>
             <p className="text-gray-400">
               Subscribe for updates and exclusive offers
             </p>
-            
             {status.success ? (
-              <div className="flex items-center gap-2 text-green-400">
+              <div className="flex items-center gap-2 text-green-400" aria-live="polite">
                 <FiCheck /> Subscribed successfully!
               </div>
             ) : (
@@ -78,13 +85,14 @@ const Footer = () => {
                     placeholder="Your email"
                     className="w-full pl-10 pr-4 py-2 bg-gray-800 rounded border border-gray-700 focus:ring-2 focus:ring-blue-500"
                     disabled={status.loading}
+                    required
                   />
                 </div>
-                
                 {status.error && (
-                  <p className="text-red-400 text-sm">{status.error}</p>
+                  <p className="text-red-400 text-sm" aria-live="assertive">
+                    {status.error}
+                  </p>
                 )}
-                
                 <button
                   type="submit"
                   disabled={status.loading}
@@ -115,8 +123,7 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-              <Link 
-  href="/notebook-gallery#customization" >
+                <Link href="/notebook-gallery#customization" className="text-gray-400 hover:text-white transition">
                   Custom Orders
                 </Link>
               </li>

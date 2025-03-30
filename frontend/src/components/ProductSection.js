@@ -21,6 +21,7 @@ const ProductSection = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Prepare all product types
   const notebooks = Object.values(productData.notebooks).map((item) => ({
     ...item,
     type: "notebook",
@@ -29,7 +30,20 @@ const ProductSection = () => {
     ...item,
     type: "diary",
   }));
-  const products = [...notebooks, ...diaries];
+  const combinations = Object.values(productData.combinations || {}).map((item) => ({
+    ...item,
+    type: "combination",
+  }));
+  
+  // Combine all products and sort by type for better display
+  const products = [...notebooks, ...diaries, ...combinations].sort((a, b) => {
+    // Show combinations first, then notebooks, then diaries
+    if (a.type === 'combination') return -1;
+    if (b.type === 'combination') return 1;
+    if (a.type === 'notebook') return -1;
+    if (b.type === 'notebook') return 1;
+    return 0;
+  });
 
   const checkScrollPosition = () => {
     if (!containerRef.current) return;
@@ -67,7 +81,6 @@ const ProductSection = () => {
     const handleTouchStart = (e) => {
       startX = e.touches[0].clientX;
       isScrolling = true;
-      // Disable vertical scroll only for this container
       container.style.touchAction = 'pan-y';
       container.style.overflowY = 'hidden';
     };
@@ -86,7 +99,6 @@ const ProductSection = () => {
     const handleTouchEnd = () => {
       isScrolling = false;
       checkScrollPosition();
-      // Re-enable default touch behavior
       container.style.touchAction = '';
       container.style.overflowY = '';
     };
@@ -112,7 +124,6 @@ const ProductSection = () => {
     <section className="py-8 px-4">
       <h1 className="text-center text-xl md:text-2xl font-bold mb-4 md:mb-6">Our Products</h1>
       
-      {/* Container with vertical scroll disabled only for this section */}
       <div 
         className="relative flex items-center"
         style={{
@@ -143,7 +154,7 @@ const ProductSection = () => {
             WebkitOverflowScrolling: 'touch',
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
-            overflowY: 'hidden' // Disable vertical scroll
+            overflowY: 'hidden'
           }}
         >
           {products.map((product) => (
@@ -151,13 +162,13 @@ const ProductSection = () => {
               key={`${product.type}-${product.id}`}
               className={`flex-shrink-0 ${
                 isMobile 
-                  ? "w-[60vw] snap-center"  // Wider mobile size for A4 proportions
-                  : "w-[280px]" // Fixed desktop size for A4
+                  ? "w-[60vw] snap-center" 
+                  : "w-[280px]"
               }`}
             >
               <Link href={`/${product.type}/${product.id}`} className="block h-full">
                 <div className="border rounded-lg shadow-sm overflow-hidden bg-white h-full flex flex-col">
-                  {/* A4 aspect ratio container (210:297 ≈ 1:1.414) */}
+                  {/* Product image with special badge for combinations */}
                   <div className="relative" style={{ paddingBottom: '141.4%' }}>
                     <Image 
                       src={product.gridImage} 
@@ -167,10 +178,30 @@ const ProductSection = () => {
                       className="object-contain"
                       priority={false}
                     />
+                    {product.type === 'combination' && (
+                      <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-md text-xs font-bold">
+                        COMBO
+                      </div>
+                    )}
                   </div>
                   <div className="p-3 text-center flex-grow flex flex-col justify-center">
-                    <h3 className="text-sm font-medium line-clamp-1">{product.name}</h3>
-                    <p className="text-gray-600 text-sm mt-1">Rs. {product.price}</p>
+                    <h3 className="text-sm font-medium line-clamp-1">
+                      {product.type === 'combination' ? (
+                        <span className="text-blue-600">{product.name}</span>
+                      ) : (
+                        product.name
+                      )}
+                    </h3>
+                    <p className="text-gray-600 text-sm mt-1">
+                      {product.type === 'combination' ? (
+                        <span className="text-green-600 font-semibold">{product.price}</span>
+                      ) : (
+                        `Rs. ${product.price}`
+                      )}
+                    </p>
+                    {product.type === 'combination' && (
+                      <p className="text-xs text-gray-500 mt-1">Special value pack</p>
+                    )}
                   </div>
                 </div>
               </Link>
