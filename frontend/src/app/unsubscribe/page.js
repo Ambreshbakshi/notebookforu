@@ -2,15 +2,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
-// Always use absolute URL in production AND development
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 function UnsubscribeContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const token = searchParams.get('token');
   const email = searchParams.get('email');
   
@@ -24,17 +24,20 @@ function UnsubscribeContent() {
     const processUnsubscribe = async () => {
       try {
         if (!token && !email) {
-          throw new Error('Missing unsubscribe token or email');
+          setStatus({
+            loading: false,
+            success: false,
+            message: 'Missing unsubscribe link. Please enter your email below.'
+          });
+          return;
         }
 
         const response = await fetch(`${API_BASE_URL}/api/unsubscribe`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, email }),
-          credentials: 'include' // Needed if using cookies/auth
+          body: JSON.stringify({ token, email })
         });
 
-        // More robust response handling
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(
@@ -57,7 +60,7 @@ function UnsubscribeContent() {
           success: false,
           message: error.message.includes('Failed to fetch')
             ? 'Could not connect to server. Please try again later.'
-            : error.message.replace(/^Error: /, '') // Clean error messages
+            : error.message.replace(/^Error: /, '')
         });
       }
     };
@@ -84,15 +87,17 @@ function UnsubscribeContent() {
           <Link
             href="/"
             className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-            prefetch={false} // Disable prefetch for this navigation
+            prefetch={false}
           >
             Return to Homepage
           </Link>
         ) : !status.loading && (
           <div className="space-y-4">
-            <div className="p-3 bg-red-50 text-red-700 rounded text-sm">
-              Couldn't process automatic unsubscribe
-            </div>
+            {!token && !email && (
+              <div className="p-3 bg-red-50 text-red-700 rounded text-sm">
+                Couldn't process automatic unsubscribe
+              </div>
+            )}
             
             <form 
               onSubmit={async (e) => {
@@ -106,7 +111,7 @@ function UnsubscribeContent() {
                   });
                   return;
                 }
-                window.location.href = `/unsubscribe?email=${encodeURIComponent(formEmail)}`;
+                router.push(`/unsubscribe?email=${encodeURIComponent(formEmail)}`);
               }}
               className="space-y-3"
             >
@@ -120,8 +125,9 @@ function UnsubscribeContent() {
                   name="email"
                   placeholder="your@email.com"
                   required
+                  autoFocus
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  pattern="[^@\s]+@[^@\s]+\.[^@\s]+" // HTML5 validation
+                  pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
                 />
               </div>
               <button

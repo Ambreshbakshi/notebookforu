@@ -72,3 +72,11 @@
 {"level":"info","message":"Email transporter ready","timestamp":"2025-03-30T17:49:21.992Z"}
 {"level":"info","message":"Welcome email sent to anupmabakshi38682@gmail.com","timestamp":"2025-03-30T18:01:26.457Z"}
 {"level":"info","message":"Welcome email sent to ambreshbakshi@gmail.com","timestamp":"2025-03-30T18:21:22.353Z"}
+{"level":"info","message":"Welcome email sent to ambreshbakshi@gmail.com","timestamp":"2025-03-30T18:47:30.719Z"}
+{"level":"info","message":"SIGINT received. Shutting down gracefully...","timestamp":"2025-03-30T19:21:05.493Z"}
+{"level":"info","message":"Server running in production mode on port 3000","timestamp":"2025-03-30T19:21:29.705Z"}
+{"level":"info","message":"Allowed CORS origins: https://notebookforu.vercel.app, https://notebookforu.vercel.app, http://localhost:3000, http://127.0.0.1:3000, http://localhost:3001, https://notebookforu-backend.onrender.com, /\\.vercel\\.app$/","timestamp":"2025-03-30T19:21:29.707Z"}
+{"level":"info","message":"MongoDB connected successfully","timestamp":"2025-03-30T19:21:30.276Z"}
+{"level":"info","message":"Email transporter ready","timestamp":"2025-03-30T19:21:32.069Z"}
+{"level":"info","message":"Welcome email sent to ambreshbakshi@gmail.com","timestamp":"2025-03-30T19:23:32.075Z"}
+{"level":"info","message":"SIGINT received. Shutting down gracefully...","timestamp":"2025-03-30T19:50:34.248Z"}
