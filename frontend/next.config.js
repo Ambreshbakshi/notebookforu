@@ -4,6 +4,12 @@ const nextConfig = {
   images: {
     unoptimized: true, // Disables Vercel's default image optimization
     domains: ['notebookforu-backend.onrender.com'], // Allow backend image URLs
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'notebookforu-backend.onrender.com',
+      },
+    ],
   },
 
   // Build settings
@@ -15,9 +21,12 @@ const nextConfig = {
   // Enable React Strict Mode
   reactStrictMode: true,
 
-  // Vercel-specific optimizations
+  // Experimental features
   experimental: {
-    serverActions: true, // Enable if using Next.js 13+ server actions
+    serverActions: { // Corrected format - must be an object
+      bodySizeLimit: '2mb', // Recommended to set a size limit
+    },
+    // Other experimental features can be added here
   }
 };
 

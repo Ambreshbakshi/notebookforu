@@ -4,8 +4,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Suspense } from 'react';
 
-export default function UnsubscribePage() {
+function UnsubscribeContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const email = searchParams.get('email');
@@ -26,7 +27,7 @@ export default function UnsubscribePage() {
         // Use absolute URL in production, relative in development
         const apiUrl = process.env.NODE_ENV === 'production'
           ? `${process.env.NEXT_PUBLIC_API_URL}/api/unsubscribe`
-          : 'http://localhost:3000/api/unsubscribe';
+          : '/api/unsubscribe'; // Changed to relative path for consistency
 
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -139,5 +140,17 @@ export default function UnsubscribePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function UnsubscribePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    }>
+      <UnsubscribeContent />
+    </Suspense>
   );
 }
