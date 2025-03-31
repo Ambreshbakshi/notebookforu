@@ -29,10 +29,23 @@ const Footer = () => {
     }
   }, [status.success, status.resubscribed, status.alreadySubscribed]);
 
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Reset all states
+    // Client-side validation
+    if (!email || !validateEmail(email)) {
+      setStatus({
+        loading: false,
+        validationError: 'Please enter a valid email address'
+      });
+      return;
+    }
+
     setStatus({ 
       loading: true, 
       success: false,
@@ -45,45 +58,38 @@ const Footer = () => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscribe`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ email }),
       });
 
       const data = await response.json();
 
-      if (response.status === 400) {
-        // Validation error
-        const firstError = data.details?.[0]?.msg || 'Invalid email format';
-        setStatus(prev => ({
-          ...prev,
-          loading: false,
-          validationError: firstError
-        }));
-        return;
-      }
-
       if (!response.ok) {
+        if (response.status === 400) {
+          const firstError = data.details?.[0]?.msg || 'Invalid email format';
+          throw new Error(firstError);
+        }
         throw new Error(data.error || 'Subscription failed');
       }
 
       // Handle different success cases
       if (response.status === 201) {
-        // New subscription
         setStatus({ 
           loading: false, 
           success: true,
           error: null
         });
         setEmail('');
-      } else if (data.message.includes('Welcome back')) {
-        // Resubscribed
+      } else if (data.message?.includes('Welcome back')) {
         setStatus({ 
           loading: false, 
           resubscribed: true,
           error: null
         });
-      } else if (data.message.includes('already subscribed')) {
-        // Already subscribed
+      } else if (data.message?.includes('already subscribed')) {
         setStatus({ 
           loading: false, 
           alreadySubscribed: true,
@@ -93,13 +99,14 @@ const Footer = () => {
     } catch (err) {
       setStatus({ 
         loading: false, 
-        error: err.message || 'Subscription failed. Please try again.'
+        error: err.message || 'Subscription failed. Please try again.',
+        validationError: err.message.includes('email') ? err.message : null
       });
     }
   };
 
   return (
-    <footer className="bg-gray-900 text-white py-12 px-4">
+    <footer className="bg-gray-900 text-white py-12 px-4" role="contentinfo">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Newsletter Section */}
@@ -110,40 +117,75 @@ const Footer = () => {
             </p>
             
             {status.success ? (
-              <div className="flex items-center gap-2 text-green-400" aria-live="polite">
-                <FiCheck /> Thank you for subscribing! Please check your email.
+              <div 
+                className="flex items-center gap-2 text-green-400" 
+                aria-live="polite"
+                role="alert"
+              >
+                <FiCheck aria-hidden="true" /> 
+                <span>Thank you for subscribing! Please check your email.</span>
               </div>
             ) : status.resubscribed ? (
-              <div className="flex items-center gap-2 text-blue-400" aria-live="polite">
-                <FiCheck /> Welcome back! You have been resubscribed.
+              <div 
+                className="flex items-center gap-2 text-blue-400" 
+                aria-live="polite"
+                role="alert"
+              >
+                <FiCheck aria-hidden="true" /> 
+                <span>Welcome back! You have been resubscribed.</span>
               </div>
             ) : status.alreadySubscribed ? (
-              <div className="flex items-center gap-2 text-yellow-400" aria-live="polite">
-                <FiCheck /> You are already subscribed!
+              <div 
+                className="flex items-center gap-2 text-yellow-400" 
+                aria-live="polite"
+                role="alert"
+              >
+                <FiCheck aria-hidden="true" /> 
+                <span>You are already subscribed!</span>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-2">
+              <form onSubmit={handleSubmit} className="space-y-2" noValidate>
                 <div className="relative">
-                  <FiMail className="absolute left-3 top-3 text-gray-400" />
+                  <FiMail className="absolute left-3 top-3 text-gray-400" aria-hidden="true" />
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (status.validationError) {
+                        setStatus(prev => ({
+                          ...prev,
+                          validationError: null
+                        }));
+                      }
+                    }}
                     placeholder="Your email"
-                    className="w-full pl-10 pr-4 py-2 bg-gray-800 rounded border border-gray-700 focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-4 py-2 bg-gray-800 rounded border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                     disabled={status.loading}
                     required
+                    aria-required="true"
+                    aria-invalid={!!status.validationError}
+                    aria-describedby={status.validationError ? "email-error" : undefined}
                   />
                 </div>
                 
                 {status.validationError && (
-                  <p className="text-red-400 text-sm" aria-live="assertive">
+                  <p 
+                    id="email-error"
+                    className="text-red-400 text-sm" 
+                    aria-live="assertive"
+                    role="alert"
+                  >
                     {status.validationError}
                   </p>
                 )}
                 
                 {status.error && !status.validationError && (
-                  <p className="text-red-400 text-sm" aria-live="assertive">
+                  <p 
+                    className="text-red-400 text-sm" 
+                    aria-live="assertive"
+                    role="alert"
+                  >
                     {status.error}
                   </p>
                 )}
@@ -155,9 +197,18 @@ const Footer = () => {
                     status.loading 
                       ? 'bg-blue-700 cursor-not-allowed' 
                       : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
+                  } flex items-center justify-center`}
+                  aria-busy={status.loading}
                 >
-                  {status.loading ? 'Subscribing...' : 'Subscribe'}
+                  {status.loading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Subscribing...
+                    </>
+                  ) : 'Subscribe'}
                 </button>
               </form>
             )}
@@ -168,17 +219,26 @@ const Footer = () => {
             <h3 className="text-xl font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/about-us" className="text-gray-400 hover:text-white transition">
+                <Link 
+                  href="/about-us" 
+                  className="text-gray-400 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
+                >
                   About Us
                 </Link>
               </li>
               <li>
-                <Link href="/notebook-gallery" className="text-gray-400 hover:text-white transition">
+                <Link 
+                  href="/notebook-gallery" 
+                  className="text-gray-400 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
+                >
                   Notebook Gallery
                 </Link>
               </li>
               <li>
-                <Link href="/notebook-gallery#customization" className="text-gray-400 hover:text-white transition">
+                <Link 
+                  href="/notebook-gallery#customization" 
+                  className="text-gray-400 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
+                >
                   Custom Orders
                 </Link>
               </li>
@@ -189,8 +249,24 @@ const Footer = () => {
           <div>
             <h3 className="text-xl font-semibold mb-4">Contact Us</h3>
             <div className="space-y-2 text-gray-400">
-              <p>Email: contact@notebookforu.com</p>
-              <p>Phone: {process.env.NEXT_PUBLIC_CONTACT_PHONE}</p>
+              <p>
+                Email:{' '}
+                <a 
+                  href="mailto:contact@notebookforu.com" 
+                  className="hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
+                >
+                  contact@notebookforu.com
+                </a>
+              </p>
+              <p>
+                Phone:{' '}
+                <a 
+                  href={`tel:${process.env.NEXT_PUBLIC_CONTACT_PHONE}`} 
+                  className="hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
+                >
+                  {process.env.NEXT_PUBLIC_CONTACT_PHONE || '+1 (234) 567-8900'}
+                </a>
+              </p>
               <p>Hours: Mon-Fri, 9AM-6PM</p>
             </div>
           </div>
@@ -202,36 +278,36 @@ const Footer = () => {
               <a 
                 href="https://instagram.com/notebookforu" 
                 target="_blank" 
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="text-gray-400 hover:text-pink-500 transition"
+                rel="noopener noreferrer nofollow"
+                aria-label="Instagram (opens in new tab)"
+                className="text-gray-400 hover:text-pink-500 transition focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-full p-1"
               >
-                <FaInstagram className="text-2xl" />
+                <FaInstagram className="text-2xl" aria-hidden="true" />
               </a>
               <a 
                 href="https://facebook.com/notebookforu" 
                 target="_blank" 
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="text-gray-400 hover:text-blue-500 transition"
+                rel="noopener noreferrer nofollow"
+                aria-label="Facebook (opens in new tab)"
+                className="text-gray-400 hover:text-blue-500 transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-full p-1"
               >
-                <FaFacebook className="text-2xl" />
+                <FaFacebook className="text-2xl" aria-hidden="true" />
               </a>
               <a 
-                href="https://wa.me/919876543210" 
+                href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '1234567890'}`} 
                 target="_blank" 
-                rel="noopener noreferrer"
-                aria-label="WhatsApp"
-                className="text-gray-400 hover:text-green-500 transition"
+                rel="noopener noreferrer nofollow"
+                aria-label="WhatsApp (opens in new tab)"
+                className="text-gray-400 hover:text-green-500 transition focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-full p-1"
               >
-                <FaWhatsapp className="text-2xl" />
+                <FaWhatsapp className="text-2xl" aria-hidden="true" />
               </a>
               <a 
                 href="mailto:contact@notebookforu.com"
-                aria-label="Email"
-                className="text-gray-400 hover:text-red-500 transition"
+                aria-label="Send email"
+                className="text-gray-400 hover:text-red-500 transition focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-full p-1"
               >
-                <FaEnvelope className="text-2xl" />
+                <FaEnvelope className="text-2xl" aria-hidden="true" />
               </a>
             </div>
           </div>
@@ -239,6 +315,21 @@ const Footer = () => {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
           <p>© {new Date().getFullYear()} NotebookForU. All rights reserved.</p>
+          <p className="mt-2 text-sm">
+            <Link 
+              href="/privacy-policy" 
+              className="hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
+            >
+              Privacy Policy
+            </Link>
+            {' | '}
+            <Link 
+              href="/terms-of-service" 
+              className="hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
+            >
+              Terms of Service
+            </Link>
+          </p>
         </div>
       </div>
     </footer>

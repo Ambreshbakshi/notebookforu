@@ -1,4 +1,3 @@
-// src/app/unsubscribe/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,7 +27,8 @@ function UnsubscribeContent() {
     success: false,
     error: null,
     email: null,
-    isResubscribable: false
+    isResubscribable: false,
+    message: ''
   });
 
   useEffect(() => {
@@ -41,13 +41,20 @@ function UnsubscribeContent() {
         setStatus(prev => ({
           ...prev,
           loading: true,
-          error: null
+          error: null,
+          message: 'Processing unsubscribe request...'
         }));
 
         const response = await fetch(`${API_BASE_URL}/api/unsubscribe`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, email: emailParam }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ 
+            token, 
+            email: emailParam 
+          }),
           signal: abortController.signal
         });
 
@@ -56,7 +63,7 @@ function UnsubscribeContent() {
         if (!response.ok) {
           // Handle different error cases
           if (response.status === 400) {
-            const errorMsg = data.details?.[0]?.message || 
+            const errorMsg = data.details?.[0]?.msg || 
                            data.error || 
                            'Invalid request';
             throw new Error(errorMsg);
@@ -73,7 +80,7 @@ function UnsubscribeContent() {
           success: true,
           error: null,
           email: data.email || emailParam,
-          isResubscribable: true,
+          isResubscribable: !!data.resubscribeToken,
           message: data.message || 'You have been successfully unsubscribed.'
         });
       } catch (error) {
@@ -105,6 +112,9 @@ function UnsubscribeContent() {
     if (error.includes('Failed to fetch')) {
       return 'Could not connect to server. Please try again later.';
     }
+    if (error.includes('Invalid email')) {
+      return 'Please enter a valid email address';
+    }
     return error.replace(/^Error: /, '');
   };
 
@@ -116,28 +126,70 @@ function UnsubscribeContent() {
       setStatus({
         loading: false,
         success: false,
-        error: 'Please enter a valid email address',
-        message: 'Please enter a valid email address'
+        error: 'Invalid email',
+        message: 'Please enter a valid email address',
+        email: null,
+        isResubscribable: false
       });
       return;
     }
 
-    // Update URL to trigger the useEffect
-    router.push(`/unsubscribe?email=${encodeURIComponent(email)}`);
-    setStatus(prev => ({
-      ...prev,
-      loading: true,
-      message: 'Processing unsubscribe request...'
-    }));
+    try {
+      setStatus(prev => ({
+        ...prev,
+        loading: true,
+        message: 'Processing unsubscribe request...'
+      }));
+
+      const response = await fetch(`${API_BASE_URL}/api/unsubscribe`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Unsubscribe failed');
+      }
+
+      setStatus({
+        loading: false,
+        success: true,
+        error: null,
+        email: data.email || email,
+        isResubscribable: !!data.resubscribeToken,
+        message: data.message || 'You have been successfully unsubscribed.'
+      });
+    } catch (error) {
+      setStatus({
+        loading: false,
+        success: false,
+        error: error.message,
+        email: email,
+        isResubscribable: false,
+        message: getFriendlyErrorMessage(error.message)
+      });
+    }
   };
 
   const handleResubscribe = async () => {
     try {
-      setStatus(prev => ({ ...prev, loading: true }));
+      setStatus(prev => ({ 
+        ...prev, 
+        loading: true,
+        message: 'Processing resubscribe request...'
+      }));
       
       const response = await fetch(`${API_BASE_URL}/api/subscribe`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ email: status.email }),
       });
 
@@ -159,7 +211,7 @@ function UnsubscribeContent() {
         ...status,
         loading: false,
         error: error.message,
-        message: error.message
+        message: getFriendlyErrorMessage(error.message)
       });
     }
   };
@@ -168,7 +220,11 @@ function UnsubscribeContent() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md bg-white rounded-lg shadow-md p-8">
         <div className="flex items-center mb-6">
-          <Link href="/" className="mr-2 text-gray-500 hover:text-gray-700">
+          <Link 
+            href="/" 
+            className="mr-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+            aria-label="Return to homepage"
+          >
             <FiArrowLeft className="text-xl" />
           </Link>
           <h1 className="text-2xl font-bold text-gray-800">
@@ -183,7 +239,7 @@ function UnsubscribeContent() {
         </div>
         
         {status.loading ? (
-          <div className="flex flex-col items-center py-6">
+          <div className="flex flex-col items-center py-6" aria-live="polite">
             <div 
               className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"
               aria-label="Loading"
@@ -192,19 +248,24 @@ function UnsubscribeContent() {
           </div>
         ) : status.success ? (
           <div className="space-y-4">
-            <div className={`flex items-center p-4 rounded-md ${
-              status.message.includes('resubscribed') 
-                ? 'bg-green-50 text-green-700' 
-                : 'bg-blue-50 text-blue-700'
-            }`}>
-              <FiCheck className="mr-2 text-xl" />
+            <div 
+              className={`flex items-center p-4 rounded-md ${
+                status.message.includes('resubscribed') 
+                  ? 'bg-green-50 text-green-700' 
+                  : 'bg-blue-50 text-blue-700'
+              }`}
+              role="alert"
+            >
+              <FiCheck className="mr-2 text-xl" aria-hidden="true" />
               <p>{status.message}</p>
             </div>
             
             {status.isResubscribable && (
               <button
                 onClick={handleResubscribe}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                disabled={status.loading}
+                aria-disabled={status.loading}
               >
                 Resubscribe
               </button>
@@ -212,8 +273,9 @@ function UnsubscribeContent() {
             
             <Link
               href="/"
-              className="block w-full text-center px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+              className="block w-full text-center px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               prefetch={false}
+              aria-label="Return to homepage"
             >
               Return to Homepage
             </Link>
@@ -221,46 +283,74 @@ function UnsubscribeContent() {
         ) : (
           <div className="space-y-4">
             {status.error && (
-              <div className="flex items-center p-3 bg-red-50 text-red-700 rounded-md">
-                <FiXCircle className="mr-2 text-xl" />
+              <div 
+                className="flex items-center p-3 bg-red-50 text-red-700 rounded-md"
+                role="alert"
+              >
+                <FiXCircle className="mr-2 text-xl" aria-hidden="true" />
                 <p>{status.message}</p>
               </div>
             )}
             
-            <form onSubmit={handleManualUnsubscribe} className="space-y-4">
+            <form onSubmit={handleManualUnsubscribe} className="space-y-4" noValidate>
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                   Email address
                 </label>
                 <div className="relative">
-                  <FiMail className="absolute left-3 top-3 text-gray-400" />
+                  <FiMail className="absolute left-3 top-3 text-gray-400" aria-hidden="true" />
                   <input
                     type="email"
                     id="email"
                     name="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      if (status.error) {
+                        setStatus(prev => ({
+                          ...prev,
+                          error: null,
+                          message: ''
+                        }));
+                      }
+                    }}
                     placeholder="your@email.com"
                     required
                     autoFocus={formData.manualEntry}
-                    className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     pattern={EMAIL_REGEX.source}
+                    aria-describedby={status.error ? "error-message" : undefined}
+                    aria-invalid={!!status.error}
                   />
                 </div>
               </div>
               
               <button
                 type="submit"
-                className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
-                disabled={status.loading}
-                aria-disabled={status.loading}
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                disabled={status.loading || !formData.email}
+                aria-disabled={status.loading || !formData.email}
               >
-                {status.loading ? 'Processing...' : 'Unsubscribe'}
+                {status.loading ? (
+                  <>
+                    <span className="inline-block animate-spin mr-2">↻</span>
+                    Processing...
+                  </>
+                ) : 'Unsubscribe'}
               </button>
             </form>
             
             <div className="text-center text-sm text-gray-500">
-              <p>Need help? <Link href="/contact" className="text-blue-600 hover:underline">Contact us</Link></p>
+              <p>
+                Need help?{' '}
+                <Link 
+                  href="/contact" 
+                  className="text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                  aria-label="Contact us"
+                >
+                  Contact us
+                </Link>
+              </p>
             </div>
           </div>
         )}
@@ -275,7 +365,7 @@ export default function UnsubscribePage() {
       <div className="min-h-screen flex items-center justify-center">
         <div 
           className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"
-          aria-label="Loading"
+          aria-label="Loading unsubscribe page"
         />
       </div>
     }>

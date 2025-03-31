@@ -58,7 +58,9 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.some(allowedOrigin => 
-      origin.startsWith(allowedOrigin)
+      typeof allowedOrigin === 'string' 
+        ? origin.startsWith(allowedOrigin)
+        : allowedOrigin.test(origin)
     )) {
       callback(null, true);
     } else {
@@ -73,7 +75,16 @@ app.use(cors({
 }));
 
 // Security Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:"]
+    }
+  }
+}));
 app.use(express.json({ limit: '10kb' }));
 app.use(mongoSanitize());
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
@@ -83,7 +94,9 @@ const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
   max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
   keyGenerator: (req) => {
-    return req.headers['x-forwarded-for'] || req.ip;
+    return req.headers['x-real-ip'] || 
+           req.headers['x-forwarded-for']?.split(',')[0] || 
+           req.ip;
   },
   handler: (req, res) => {
     logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
@@ -114,9 +127,10 @@ const connectDB = async () => {
       logger.info('MongoDB connected successfully');
     } catch (err) {
       retryCount++;
+      const delay = Math.min(5000 * Math.pow(2, retryCount), 30000);
       if (retryCount < maxRetries) {
-        logger.warn(`MongoDB connection failed (attempt ${retryCount}), retrying in 5 seconds...`);
-        setTimeout(connectWithRetry, 5000);
+        logger.warn(`MongoDB connection failed (attempt ${retryCount}), retrying in ${delay/1000} seconds...`);
+        setTimeout(connectWithRetry, delay);
       } else {
         logger.error('MongoDB connection error:', err);
         process.exit(1);
@@ -151,6 +165,7 @@ const transporter = nodemailer.createTransport({
 transporter.verify((error) => {
   if (error) {
     logger.error('Email transporter error:', error);
+    if (process.env.NODE_ENV === 'production') process.exit(1);
   } else {
     logger.info('Email transporter ready');
   }
@@ -198,14 +213,14 @@ const subscriberSchema = new mongoose.Schema({
       validator: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
       message: props => `${props.value} is not a valid email!`
     },
-    lowercase: true,  // Ensures consistent case handling
-    trim: true       // Removes whitespace
+    lowercase: true,
+    trim: true
   },
   subscribedAt: { 
     type: Date, 
     default: Date.now,
     index: true,
-    immutable: true  // Cannot be modified after creation
+    immutable: true
   },
   unsubscribed: {
     type: Boolean,
@@ -216,10 +231,9 @@ const subscriberSchema = new mongoose.Schema({
   unsubscribeToken: {
     type: String,
     unique: true,
-    sparse: true,    // Allows null values while maintaining uniqueness
+    sparse: true,
     default: () => crypto.randomBytes(32).toString('hex')
   },
-  // New fields for resubscribe functionality
   resubscribeToken: {
     type: String,
     unique: true,
@@ -227,19 +241,19 @@ const subscriberSchema = new mongoose.Schema({
   },
   resubscribeExpires: {
     type: Date,
-    index: { expires: '30d' }  // Auto-delete after 30 days
+    index: { expires: '30d' }
   },
   lastActionAt: {
     type: Date,
     default: Date.now
   },
-  source: {          // Optional: Track where signup came from
+  source: {
     type: String,
     enum: ['website', 'landing-page', 'api', 'manual'],
     default: 'website'
   }
 }, {
-  timestamps: true   // Adds createdAt and updatedAt automatically
+  timestamps: true
 });
 
 // Index for faster querying of active subscribers
@@ -248,7 +262,9 @@ subscriberSchema.index({
   unsubscribed: 1 
 });
 
+const Contact = mongoose.model('Contact', contactSchema);
 const Subscriber = mongoose.model('Subscriber', subscriberSchema);
+
 // ======================
 // HELPER FUNCTIONS
 // ======================
@@ -266,7 +282,7 @@ async function sendThankYouEmail(email, isResubscribe) {
         <h2 style="color: #4f46e5; text-align: center;">Welcome to NotebookForU!</h2>
         
         <p style="font-size: 16px; line-height: 1.6;">
-          Thank you for subscribing to our newsletter.
+          Thank you for ${isResubscribe ? 're' : ''}subscribing to our newsletter.
         </p>
 
         <p style="font-size: 16px; line-height: 1.6;">
@@ -290,7 +306,7 @@ async function sendThankYouEmail(email, isResubscribe) {
         </div>
       </div>
     `,
-    text: `Welcome to NotebookForU!\n\nThank you for subscribing to our newsletter.\n\nYou'll be the first to know about:\n- New notebook designs\n- Exclusive offers\n- Special promotions\n\nUnsubscribe: ${unsubscribeLink}\n\n© ${new Date().getFullYear()} NotebookForU. All rights reserved.`
+    text: `Welcome to NotebookForU!\n\nThank you for ${isResubscribe ? 're' : ''}subscribing to our newsletter.\n\nYou'll be the first to know about:\n- New notebook designs\n- Exclusive offers\n- Special promotions\n\nUnsubscribe: ${unsubscribeLink}\n\n© ${new Date().getFullYear()} NotebookForU. All rights reserved.`
   };
 
   try {
@@ -347,7 +363,7 @@ app.post('/api/contact',
             <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
             <p><strong>Message:</strong></p>
             <div style="background: #f3f4f6; padding: 1rem; border-radius: 0.5rem;">
-              ${message.replace(/\n/g, '<br>')}
+              ${message.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}
             </div>
             <p style="margin-top: 1rem;"><small>Received at: ${newContact.createdAt.toLocaleString()}</small></p>
           </div>
@@ -398,6 +414,8 @@ app.post('/api/subscribe',
           // Resubscribe if previously unsubscribed
           existingSubscriber.unsubscribed = false;
           existingSubscriber.unsubscribedAt = undefined;
+          existingSubscriber.resubscribeToken = undefined;
+          existingSubscriber.resubscribeExpires = undefined;
           await existingSubscriber.save();
           
           await sendThankYouEmail(email, true);
@@ -414,7 +432,10 @@ app.post('/api/subscribe',
       }
 
       // Create new subscriber
-      await Subscriber.create({ email });
+      const newSubscriber = await Subscriber.create({ 
+        email,
+        unsubscribeToken: crypto.randomBytes(32).toString('hex')
+      });
 
       // Send welcome email
       await sendThankYouEmail(email, false);
@@ -443,8 +464,6 @@ app.post('/api/subscribe',
   }
 );
 
-const crypto = require('crypto');
-
 // Unsubscribe (Token or Email-based)
 app.post('/api/unsubscribe', 
   [
@@ -452,7 +471,6 @@ app.post('/api/unsubscribe',
     body('email').optional().isEmail().normalizeEmail()
   ],
   async (req, res) => {
-    // Input validation
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ 
@@ -468,7 +486,6 @@ app.post('/api/unsubscribe',
     try {
       const { token, email } = req.body;
       
-      // Build query for active subscriptions
       let query = { unsubscribed: false };
       if (token) {
         query.unsubscribeToken = token;
@@ -480,11 +497,9 @@ app.post('/api/unsubscribe',
         });
       }
 
-      // Generate secure resubscribe token
       const resubscribeToken = crypto.randomBytes(32).toString('hex');
-      const resubscribeExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days expiry
+      const resubscribeExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      // Update subscription status
       const updatedSubscriber = await Subscriber.findOneAndUpdate(
         query,
         { 
@@ -496,12 +511,12 @@ app.post('/api/unsubscribe',
             lastActionAt: new Date()
           },
           $unset: {
-            unsubscribeToken: "" // Remove the one-time unsubscribe token
+            unsubscribeToken: ""
           }
         },
         { 
           new: true,
-          projection: { email: 1 } // Only return email field
+          projection: { email: 1 }
         }
       );
 
@@ -514,12 +529,10 @@ app.post('/api/unsubscribe',
         });
       }
 
-      // Generate secure resubscribe link
       const resubscribeLink = `${process.env.FRONTEND_URL}/resubscribe?token=${resubscribeToken}`;
 
-      // Send confirmation email (async - don't await)
       transporter.sendMail({
-        from: `"NotebookForU" <${process.env.EMAIL_FROM}>`,
+        from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
         to: updatedSubscriber.email,
         subject: 'Unsubscription confirmed',
         html: `
@@ -535,7 +548,6 @@ app.post('/api/unsubscribe',
         logger.error('Confirmation email failed:', emailError);
       });
 
-      // Successful response
       res.status(200).json({ 
         success: true,
         message: 'Unsubscribed successfully',
@@ -565,6 +577,7 @@ app.post('/api/unsubscribe',
     }
   }
 );
+
 // ======================
 // ERROR HANDLING
 // ======================
