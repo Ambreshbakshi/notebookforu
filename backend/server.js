@@ -471,7 +471,7 @@ app.post('/api/unsubscribe',
     body('token').optional().isString().trim().escape(),
     body('email').optional().isEmail().normalizeEmail()
   ],
-  async (req, res) => {
+  async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ 
@@ -480,44 +480,48 @@ app.post('/api/unsubscribe',
           param: e.param,
           message: e.msg,
           value: e.value
-        }))
+        })),
+        timestamp: new Date().toISOString()
       });
     }
 
     try {
       const { token, email } = req.body;
       
+      // Build query for active subscriptions
       let query = { unsubscribed: false };
       if (token) {
         query.unsubscribeToken = token;
       } else if (email) {
-        query.email = email;
+        query.email = email.toLowerCase().trim();
       } else {
         return res.status(400).json({
-          error: 'Either token or email is required'
+          error: 'Either token or email is required',
+          timestamp: new Date().toISOString()
         });
       }
 
-      const resubscribeToken = crypto.randomBytes(32).toString('hex');
+      // Generate new tokens with expiration
+      const newUnsubscribeToken = crypto.randomBytes(16).toString('hex');
+      const resubscribeToken = crypto.randomBytes(16).toString('hex');
       const resubscribeExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+      // Update subscription status
       const updatedSubscriber = await Subscriber.findOneAndUpdate(
         query,
         { 
           $set: { 
             unsubscribed: true,
             unsubscribedAt: new Date(),
+            unsubscribeToken: newUnsubscribeToken,
             resubscribeToken,
             resubscribeExpires,
             lastActionAt: new Date()
-          },
-          $unset: {
-            unsubscribeToken: ""
           }
         },
         { 
           new: true,
-          projection: { email: 1 }
+          projection: { email: 1 } 
         }
       );
 
@@ -525,62 +529,71 @@ app.post('/api/unsubscribe',
         return res.status(404).json({ 
           error: 'No active subscription found',
           suggestion: token 
-            ? 'The unsubscribe link may have expired' 
-            : 'Email may already be unsubscribed'
+            ? 'The unsubscribe link may have expired or been used already' 
+            : 'Email may already be unsubscribed',
+          timestamp: new Date().toISOString()
         });
       }
 
+      // Generate secure resubscribe link
       const resubscribeLink = `${process.env.FRONTEND_URL}/resubscribe?token=${resubscribeToken}`;
 
-      transporter.sendMail({
-        from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
-        to: updatedSubscriber.email,
-        subject: 'Unsubscription confirmed',
-        html: `
-          <h2>You're unsubscribed</h2>
-          <p>We've removed ${updatedSubscriber.email} from our mailing list.</p>
-          <p>Change your mind? <a href="${resubscribeLink}">Resubscribe here</a>.</p>
-          <p><small>This link expires in 30 days.</small></p>
-          <hr>
-          <small>NotebookForU Team</small>
-        `,
-        text: `You've been unsubscribed (${updatedSubscriber.email}).\n\nResubscribe: ${resubscribeLink}\n\nThis link expires in 30 days.`
-      }).catch(emailError => {
-        logger.error('Confirmation email failed:', emailError);
-      });
+      // Async email sending with error handling
+      sendUnsubscribeConfirmation(updatedSubscriber.email, resubscribeLink)
+        .catch(err => logger.error('Email sending failed:', {
+          error: err.message,
+          email: updatedSubscriber.email,
+          timestamp: new Date().toISOString()
+        }));
 
-      res.status(200).json({ 
+      return res.status(200).json({ 
         success: true,
         message: 'Unsubscribed successfully',
         email: updatedSubscriber.email,
+        resubscribeLink,
         timestamp: new Date().toISOString()
       });
 
     } catch (err) {
-      logger.error('Unsubscribe error:', {
-        error: err.message,
-        stack: err.stack,
-        request: {
-          body: req.body,
-          headers: req.headers
-        }
-      });
-      
-      res.status(500).json({ 
-        error: 'Unsubscribe failed',
-        ...(process.env.NODE_ENV !== 'production' && {
-          debug: {
-            message: err.message,
-            stack: err.stack.split('\n')
-          }
-        })
-      });
+      next(err); // Pass to global error handler
     }
   }
 );
 
+// Email sending helper function
+async function sendUnsubscribeConfirmation(email, resubscribeLink) {
+  await transporter.sendMail({
+    from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Unsubscription confirmed',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #4f46e5;">You're unsubscribed</h2>
+        <p>We've removed ${email} from our mailing list.</p>
+        <p style="margin: 20px 0;">
+          <a href="${resubscribeLink}" 
+             style="background: #4f46e5; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">
+            Resubscribe
+          </a>
+        </p>
+        <p style="color: #6b7280; font-size: 0.9em;">
+          This link expires in 30 days.
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+        <p style="color: #9ca3af; font-size: 0.8em;">
+          NotebookForU Team
+        </p>
+      </div>
+    `,
+    text: `You've been unsubscribed (${email}).\n\n`
+        + `Resubscribe: ${resubscribeLink}\n\n`
+        + `This link expires in 30 days.\n\n`
+        + `NotebookForU Team`
+  });
+}
+
 // ======================
-// ERROR HANDLING
+// ENHANCED ERROR HANDLING
 // ======================
 
 // 404 Handler
@@ -588,29 +601,62 @@ app.use((req, res) => {
   res.status(404).json({
     error: 'Not found',
     path: req.path,
-    method: req.method
+    method: req.method,
+    timestamp: new Date().toISOString()
   });
 });
 
 // Global Error Handler
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
-  logger.error('Unhandled error:', {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Determine error type and message
+  let errorType = 'server_error';
+  let errorMessage = 'Internal server error';
+  
+  if (err.code === 11000) {
+    errorType = 'duplicate_key';
+    errorMessage = 'Please try again - temporary system issue';
+  } else if (err.name === 'ValidationError') {
+    errorType = 'validation_error';
+    errorMessage = err.message;
+  } else if (!isProduction) {
+    errorMessage = err.message;
+  }
+
+  // Log error details
+  logger.error({
     message: err.message,
+    type: errorType,
     stack: err.stack,
     path: req.path,
     method: req.method,
-    ip: req.ip
+    ip: req.ip,
+    timestamp: new Date().toISOString()
   });
 
-  res.status(statusCode).json({
-    error: statusCode === 500 ? 'Internal server error' : err.message,
-    ...(process.env.NODE_ENV === 'development' && {
-      stack: err.stack,
-      details: err.details
-    }),
-    requestId: req.id
-  });
+  // Prepare response
+  const response = {
+    error: errorMessage,
+    status: statusCode,
+    timestamp: new Date().toISOString()
+  };
+
+  // Add debug info in non-production
+  if (!isProduction) {
+    response.debug = {
+      type: errorType,
+      ...(err.stack && { stack: err.stack.split('\n') })
+    };
+  }
+
+  // Include request ID if available
+  if (req.id) {
+    response.requestId = req.id;
+  }
+
+  res.status(statusCode).json(response);
 });
 
 // ======================
