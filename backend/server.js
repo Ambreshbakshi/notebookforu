@@ -188,8 +188,6 @@ const contactSchema = new mongoose.Schema({
   }
 });
 
-const Contact = mongoose.model('Contact', contactSchema);
-
 const subscriberSchema = new mongoose.Schema({
   email: { 
     type: String, 
@@ -199,27 +197,58 @@ const subscriberSchema = new mongoose.Schema({
     validate: {
       validator: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
       message: props => `${props.value} is not a valid email!`
-    }
+    },
+    lowercase: true,  // Ensures consistent case handling
+    trim: true       // Removes whitespace
   },
   subscribedAt: { 
     type: Date, 
     default: Date.now,
-    index: true
+    index: true,
+    immutable: true  // Cannot be modified after creation
   },
   unsubscribed: {
     type: Boolean,
-    default: false
+    default: false,
+    index: true
   },
   unsubscribedAt: Date,
   unsubscribeToken: {
     type: String,
     unique: true,
+    sparse: true,    // Allows null values while maintaining uniqueness
     default: () => crypto.randomBytes(32).toString('hex')
+  },
+  // New fields for resubscribe functionality
+  resubscribeToken: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  resubscribeExpires: {
+    type: Date,
+    index: { expires: '30d' }  // Auto-delete after 30 days
+  },
+  lastActionAt: {
+    type: Date,
+    default: Date.now
+  },
+  source: {          // Optional: Track where signup came from
+    type: String,
+    enum: ['website', 'landing-page', 'api', 'manual'],
+    default: 'website'
   }
+}, {
+  timestamps: true   // Adds createdAt and updatedAt automatically
+});
+
+// Index for faster querying of active subscribers
+subscriberSchema.index({ 
+  email: 1, 
+  unsubscribed: 1 
 });
 
 const Subscriber = mongoose.model('Subscriber', subscriberSchema);
-
 // ======================
 // HELPER FUNCTIONS
 // ======================
@@ -414,6 +443,8 @@ app.post('/api/subscribe',
   }
 );
 
+const crypto = require('crypto');
+
 // Unsubscribe (Token or Email-based)
 app.post('/api/unsubscribe', 
   [
@@ -449,6 +480,10 @@ app.post('/api/unsubscribe',
         });
       }
 
+      // Generate secure resubscribe token
+      const resubscribeToken = crypto.randomBytes(32).toString('hex');
+      const resubscribeExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days expiry
+
       // Update subscription status
       const updatedSubscriber = await Subscriber.findOneAndUpdate(
         query,
@@ -456,8 +491,13 @@ app.post('/api/unsubscribe',
           $set: { 
             unsubscribed: true,
             unsubscribedAt: new Date(),
-            lastActionAt: new Date() // Optional tracking field
-          } 
+            resubscribeToken,
+            resubscribeExpires,
+            lastActionAt: new Date()
+          },
+          $unset: {
+            unsubscribeToken: "" // Remove the one-time unsubscribe token
+          }
         },
         { 
           new: true,
@@ -474,6 +514,9 @@ app.post('/api/unsubscribe',
         });
       }
 
+      // Generate secure resubscribe link
+      const resubscribeLink = `${process.env.FRONTEND_URL}/resubscribe?token=${resubscribeToken}`;
+
       // Send confirmation email (async - don't await)
       transporter.sendMail({
         from: `"NotebookForU" <${process.env.EMAIL_FROM}>`,
@@ -482,11 +525,12 @@ app.post('/api/unsubscribe',
         html: `
           <h2>You're unsubscribed</h2>
           <p>We've removed ${updatedSubscriber.email} from our mailing list.</p>
-          <p>Change your mind? <a href="${process.env.FRONTEND_URL}/resubscribe?email=${encodeURIComponent(updatedSubscriber.email)}">Resubscribe here</a>.</p>
+          <p>Change your mind? <a href="${resubscribeLink}">Resubscribe here</a>.</p>
+          <p><small>This link expires in 30 days.</small></p>
           <hr>
           <small>NotebookForU Team</small>
         `,
-        text: `You've been unsubscribed (${updatedSubscriber.email}).\n\nResubscribe: ${process.env.FRONTEND_URL}/resubscribe?email=${encodeURIComponent(updatedSubscriber.email)}`
+        text: `You've been unsubscribed (${updatedSubscriber.email}).\n\nResubscribe: ${resubscribeLink}\n\nThis link expires in 30 days.`
       }).catch(emailError => {
         logger.error('Confirmation email failed:', emailError);
       });
