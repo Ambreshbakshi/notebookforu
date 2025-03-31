@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
-import { FiCheck, FiArrowLeft, FiAlertTriangle, FiMail } from 'react-icons/fi';
+import { FiCheck, FiArrowLeft, FiAlertTriangle, FiMail, FiXCircle } from 'react-icons/fi';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -12,6 +12,12 @@ function ResubscribeContent() {
   const token = params.get('token');
   const [email, setEmail] = useState('');
   const [manualEmail, setManualEmail] = useState('');
+  const [resubscribeStatus, setResubscribeStatus] = useState({
+    loading: false,
+    success: false,
+    error: null,
+    message: ''
+  });
   const [status, setStatus] = useState({ 
     loading: false, 
     success: false, 
@@ -55,36 +61,62 @@ function ResubscribeContent() {
   }, [token]);
 
   const handleResubscribe = async (emailToResubscribe) => {
-    setStatus(prev => ({ ...prev, loading: true, error: null }));
-    
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/resubscribe`, {
+      setResubscribeStatus({
+        loading: true,
+        success: false,
+        error: null,
+        message: 'Processing resubscription...'
+      });
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/resubscribe`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ 
           token,
           email: token ? undefined : emailToResubscribe 
         }),
       });
-      
-      if (!res.ok) throw new Error('Resubscription failed');
 
-      setStatus({
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Resubscription failed');
+      }
+
+      setResubscribeStatus({
         loading: false,
         success: true,
         error: null,
-        isTokenValid: false,
-        activeTab: status.activeTab
+        message: 'Welcome back! You have been resubscribed.'
       });
-    } catch (err) {
-      setStatus({
+      
+      // Update main status to show success
+      setStatus(prev => ({
+        ...prev,
+        success: true
+      }));
+    } catch (error) {
+      setResubscribeStatus({
         loading: false,
         success: false,
-        error: err.message || 'An unexpected error occurred',
-        isTokenValid: status.isTokenValid,
-        activeTab: status.activeTab
+        error: error.message,
+        message: getFriendlyErrorMessage(error.message)
       });
     }
+  };
+
+  const getFriendlyErrorMessage = (error) => {
+    if (error.includes('already subscribed')) {
+      return 'This email is already subscribed.';
+    }
+    if (error.includes('not found')) {
+      return 'Email not found in our records.';
+    }
+    return error.replace(/^Error: /, '');
   };
 
   return (
@@ -145,29 +177,56 @@ function ResubscribeContent() {
               </button>
             </div>
 
-            {status.error && (
+            {(status.error || resubscribeStatus.error) && (
               <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-md">
                 <FiAlertTriangle className="text-xl" />
-                <p>{status.error}</p>
+                <p>{status.error || resubscribeStatus.error}</p>
               </div>
             )}
 
             {status.activeTab === 'token' ? (
               status.isTokenValid ? (
-                <>
+                <div className="space-y-4">
                   <p className="text-gray-600">We'd love to have you back!</p>
                   <div className="p-3 bg-blue-50 text-blue-700 rounded-md">
                     <p className="font-medium">Email:</p>
                     <p className="truncate">{email}</p>
                   </div>
-                  <button
-                    onClick={() => handleResubscribe(email)}
-                    disabled={status.loading}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    Confirm Resubscribe
-                  </button>
-                </>
+                  
+                  {/* Resubscribe Button Section */}
+                  <div className="space-y-4">
+                    {resubscribeStatus.loading ? (
+                      <div className="flex flex-col items-center py-2" aria-live="polite">
+                        <div 
+                          className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mb-2"
+                          aria-label="Loading"
+                        />
+                        <p className="text-gray-600 text-sm">{resubscribeStatus.message}</p>
+                      </div>
+                    ) : resubscribeStatus.success ? (
+                      <div className="flex items-center p-3 bg-green-50 text-green-700 rounded-md">
+                        <FiCheck className="mr-2" />
+                        <p>{resubscribeStatus.message}</p>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleResubscribe(email)}
+                          className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
+                          disabled={resubscribeStatus.loading}
+                        >
+                          {resubscribeStatus.loading ? 'Processing...' : 'Resubscribe'}
+                        </button>
+                        {resubscribeStatus.error && (
+                          <div className="flex items-center p-2 bg-red-50 text-red-700 rounded-md text-sm">
+                            <FiXCircle className="mr-2" />
+                            <p>{resubscribeStatus.message}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <div className="text-center py-4">
                   <p className="text-gray-600 mb-4">
@@ -194,13 +253,40 @@ function ResubscribeContent() {
                     />
                   </div>
                 </div>
-                <button
-                  onClick={() => handleResubscribe(manualEmail)}
-                  disabled={status.loading || !manualEmail.includes('@')}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Resubscribe
-                </button>
+                
+                {/* Resubscribe Button Section for Manual Entry */}
+                <div className="space-y-4">
+                  {resubscribeStatus.loading ? (
+                    <div className="flex flex-col items-center py-2" aria-live="polite">
+                      <div 
+                        className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mb-2"
+                        aria-label="Loading"
+                      />
+                      <p className="text-gray-600 text-sm">{resubscribeStatus.message}</p>
+                    </div>
+                  ) : resubscribeStatus.success ? (
+                    <div className="flex items-center p-3 bg-green-50 text-green-700 rounded-md">
+                      <FiCheck className="mr-2" />
+                      <p>{resubscribeStatus.message}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleResubscribe(manualEmail)}
+                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
+                        disabled={resubscribeStatus.loading || !manualEmail.includes('@')}
+                      >
+                        {resubscribeStatus.loading ? 'Processing...' : 'Resubscribe'}
+                      </button>
+                      {resubscribeStatus.error && (
+                        <div className="flex items-center p-2 bg-red-50 text-red-700 rounded-md text-sm">
+                          <FiXCircle className="mr-2" />
+                          <p>{resubscribeStatus.message}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
