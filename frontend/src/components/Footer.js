@@ -8,33 +8,39 @@ const Footer = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState({ 
     loading: false, 
-    success: false, 
-    error: null 
+    success: false,
+    resubscribed: false,
+    alreadySubscribed: false,
+    error: null,
+    validationError: null
   });
 
   useEffect(() => {
-    if (status.success) {
+    if (status.success || status.resubscribed || status.alreadySubscribed) {
       const timer = setTimeout(() => {
-        setStatus(prev => ({ ...prev, success: false }));
+        setStatus(prev => ({ 
+          ...prev, 
+          success: false, 
+          resubscribed: false,
+          alreadySubscribed: false 
+        }));
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [status.success]);
+  }, [status.success, status.resubscribed, status.alreadySubscribed]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!email) {
-      setStatus({ ...status, error: 'Email is required' });
-      return;
-    }
-    
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setStatus({ ...status, error: 'Please enter a valid email' });
-      return;
-    }
-
-    setStatus({ loading: true, error: null });
+    // Reset all states
+    setStatus({ 
+      loading: true, 
+      success: false,
+      resubscribed: false,
+      alreadySubscribed: false,
+      error: null,
+      validationError: null
+    });
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscribe`, {
@@ -45,17 +51,49 @@ const Footer = () => {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || response.statusText);
+      if (response.status === 400) {
+        // Validation error
+        const firstError = data.details?.[0]?.msg || 'Invalid email format';
+        setStatus(prev => ({
+          ...prev,
+          loading: false,
+          validationError: firstError
+        }));
+        return;
       }
 
-      setStatus({ loading: false, success: true, error: null });
-      setEmail('');
+      if (!response.ok) {
+        throw new Error(data.error || 'Subscription failed');
+      }
+
+      // Handle different success cases
+      if (response.status === 201) {
+        // New subscription
+        setStatus({ 
+          loading: false, 
+          success: true,
+          error: null
+        });
+        setEmail('');
+      } else if (data.message.includes('Welcome back')) {
+        // Resubscribed
+        setStatus({ 
+          loading: false, 
+          resubscribed: true,
+          error: null
+        });
+      } else if (data.message.includes('already subscribed')) {
+        // Already subscribed
+        setStatus({ 
+          loading: false, 
+          alreadySubscribed: true,
+          error: null
+        });
+      }
     } catch (err) {
       setStatus({ 
         loading: false, 
-        success: false, 
-        error: err.message || 'Subscription failed. Please try again.',
+        error: err.message || 'Subscription failed. Please try again.'
       });
     }
   };
@@ -70,9 +108,18 @@ const Footer = () => {
             <p className="text-gray-400">
               Subscribe for updates and exclusive offers
             </p>
+            
             {status.success ? (
               <div className="flex items-center gap-2 text-green-400" aria-live="polite">
-                <FiCheck /> Subscribed successfully!
+                <FiCheck /> Thank you for subscribing! Please check your email.
+              </div>
+            ) : status.resubscribed ? (
+              <div className="flex items-center gap-2 text-blue-400" aria-live="polite">
+                <FiCheck /> Welcome back! You have been resubscribed.
+              </div>
+            ) : status.alreadySubscribed ? (
+              <div className="flex items-center gap-2 text-yellow-400" aria-live="polite">
+                <FiCheck /> You are already subscribed!
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-2">
@@ -88,11 +135,19 @@ const Footer = () => {
                     required
                   />
                 </div>
-                {status.error && (
+                
+                {status.validationError && (
+                  <p className="text-red-400 text-sm" aria-live="assertive">
+                    {status.validationError}
+                  </p>
+                )}
+                
+                {status.error && !status.validationError && (
                   <p className="text-red-400 text-sm" aria-live="assertive">
                     {status.error}
                   </p>
                 )}
+                
                 <button
                   type="submit"
                   disabled={status.loading}
