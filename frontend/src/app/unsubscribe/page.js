@@ -8,6 +8,9 @@ import { Suspense } from 'react';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+// Email validation regex (more strict than before)
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 function UnsubscribeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -21,6 +24,8 @@ function UnsubscribeContent() {
   });
 
   useEffect(() => {
+    const abortController = new AbortController();
+
     const processUnsubscribe = async () => {
       try {
         if (!token && !email) {
@@ -35,16 +40,17 @@ function UnsubscribeContent() {
         const response = await fetch(`${API_BASE_URL}/api/unsubscribe`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, email })
+          body: JSON.stringify({ token, email }),
+          signal: abortController.signal
         });
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.error || 
-            errorData.message || 
-            `Request failed with status ${response.status}`
-          );
+          const errorMessage = errorData.error || 
+                            errorData.message || 
+                            (response.status === 404 ? 'Subscription not found' : 
+                             `Request failed with status ${response.status}`);
+          throw new Error(errorMessage);
         }
 
         const data = await response.json();
@@ -55,18 +61,44 @@ function UnsubscribeContent() {
           message: data.message || 'You have been successfully unsubscribed.'
         });
       } catch (error) {
-        setStatus({
-          loading: false,
-          success: false,
-          message: error.message.includes('Failed to fetch')
-            ? 'Could not connect to server. Please try again later.'
-            : error.message.replace(/^Error: /, '')
-        });
+        if (error.name !== 'AbortError') {
+          setStatus({
+            loading: false,
+            success: false,
+            message: error.message.includes('Failed to fetch')
+              ? 'Could not connect to server. Please try again later.'
+              : error.message.replace(/^Error: /, '')
+          });
+        }
       }
     };
 
     processUnsubscribe();
-  }, [token, email]);
+
+    return () => abortController.abort();
+  }, [token, email, router]);
+
+  const handleManualUnsubscribe = async (e) => {
+    e.preventDefault();
+    const formEmail = e.currentTarget.email.value.trim();
+    
+    if (!EMAIL_REGEX.test(formEmail)) {
+      setStatus({
+        loading: false,
+        success: false,
+        message: 'Please enter a valid email address'
+      });
+      return;
+    }
+
+    setStatus({
+      loading: true,
+      success: false,
+      message: 'Processing unsubscribe request...'
+    });
+    
+    router.push(`/unsubscribe?email=${encodeURIComponent(formEmail)}`);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -79,7 +111,10 @@ function UnsubscribeContent() {
 
         {status.loading && (
           <div className="flex justify-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            <div 
+              className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"
+              aria-label="Loading"
+            />
           </div>
         )}
 
@@ -100,19 +135,7 @@ function UnsubscribeContent() {
             )}
             
             <form 
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const formEmail = e.currentTarget.email.value.trim();
-                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail)) {
-                  setStatus({
-                    loading: false,
-                    success: false,
-                    message: 'Please enter a valid email address'
-                  });
-                  return;
-                }
-                router.push(`/unsubscribe?email=${encodeURIComponent(formEmail)}`);
-              }}
+              onSubmit={handleManualUnsubscribe}
               className="space-y-3"
             >
               <div>
@@ -127,13 +150,14 @@ function UnsubscribeContent() {
                   required
                   autoFocus
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
+                  pattern={EMAIL_REGEX.source}
                 />
               </div>
               <button
                 type="submit"
                 className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
                 disabled={status.loading}
+                aria-disabled={status.loading}
               >
                 {status.loading ? 'Processing...' : 'Unsubscribe Manually'}
               </button>
@@ -149,7 +173,10 @@ export default function UnsubscribePage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div 
+          className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"
+          aria-label="Loading"
+        />
       </div>
     }>
       <UnsubscribeContent />
