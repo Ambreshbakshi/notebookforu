@@ -45,7 +45,6 @@ const logger = winston.createLogger({
 // Enhanced CORS Configuration
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  'https://notebookforu.vercel.app',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:3001',
@@ -185,7 +184,6 @@ const contactSchema = new mongoose.Schema({
   email: { 
     type: String, 
     required: [true, 'Email is required'],
-    index: true,
     validate: {
       validator: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
       message: props => `${props.value} is not a valid email!`
