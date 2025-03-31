@@ -259,6 +259,28 @@ function UnsubscribeContent() {
               <FiCheck className="mr-2 text-xl" aria-hidden="true" />
               <p>{status.message}</p>
             </div>
+              {/* ADD THE NEW BLOCK HERE */}
+    {status.success && !status.message.includes('resubscribed') && (
+      <div className="mt-2 p-4 bg-gray-50 rounded-md text-sm text-gray-600">
+        <h3 className="font-medium mb-2">What happens when you unsubscribe:</h3>
+        <ul className="list-disc pl-5 space-y-1 mb-3">
+          <li>We immediately stop all marketing communications</li>
+          <li>We retain your email in our suppression list to prevent accidental emails</li>
+          <li>This record contains only your email and unsubscribe timestamp</li>
+          <li>We do not use this information for any other purpose</li>
+        </ul>
+        <p>
+          To request complete deletion of your email record, please{' '}
+          <Link 
+            href="mailto:privacy@yourdomain.com" 
+            className="text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+          >
+            email us
+          </Link>.
+        </p>
+      </div>
+    )}
+    {/* END OF NEW BLOCK */}
             
             {status.isResubscribable && (
               <button
@@ -344,7 +366,7 @@ function UnsubscribeContent() {
               <p>
                 Need help?{' '}
                 <Link 
-                  href="/contact" 
+                  href="/contact-us" 
                   className="text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                   aria-label="Contact us"
                 >
