@@ -208,9 +208,8 @@ const subscriberSchema = new mongoose.Schema({
     type: String, 
     required: [true, 'Email is required'],
     unique: true,
-    index: true,
     validate: {
-      validator: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+      validator: v => /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(v),
       message: props => `${props.value} is not a valid email!`
     },
     lowercase: true,
@@ -219,25 +218,28 @@ const subscriberSchema = new mongoose.Schema({
   subscribedAt: { 
     type: Date, 
     default: Date.now,
-    index: true,
     immutable: true
   },
   unsubscribed: {
     type: Boolean,
-    default: false,
-    index: true
+    default: false
   },
   unsubscribedAt: Date,
   unsubscribeToken: {
     type: String,
     unique: true,
     sparse: true,
-    default: () => crypto.randomBytes(32).toString('hex')
+    default: () => crypto.randomBytes(16).toString('hex')
+  },
+  unsubscribeTokenExpires: {
+    type: Date,
+    index: { expires: '30d' }
   },
   resubscribeToken: {
     type: String,
     unique: true,
-    sparse: true
+    sparse: true,
+    default: () => crypto.randomBytes(16).toString('hex')
   },
   resubscribeExpires: {
     type: Date,
@@ -256,11 +258,10 @@ const subscriberSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for faster querying of active subscribers
-subscriberSchema.index({ 
-  email: 1, 
-  unsubscribed: 1 
-});
+// Optimized indexes
+subscriberSchema.index({ unsubscribed: 1, email: 1 }); // For querying active subscribers
+subscriberSchema.index({ email: 1 }); // Already created by unique, but explicit
+
 
 const Contact = mongoose.model('Contact', contactSchema);
 const Subscriber = mongoose.model('Subscriber', subscriberSchema);
