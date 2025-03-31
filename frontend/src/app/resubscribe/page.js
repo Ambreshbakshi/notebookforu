@@ -69,7 +69,7 @@ function ResubscribeContent() {
         message: 'Processing resubscription...'
       });
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/resubscribe`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscribe`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
