@@ -1,9 +1,11 @@
 'use client';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { Suspense } from 'react';
 import { FiCheck, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
 
-export default function ResubscribePage() {
+function ResubscribeContent() {
+  const { useSearchParams, useRouter } = require('next/navigation');
+  const { useState, useEffect } = require('react');
+  
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get('token');
@@ -15,7 +17,6 @@ export default function ResubscribePage() {
     isTokenValid: false
   });
 
-  // Verify token and get associated email when component mounts
   useEffect(() => {
     if (!token) {
       setStatus(prev => ({
@@ -167,5 +168,17 @@ export default function ResubscribePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ResubscribePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
+      </div>
+    }>
+      <ResubscribeContent />
+    </Suspense>
   );
 }
