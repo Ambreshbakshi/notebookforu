@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { FiCheck, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import Link from 'next/link'; // Added missing Link import
 
 function ResubscribeContent() {
   const params = useSearchParams();
@@ -103,7 +104,7 @@ function ResubscribeContent() {
         loading: false,
         success: false,
         error: err.message || 'An unexpected error occurred',
-        isTokenValid: status.isTokenValid // Preserve token validity state
+        isTokenValid: status.isTokenValid
       });
     }
   };
