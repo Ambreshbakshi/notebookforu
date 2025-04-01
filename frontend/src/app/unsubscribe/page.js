@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense } from 'react';
@@ -16,7 +16,7 @@ function UnsubscribeContent() {
   
   const [formData, setFormData] = useState({
     email: emailParam || '',
-    showManualOption: false
+    showManualOption: !token // Show email form if no token
   });
   
   const [status, setStatus] = useState({
@@ -28,66 +28,54 @@ function UnsubscribeContent() {
     message: ''
   });
 
-  // Process automatic unsubscribe when token is present
-  useEffect(() => {
-    const abortController = new AbortController();
-    
-    const processTokenUnsubscribe = async () => {
-      if (!token) return;
+  const handleTokenUnsubscribe = async () => {
+    if (!token) return;
 
-      try {
-        setStatus(prev => ({
-          ...prev,
-          loading: true,
-          error: null,
-          message: 'Processing unsubscribe request...'
-        }));
+    try {
+      setStatus({
+        loading: true,
+        success: false,
+        error: null,
+        message: 'Processing unsubscribe request...',
+        email: null,
+        isResubscribable: false
+      });
 
-        const response = await fetch(`${API_BASE_URL}/api/unsubscribe`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ token }),
-          signal: abortController.signal
-        });
+      const response = await fetch(`${API_BASE_URL}/api/unsubscribe`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ token })
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        if (!response.ok) {
-          throw new Error(data.error || 'Unsubscribe failed');
-        }
-
-        setStatus({
-          loading: false,
-          success: true,
-          error: null,
-          email: data.email,
-          isResubscribable: !!data.resubscribeToken,
-          message: data.message || 'You have been successfully unsubscribed.'
-        });
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          setStatus({
-            loading: false,
-            success: false,
-            error: error.message,
-            email: null,
-            isResubscribable: false,
-            message: getFriendlyErrorMessage(error.message)
-          });
-          setFormData(prev => ({ ...prev, showManualOption: true }));
-        }
+      if (!response.ok) {
+        throw new Error(data.error || 'Unsubscribe failed');
       }
-    };
 
-    if (token) {
-      processTokenUnsubscribe();
+      setStatus({
+        loading: false,
+        success: true,
+        error: null,
+        email: data.email,
+        isResubscribable: !!data.resubscribeToken,
+        message: data.message || 'You have been successfully unsubscribed.'
+      });
+    } catch (error) {
+      setStatus({
+        loading: false,
+        success: false,
+        error: error.message,
+        email: null,
+        isResubscribable: false,
+        message: getFriendlyErrorMessage(error.message)
+      });
+      setFormData(prev => ({ ...prev, showManualOption: true }));
     }
-
-    return () => abortController.abort();
-  }, [token]);
+  };
 
   const handleManualUnsubscribe = async (e) => {
     e.preventDefault();
@@ -207,55 +195,6 @@ function UnsubscribeContent() {
     return matchedError?.[1] || errorMap.default;
   };
 
-  const renderInitialState = () => (
-    <div className="space-y-4">
-      <p className="text-gray-600">
-        {token 
-          ? 'Click the button below to confirm unsubscribe' 
-          : 'Enter your email address to unsubscribe'}
-      </p>
-      
-      {token ? (
-        <button
-          onClick={() => handleTokenUnsubscribe()}
-          className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-          disabled={status.loading}
-        >
-          {status.loading ? 'Processing...' : 'Confirm Unsubscribe'}
-        </button>
-      ) : (
-        <form onSubmit={handleManualUnsubscribe} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email address
-            </label>
-            <div className="relative">
-              <FiMail className="absolute left-3 top-3 text-gray-400" />
-              <input
-                type="email"
-                id="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="your@email.com"
-                required
-                className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-invalid={!!status.error}
-              />
-            </div>
-          </div>
-          
-          <button
-            type="submit"
-            className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-            disabled={status.loading}
-          >
-            {status.loading ? 'Processing...' : 'Unsubscribe'}
-          </button>
-        </form>
-      )}
-    </div>
-  );
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md bg-white rounded-lg shadow-md p-8">
@@ -298,12 +237,6 @@ function UnsubscribeContent() {
                   <li>We retain your email to prevent accidental emails</li>
                   <li>This record contains only your email and unsubscribe timestamp</li>
                 </ul>
-                <p>
-                  To request complete deletion, please{' '}
-                  <Link href="mailto:privacy@yourdomain.com" className="text-blue-600 hover:underline">
-                    email us
-                  </Link>.
-                </p>
               </div>
             )}
             
@@ -357,7 +290,15 @@ function UnsubscribeContent() {
                 </button>
               </form>
             ) : (
-              renderInitialState()
+              <div className="space-y-4">
+                <p className="text-gray-600">Click the button below to unsubscribe:</p>
+                <button
+                  onClick={handleTokenUnsubscribe}
+                  className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Confirm Unsubscribe
+                </button>
+              </div>
             )}
           </div>
         )}
