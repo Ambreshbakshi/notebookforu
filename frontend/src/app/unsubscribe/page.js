@@ -61,16 +61,32 @@ function UnsubscribeContent() {
         const data = await response.json();
 
         if (!response.ok) {
-          // Handle different error cases
+          // Enhanced error handling with specific cases
           if (response.status === 400) {
-            const errorMsg = data.details?.[0]?.msg || 
-                           data.error || 
-                           'Invalid request';
-            throw new Error(errorMsg);
+            if (data.error === 'Already unsubscribed') {
+              throw new Error('This unsubscribe link has already been used');
+            } else if (data.error === 'Either token or email is required') {
+              throw new Error('Please provide either an unsubscribe token or email address');
+            } else {
+              const errorMsg = data.details?.[0]?.msg || 
+                             data.error || 
+                             'Invalid request. Please try again.';
+              throw new Error(errorMsg);
+            }
           } else if (response.status === 404) {
-            throw new Error(data.suggestion || 'Subscription not found');
+            throw new Error(
+              token 
+                ? 'This unsubscribe link is invalid or expired. Please enter your email below.'
+                : 'No active subscription found for this email.'
+            );
+          } else if (response.status === 429) {
+            throw new Error('Too many attempts. Please try again later.');
           } else {
-            throw new Error(data.error || 'Unsubscribe failed');
+            throw new Error(
+              data.message || 
+              data.error || 
+              'Unsubscribe failed. Please try again or contact support.'
+            );
           }
         }
 

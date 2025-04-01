@@ -433,7 +433,7 @@ app.post('/api/subscribe',
       // Create new subscriber
       const newSubscriber = await Subscriber.create({ 
         email,
-        unsubscribeToken: crypto.randomBytes(32).toString('hex')
+        unsubscribeToken: crypto.randomBytes(16).toString('hex')
       });
 
       // Send welcome email
@@ -487,17 +487,45 @@ app.post('/api/unsubscribe',
       const { token, email } = req.body;
       
       // Build query for active subscriptions
-      let query = { unsubscribed: false };
-      if (token) {
-        query.unsubscribeToken = token;
-      } else if (email) {
-        query.email = email.toLowerCase().trim();
-      } else {
-        return res.status(400).json({
-          error: 'Either token or email is required',
-          timestamp: new Date().toISOString()
-        });
-      }
+  // Build the base query
+let query = {};
+
+if (token) {
+  // Token-based unsubscribe - check token regardless of current subscription status
+  query.unsubscribeToken = token;
+} else if (email) {
+  // Email-based unsubscribe - only work on active subscriptions
+  query.email = email.toLowerCase().trim();
+  query.unsubscribed = false;
+} else {
+  return res.status(400).json({
+    error: 'Either token or email is required',
+    timestamp: new Date().toISOString()
+  });
+}
+
+// Find the subscriber with additional validation
+const subscriber = await Subscriber.findOne(query);
+
+if (!subscriber) {
+  return res.status(404).json({ 
+    error: 'Subscription not found',
+    suggestion: token 
+      ? 'Invalid or expired unsubscribe link' 
+      : 'Email not found or already unsubscribed',
+    timestamp: new Date().toISOString()
+  });
+}
+
+// Additional check for token-based unsubscribe
+if (token && subscriber.unsubscribed) {
+  return res.status(400).json({
+    error: 'Already unsubscribed',
+    suggestion: 'This unsubscribe link has already been used',
+    resubscribeLink: `${process.env.FRONTEND_URL}/resubscribe?token=${subscriber.resubscribeToken}`,
+    timestamp: new Date().toISOString()
+  });
+}
 
       // Generate new tokens with expiration
       const newUnsubscribeToken = crypto.randomBytes(16).toString('hex');
