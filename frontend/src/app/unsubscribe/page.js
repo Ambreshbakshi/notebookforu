@@ -63,16 +63,17 @@ function UnsubscribeContent() {
         if (!response.ok) {
           // Enhanced error handling with specific cases
           if (response.status === 400) {
+            if (data.error === 'Validation failed') {
+              const firstError = data.details?.[0]?.message || 'Invalid request';
+              throw new Error(firstError);
+            }
             if (data.error === 'Already unsubscribed') {
               throw new Error('This unsubscribe link has already been used');
-            } else if (data.error === 'Either token or email is required') {
-              throw new Error('Please provide either an unsubscribe token or email address');
-            } else {
-              const errorMsg = data.details?.[0]?.msg || 
-                             data.error || 
-                             'Invalid request. Please try again.';
-              throw new Error(errorMsg);
             }
+            if (data.error === 'Either token or email is required') {
+              throw new Error('Please provide either an unsubscribe token or email address');
+            }
+            throw new Error(data.error || 'Invalid request. Please try again.');
           } else if (response.status === 404) {
             throw new Error(
               token 
@@ -118,21 +119,36 @@ function UnsubscribeContent() {
     return () => abortController.abort();
   }, [token, emailParam]);
 
-  const getFriendlyErrorMessage = (error) => {
-    if (error.includes('already unsubscribed')) {
-      return 'This email is already unsubscribed.';
+ const getFriendlyErrorMessage = (error) => {
+  // First check for specific validation messages from backend
+  if (typeof error === 'string') {
+    const errorMap = {
+      'already unsubscribed': 'This email is already unsubscribed',
+      'expired': 'This unsubscribe link has expired. Please enter your email below',
+      'Failed to fetch': 'Could not connect to server. Please try again later',
+      'Invalid email': 'Please enter a valid email address',
+      'Invalid email format': 'Please enter a valid email address',
+      'Invalid request': 'Please check your input and try again',
+      'Validation failed': 'Please check your input and try again',
+      'Not allowed by CORS': 'Request blocked for security reasons',
+      'Too many attempts': 'Too many requests. Please wait before trying again',
+      'Subscription not found': 'No active subscription found',
+      'Invalid or expired unsubscribe link': 'This link is no longer valid. Please enter your email below',
+    };
+
+    // Find the first matching error
+    for (const [key, message] of Object.entries(errorMap)) {
+      if (error.includes(key)) {
+        return message;
+      }
     }
-    if (error.includes('expired')) {
-      return 'This unsubscribe link has expired. Please enter your email below.';
-    }
-    if (error.includes('Failed to fetch')) {
-      return 'Could not connect to server. Please try again later.';
-    }
-    if (error.includes('Invalid email')) {
-      return 'Please enter a valid email address';
-    }
-    return error.replace(/^Error: /, '');
-  };
+  }
+
+  // Fallback for unknown errors
+  return typeof error === 'string' 
+    ? error.replace(/^Error: /, '') 
+    : 'An unexpected error occurred. Please try again.';
+};
 
   const handleManualUnsubscribe = async (e) => {
     e.preventDefault();
