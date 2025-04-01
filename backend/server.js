@@ -544,6 +544,18 @@ app.post('/api/unsubscribe',
         { new: true }
       );
 
+      // Send unsubscribe confirmation email
+      try {
+        await sendUnsubscribeConfirmation(
+          updatedSubscriber.email,
+          `${process.env.FRONTEND_URL}/resubscribe?token=${resubscribeToken}`
+        );
+        logger.info(`Unsubscribe confirmation sent to ${updatedSubscriber.email}`);
+      } catch (emailError) {
+        logger.error('Failed to send unsubscribe confirmation:', emailError);
+        // Continue with response even if email fails
+      }
+
       // Send response
       res.status(200).json({ 
         success: true,
@@ -558,7 +570,6 @@ app.post('/api/unsubscribe',
     }
   }
 );
-
 // Email sending helper function
 async function sendUnsubscribeConfirmation(email, resubscribeLink) {
   await transporter.sendMail({

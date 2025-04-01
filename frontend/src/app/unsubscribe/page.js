@@ -1,29 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { FiMail, FiCheck, FiXCircle, FiArrowLeft } from 'react-icons/fi';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-// Enhanced email validation regex
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 function UnsubscribeContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const token = searchParams.get('token');
   const emailParam = searchParams.get('email');
   
   const [formData, setFormData] = useState({
     email: emailParam || '',
-    manualEntry: !token && !emailParam
+    showManualOption: false
   });
   
   const [status, setStatus] = useState({
-    loading: !!token || !!emailParam, // Auto-load if token or email in URL
+    loading: false,
     success: false,
     error: null,
     email: null,
@@ -31,11 +28,12 @@ function UnsubscribeContent() {
     message: ''
   });
 
+  // Process automatic unsubscribe when token is present
   useEffect(() => {
     const abortController = new AbortController();
-
-    const processUnsubscribe = async () => {
-      if (!token && !emailParam) return;
+    
+    const processTokenUnsubscribe = async () => {
+      if (!token) return;
 
       try {
         setStatus(prev => ({
@@ -51,52 +49,21 @@ function UnsubscribeContent() {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify({ 
-            token, 
-            email: emailParam 
-          }),
+          body: JSON.stringify({ token }),
           signal: abortController.signal
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-          // Enhanced error handling with specific cases
-          if (response.status === 400) {
-            if (data.error === 'Validation failed') {
-              const firstError = data.details?.[0]?.message || 'Invalid request';
-              throw new Error(firstError);
-            }
-            if (data.error === 'Already unsubscribed') {
-              throw new Error('This unsubscribe link has already been used');
-            }
-            if (data.error === 'Either token or email is required') {
-              throw new Error('Please provide either an unsubscribe token or email address');
-            }
-            throw new Error(data.error || 'Invalid request. Please try again.');
-          } else if (response.status === 404) {
-            throw new Error(
-              token 
-                ? 'This unsubscribe link is invalid or expired. Please enter your email below.'
-                : 'No active subscription found for this email.'
-            );
-          } else if (response.status === 429) {
-            throw new Error('Too many attempts. Please try again later.');
-          } else {
-            throw new Error(
-              data.message || 
-              data.error || 
-              'Unsubscribe failed. Please try again or contact support.'
-            );
-          }
+          throw new Error(data.error || 'Unsubscribe failed');
         }
 
-        // Success case
         setStatus({
           loading: false,
           success: true,
           error: null,
-          email: data.email || emailParam,
+          email: data.email,
           isResubscribable: !!data.resubscribeToken,
           message: data.message || 'You have been successfully unsubscribed.'
         });
@@ -106,49 +73,21 @@ function UnsubscribeContent() {
             loading: false,
             success: false,
             error: error.message,
-            email: emailParam,
+            email: null,
             isResubscribable: false,
             message: getFriendlyErrorMessage(error.message)
           });
+          setFormData(prev => ({ ...prev, showManualOption: true }));
         }
       }
     };
 
-    processUnsubscribe();
+    if (token) {
+      processTokenUnsubscribe();
+    }
 
     return () => abortController.abort();
-  }, [token, emailParam]);
-
- const getFriendlyErrorMessage = (error) => {
-  // First check for specific validation messages from backend
-  if (typeof error === 'string') {
-    const errorMap = {
-      'already unsubscribed': 'This email is already unsubscribed',
-      'expired': 'This unsubscribe link has expired. Please enter your email below',
-      'Failed to fetch': 'Could not connect to server. Please try again later',
-      'Invalid email': 'Please enter a valid email address',
-      'Invalid email format': 'Please enter a valid email address',
-      'Invalid request': 'Please check your input and try again',
-      'Validation failed': 'Please check your input and try again',
-      'Not allowed by CORS': 'Request blocked for security reasons',
-      'Too many attempts': 'Too many requests. Please wait before trying again',
-      'Subscription not found': 'No active subscription found',
-      'Invalid or expired unsubscribe link': 'This link is no longer valid. Please enter your email below',
-    };
-
-    // Find the first matching error
-    for (const [key, message] of Object.entries(errorMap)) {
-      if (error.includes(key)) {
-        return message;
-      }
-    }
-  }
-
-  // Fallback for unknown errors
-  return typeof error === 'string' 
-    ? error.replace(/^Error: /, '') 
-    : 'An unexpected error occurred. Please try again.';
-};
+  }, [token]);
 
   const handleManualUnsubscribe = async (e) => {
     e.preventDefault();
@@ -167,11 +106,14 @@ function UnsubscribeContent() {
     }
 
     try {
-      setStatus(prev => ({
-        ...prev,
+      setStatus({
         loading: true,
-        message: 'Processing unsubscribe request...'
-      }));
+        success: false,
+        error: null,
+        message: 'Processing unsubscribe request...',
+        email: null,
+        isResubscribable: false
+      });
 
       const response = await fetch(`${API_BASE_URL}/api/unsubscribe`, {
         method: 'POST',
@@ -192,7 +134,7 @@ function UnsubscribeContent() {
         loading: false,
         success: true,
         error: null,
-        email: data.email || email,
+        email: data.email,
         isResubscribable: !!data.resubscribeToken,
         message: data.message || 'You have been successfully unsubscribed.'
       });
@@ -248,15 +190,77 @@ function UnsubscribeContent() {
     }
   };
 
+  const getFriendlyErrorMessage = (error) => {
+    const errorMap = {
+      'already unsubscribed': 'This email is already unsubscribed',
+      'expired|invalid': 'This unsubscribe link is no longer valid',
+      'Failed to fetch': 'Connection problem. Please try again',
+      'Invalid email': 'Please enter a valid email address',
+      'Validation failed': 'Please check your email address',
+      'default': 'Something went wrong. Please try again'
+    };
+
+    const matchedError = Object.entries(errorMap).find(([key]) => 
+      new RegExp(key, 'i').test(error)
+    );
+    
+    return matchedError?.[1] || errorMap.default;
+  };
+
+  const renderInitialState = () => (
+    <div className="space-y-4">
+      <p className="text-gray-600">
+        {token 
+          ? 'Click the button below to confirm unsubscribe' 
+          : 'Enter your email address to unsubscribe'}
+      </p>
+      
+      {token ? (
+        <button
+          onClick={() => handleTokenUnsubscribe()}
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+          disabled={status.loading}
+        >
+          {status.loading ? 'Processing...' : 'Confirm Unsubscribe'}
+        </button>
+      ) : (
+        <form onSubmit={handleManualUnsubscribe} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email address
+            </label>
+            <div className="relative">
+              <FiMail className="absolute left-3 top-3 text-gray-400" />
+              <input
+                type="email"
+                id="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="your@email.com"
+                required
+                className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-invalid={!!status.error}
+              />
+            </div>
+          </div>
+          
+          <button
+            type="submit"
+            className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+            disabled={status.loading}
+          >
+            {status.loading ? 'Processing...' : 'Unsubscribe'}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md bg-white rounded-lg shadow-md p-8">
         <div className="flex items-center mb-6">
-          <Link 
-            href="/" 
-            className="mr-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-            aria-label="Return to homepage"
-          >
+          <Link href="/" className="mr-2 text-gray-500 hover:text-gray-700">
             <FiArrowLeft className="text-xl" />
           </Link>
           <h1 className="text-2xl font-bold text-gray-800">
@@ -271,141 +275,90 @@ function UnsubscribeContent() {
         </div>
         
         {status.loading ? (
-          <div className="flex flex-col items-center py-6" aria-live="polite">
-            <div 
-              className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"
-              aria-label="Loading"
-            />
+          <div className="flex flex-col items-center py-6">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4" />
             <p className="text-gray-600">{status.message}</p>
           </div>
         ) : status.success ? (
           <div className="space-y-4">
-            <div 
-              className={`flex items-center p-4 rounded-md ${
-                status.message.includes('resubscribed') 
-                  ? 'bg-green-50 text-green-700' 
-                  : 'bg-blue-50 text-blue-700'
-              }`}
-              role="alert"
-            >
-              <FiCheck className="mr-2 text-xl" aria-hidden="true" />
+            <div className={`flex items-center p-4 rounded-md ${
+              status.message.includes('resubscribed') 
+                ? 'bg-green-50 text-green-700' 
+                : 'bg-blue-50 text-blue-700'
+            }`}>
+              <FiCheck className="mr-2 text-xl" />
               <p>{status.message}</p>
             </div>
-              {/* ADD THE NEW BLOCK HERE */}
-    {status.success && !status.message.includes('resubscribed') && (
-      <div className="mt-2 p-4 bg-gray-50 rounded-md text-sm text-gray-600">
-        <h3 className="font-medium mb-2">What happens when you unsubscribe:</h3>
-        <ul className="list-disc pl-5 space-y-1 mb-3">
-          <li>We immediately stop all marketing communications</li>
-          <li>We retain your email in our suppression list to prevent accidental emails</li>
-          <li>This record contains only your email and unsubscribe timestamp</li>
-          <li>We do not use this information for any other purpose</li>
-        </ul>
-        <p>
-          To request complete deletion of your email record, please{' '}
-          <Link 
-            href="mailto:privacy@yourdomain.com" 
-            className="text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-          >
-            email us
-          </Link>.
-        </p>
-      </div>
-    )}
-    {/* END OF NEW BLOCK */}
+            
+            {status.success && !status.message.includes('resubscribed') && (
+              <div className="mt-2 p-4 bg-gray-50 rounded-md text-sm text-gray-600">
+                <h3 className="font-medium mb-2">What happens when you unsubscribe:</h3>
+                <ul className="list-disc pl-5 space-y-1 mb-3">
+                  <li>We immediately stop all marketing communications</li>
+                  <li>We retain your email to prevent accidental emails</li>
+                  <li>This record contains only your email and unsubscribe timestamp</li>
+                </ul>
+                <p>
+                  To request complete deletion, please{' '}
+                  <Link href="mailto:privacy@yourdomain.com" className="text-blue-600 hover:underline">
+                    email us
+                  </Link>.
+                </p>
+              </div>
+            )}
             
             {status.isResubscribable && (
               <button
                 onClick={handleResubscribe}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                disabled={status.loading}
-                aria-disabled={status.loading}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
               >
                 Resubscribe
               </button>
             )}
             
-            <Link
-              href="/"
-              className="block w-full text-center px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              prefetch={false}
-              aria-label="Return to homepage"
-            >
+            <Link href="/" className="block w-full text-center px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
               Return to Homepage
             </Link>
           </div>
         ) : (
           <div className="space-y-4">
             {status.error && (
-              <div 
-                className="flex items-center p-3 bg-red-50 text-red-700 rounded-md"
-                role="alert"
-              >
-                <FiXCircle className="mr-2 text-xl" aria-hidden="true" />
+              <div className="flex items-center p-3 bg-red-50 text-red-700 rounded-md">
+                <FiXCircle className="mr-2 text-xl" />
                 <p>{status.message}</p>
               </div>
             )}
             
-            <form onSubmit={handleManualUnsubscribe} className="space-y-4" noValidate>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email address
-                </label>
-                <div className="relative">
-                  <FiMail className="absolute left-3 top-3 text-gray-400" aria-hidden="true" />
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={(e) => {
-                      setFormData({ ...formData, email: e.target.value });
-                      if (status.error) {
-                        setStatus(prev => ({
-                          ...prev,
-                          error: null,
-                          message: ''
-                        }));
-                      }
-                    }}
-                    placeholder="your@email.com"
-                    required
-                    autoFocus={formData.manualEntry}
-                    className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    pattern={EMAIL_REGEX.source}
-                    aria-describedby={status.error ? "error-message" : undefined}
-                    aria-invalid={!!status.error}
-                  />
+            {formData.showManualOption ? (
+              <form onSubmit={handleManualUnsubscribe} className="space-y-4">
+                <p className="text-gray-600">Please enter your email to unsubscribe:</p>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email address
+                  </label>
+                  <div className="relative">
+                    <FiMail className="absolute left-3 top-3 text-gray-400" />
+                    <input
+                      type="email"
+                      id="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="your@email.com"
+                      required
+                      className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
-              </div>
-              
-              <button
-                type="submit"
-                className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                disabled={status.loading || !formData.email}
-                aria-disabled={status.loading || !formData.email}
-              >
-                {status.loading ? (
-                  <>
-                    <span className="inline-block animate-spin mr-2">↻</span>
-                    Processing...
-                  </>
-                ) : 'Unsubscribe'}
-              </button>
-            </form>
-            
-            <div className="text-center text-sm text-gray-500">
-              <p>
-                Need help?{' '}
-                <Link 
-                  href="/contact-us" 
-                  className="text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-                  aria-label="Contact us"
+                <button
+                  type="submit"
+                  className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                 >
-                  Contact us
-                </Link>
-              </p>
-            </div>
+                  Unsubscribe
+                </button>
+              </form>
+            ) : (
+              renderInitialState()
+            )}
           </div>
         )}
       </div>
@@ -417,10 +370,7 @@ export default function UnsubscribePage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
-        <div 
-          className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"
-          aria-label="Loading unsubscribe page"
-        />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
       </div>
     }>
       <UnsubscribeContent />
