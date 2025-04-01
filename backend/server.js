@@ -467,9 +467,10 @@ app.post('/api/subscribe',
 app.post('/api/unsubscribe', 
   [
     body('token').optional().isString().trim().escape(),
-    body('email').optional().isEmail().normalizeEmail()
+    body('email').optional().isEmail().withMessage('Invalid email format').normalizeEmail()
   ],
   async (req, res, next) => {
+    // Handle validation errors first
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ 
@@ -486,102 +487,74 @@ app.post('/api/unsubscribe',
     try {
       const { token, email } = req.body;
       
-      // Build query for active subscriptions
-  // Build the base query
-let query = {};
+      // Build query - token takes precedence over email
+      let query = {};
+      if (token) {
+        query.unsubscribeToken = token;
+      } else if (email) {
+        query.email = email.toLowerCase().trim();
+        query.unsubscribed = false; // Only for email-based unsubscribe
+      } else {
+        return res.status(400).json({
+          error: 'Either token or email is required',
+          timestamp: new Date().toISOString()
+        });
+      }
 
-if (token) {
-  // Token-based unsubscribe - check token regardless of current subscription status
-  query.unsubscribeToken = token;
-} else if (email) {
-  // Email-based unsubscribe - only work on active subscriptions
-  query.email = email.toLowerCase().trim();
-  query.unsubscribed = false;
-} else {
-  return res.status(400).json({
-    error: 'Either token or email is required',
-    timestamp: new Date().toISOString()
-  });
-}
+      // Find subscriber
+      const subscriber = await Subscriber.findOne(query);
+      
+      if (!subscriber) {
+        return res.status(404).json({ 
+          error: 'Not found',
+          suggestion: token 
+            ? 'Invalid or expired unsubscribe link' 
+            : 'Email not found or already unsubscribed',
+          timestamp: new Date().toISOString()
+        });
+      }
 
-// Find the subscriber with additional validation
-const subscriber = await Subscriber.findOne(query);
+      // Additional check for token case
+      if (token && subscriber.unsubscribed) {
+        return res.status(400).json({
+          error: 'Already unsubscribed',
+          suggestion: 'This link has already been used',
+          resubscribeLink: `${process.env.FRONTEND_URL}/resubscribe?token=${subscriber.resubscribeToken}`,
+          timestamp: new Date().toISOString()
+        });
+      }
 
-if (!subscriber) {
-  return res.status(404).json({ 
-    error: 'Subscription not found',
-    suggestion: token 
-      ? 'Invalid or expired unsubscribe link' 
-      : 'Email not found or already unsubscribed',
-    timestamp: new Date().toISOString()
-  });
-}
-
-// Additional check for token-based unsubscribe
-if (token && subscriber.unsubscribed) {
-  return res.status(400).json({
-    error: 'Already unsubscribed',
-    suggestion: 'This unsubscribe link has already been used',
-    resubscribeLink: `${process.env.FRONTEND_URL}/resubscribe?token=${subscriber.resubscribeToken}`,
-    timestamp: new Date().toISOString()
-  });
-}
-
-      // Generate new tokens with expiration
+      // Generate new tokens
       const newUnsubscribeToken = crypto.randomBytes(16).toString('hex');
       const resubscribeToken = crypto.randomBytes(16).toString('hex');
-      const resubscribeExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      // Update subscription status
-      const updatedSubscriber = await Subscriber.findOneAndUpdate(
-        query,
+      // Update subscriber
+      const updatedSubscriber = await Subscriber.findByIdAndUpdate(
+        subscriber._id,
         { 
           $set: { 
             unsubscribed: true,
             unsubscribedAt: new Date(),
             unsubscribeToken: newUnsubscribeToken,
             resubscribeToken,
-            resubscribeExpires,
+            resubscribeExpires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             lastActionAt: new Date()
           }
         },
-        { 
-          new: true,
-          projection: { email: 1 } 
-        }
+        { new: true }
       );
 
-      if (!updatedSubscriber) {
-        return res.status(404).json({ 
-          error: 'No active subscription found',
-          suggestion: token 
-            ? 'The unsubscribe link may have expired or been used already' 
-            : 'Email may already be unsubscribed',
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      // Generate secure resubscribe link
-      const resubscribeLink = `${process.env.FRONTEND_URL}/resubscribe?token=${resubscribeToken}`;
-
-      // Async email sending with error handling
-      sendUnsubscribeConfirmation(updatedSubscriber.email, resubscribeLink)
-        .catch(err => logger.error('Email sending failed:', {
-          error: err.message,
-          email: updatedSubscriber.email,
-          timestamp: new Date().toISOString()
-        }));
-
-      return res.status(200).json({ 
+      // Send response
+      res.status(200).json({ 
         success: true,
         message: 'Unsubscribed successfully',
         email: updatedSubscriber.email,
-        resubscribeLink,
+        resubscribeLink: `${process.env.FRONTEND_URL}/resubscribe?token=${resubscribeToken}`,
         timestamp: new Date().toISOString()
       });
 
     } catch (err) {
-      next(err); // Pass to global error handler
+      next(err);
     }
   }
 );
