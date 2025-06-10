@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 const AdminLogin = () => {
   const router = useRouter();
   const [credentials, setCredentials] = useState({
-    username: "",
+    email: "",
     password: "",
   });
   const [error, setError] = useState("");
@@ -15,16 +17,15 @@ const AdminLogin = () => {
     setCredentials({ ...credentials, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
-    // Simulate checking admin credentials (use a backend in real-world scenarios)
-    if (credentials.username === "admin" && credentials.password === "admin123") {
-      // Successful login, redirect to the admin dashboard
+    try {
+      await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
       router.push("/admin/dashboard");
-    } else {
-      // Show error message if login fails
-      setError("Invalid username or password");
+    } catch (err) {
+      setError("Invalid email or password");
     }
   };
 
@@ -35,10 +36,10 @@ const AdminLogin = () => {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
-          type="text"
-          name="username"
-          placeholder="Username"
-          value={credentials.username}
+          type="email"
+          name="email"
+          placeholder="Email"
+          value={credentials.email}
           onChange={handleChange}
           className="w-full p-2 border rounded"
           required

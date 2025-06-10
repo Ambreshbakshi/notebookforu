@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase"; // Make sure this path is correct
 
 const LoginPage = () => {
   const [credentials, setCredentials] = useState({
@@ -10,30 +12,28 @@ const LoginPage = () => {
     password: "",
   });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleChange = (e) => {
     setCredentials({ ...credentials, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); // Clear previous errors
+    setError("");
+    setLoading(true);
 
-    // TODO: Implement backend authentication logic here
-    console.log("Attempting to log in with:", credentials);
-    // Example: Call an API to authenticate user
-    // if (authenticationSuccessful) {
-
-    // Simulate a successful login for now
-    console.log("Simulating successful login for:", credentials.email);
-    localStorage.setItem('userEmail', credentials.email); // Store user email in localStorage
-
-    router.push("/profile");
-    //   // Redirect or set authentication state
-    // } else {
-    //   setError("Invalid email or password");
-    // }
+    try {
+      await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
+      console.log("Successfully logged in:", credentials.email);
+      router.push("/profile");
+    } catch (err) {
+      console.error("Login error:", err.message);
+      setError("Invalid email or password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,7 +44,7 @@ const LoginPage = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
+            <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
               Email
             </label>
             <input
@@ -59,7 +59,7 @@ const LoginPage = () => {
             />
           </div>
           <div>
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
+            <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">
               Password
             </label>
             <input
@@ -75,11 +75,15 @@ const LoginPage = () => {
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:shadow-outline"
+            disabled={loading}
+            className={`w-full py-2 px-4 rounded-lg text-white ${
+              loading ? "bg-blue-300" : "bg-blue-600 hover:bg-blue-700"
+            } focus:outline-none focus:shadow-outline`}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
+
         <p className="text-center text-gray-600 text-sm mt-6">
           Don't have an account?{" "}
           <Link href="/signup" className="text-blue-600 hover:underline">
