@@ -9,6 +9,7 @@ const { body, validationResult } = require('express-validator');
 const winston = require('winston');
 const mongoSanitize = require('express-mongo-sanitize');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 // Initialize Express
 const app = express();
@@ -174,6 +175,37 @@ transporter.verify((error) => {
 // MONGOOSE MODELS
 // ======================
 
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Name is required'],
+    trim: true,
+    maxlength: [100, 'Name cannot exceed 100 characters']
+  },
+  email: {
+    type: String,
+    required: [true, 'Email is required'],
+    unique: true,
+    validate: {
+      validator: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+      message: props => `${props.value} is not a valid email!`
+    },
+    lowercase: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: [true, 'Password is required'],
+    minlength: [6, 'Password must be at least 6 characters long']
+  }
+});
+
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
+});
 const contactSchema = new mongoose.Schema({
   name: { 
     type: String, 
@@ -261,6 +293,7 @@ subscriberSchema.index({ unsubscribed: 1, email: 1 }); // For querying active su
 subscriberSchema.index({ email: 1 }); // Already created by unique, but explicit
 
 
+const User = mongoose.model('User', userSchema);
 const Contact = mongoose.model('Contact', contactSchema);
 const Subscriber = mongoose.model('Subscriber', subscriberSchema);
 
@@ -330,6 +363,59 @@ app.get('/api/health', (req, res) => {
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
+
+// User Signup
+app.post('/api/signup',
+  [
+    body('name').trim().notEmpty().withMessage('Name is required').escape(),
+    body('email').isEmail().withMessage('Invalid email').normalizeEmail(),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+
+    try {
+      const { name, email, password } = req.body;
+
+      // Check if user already exists
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(409).json({
+          error: 'Email already exists'
+        });
+      }
+
+      // Create new user
+      const newUser = new User({ name, email, password });
+      await newUser.save();
+
+      // In a real application, you would typically generate a JWT token here
+      // and send it back for client-side authentication.
+      // For this example, we just send a success message.
+
+      res.status(201).json({
+        success: true,
+        message: 'User registered successfully'
+      });
+
+    } catch (err) {
+      logger.error('Signup error:', err);
+      res.status(500).json({
+        error: 'Internal server error',
+        ...(process.env.NODE_ENV === 'development' && {
+          details: err.message,
+          stack: err.stack
+        })
+      });
+    }
+  }
+);
 
 // Contact Form
 app.post('/api/contact', 

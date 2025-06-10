@@ -1,10 +1,118 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { FiMenu, FiX } from "react-icons/fi";
+import { FiMenu, FiX, FiShoppingCart, FiUser, FiSearch, FiBook, FiInfo, FiMail, FiHelpCircle, FiTruck, FiShield, FiFileText, FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+
+const Submenu = ({ 
+  title, 
+  children, 
+  icon, 
+  pathname,
+  className = "",
+  isMobile = false
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [timeoutId, setTimeoutId] = useState(null);
+  const menuRef = useRef(null);
+
+  // Close when clicking outside (desktop only)
+  useEffect(() => {
+    if (isMobile) return;
+    
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobile]);
+
+  const handleMouseEnter = () => {
+    if (isMobile) return;
+    clearTimeout(timeoutId);
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (isMobile) return;
+    const id = setTimeout(() => {
+      setIsOpen(false);
+    }, 200);
+    setTimeoutId(id);
+  };
+
+  const toggleMenu = () => {
+    setIsOpen(!isOpen);
+    clearTimeout(timeoutId);
+  };
+
+  if (isMobile) {
+    return (
+      <div className="w-full">
+        <button 
+          className={`flex items-center justify-between w-full px-4 py-3 text-left ${isOpen ? 'bg-gray-50 text-blue-600' : ''}`}
+          onClick={toggleMenu}
+        >
+          <div className="flex items-center">
+            {icon && <span className="mr-3">{icon}</span>}
+            <span className="font-medium">{title}</span>
+          </div>
+          {isOpen ? <FiChevronUp /> : <FiChevronDown />}
+        </button>
+        
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="pl-8 overflow-hidden"
+            >
+              {children}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className={`relative ${className}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      ref={menuRef}
+    >
+      <button 
+        className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${isOpen ? 'bg-gray-100 text-blue-600' : 'hover:bg-gray-50'}`}
+        onClick={toggleMenu}
+        aria-expanded={isOpen}
+        aria-haspopup="true"
+      >
+        {icon && <span className="text-lg">{icon}</span>}
+        {title}
+        <span className="text-sm ml-1">
+          {isOpen ? <FiChevronUp /> : <FiChevronDown />}
+        </span>
+      </button>
+      
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={isOpen ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
+        transition={{ duration: 0.2 }}
+        className={`absolute top-full left-0 bg-white shadow-lg rounded-md mt-1 py-2 min-w-[200px] z-50 ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+};
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -34,7 +142,7 @@ const Navbar = () => {
         className={`fixed top-0 left-0 w-full ${scrolled ? "bg-white shadow-lg" : "bg-white/90 backdrop-blur-sm"} transition-all duration-300 h-16 flex items-center z-50`}
       >
         <div className="container mx-auto flex justify-between items-center px-4 sm:px-6">
-          {/* Logo with hover effect */}
+          {/* Logo */}
           <motion.div whileHover={{ scale: 1.05 }}>
             <Link
               href="/"
@@ -46,11 +154,50 @@ const Navbar = () => {
           </motion.div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex space-x-8">
-            <NavLink href="/" pathname={pathname}>Home</NavLink>
-            <NavLink href="/notebook-gallery" pathname={pathname}>Notebook Gallery</NavLink>
-            <NavLink href="/about-us" pathname={pathname}>About Us</NavLink>
-            <NavLink href="/contact-us" pathname={pathname}>Contact</NavLink>
+          <div className="hidden md:flex items-center space-x-2">
+            <NavLink href="/" pathname={pathname}>
+              Home
+            </NavLink>
+            
+            <Submenu title="Shop" icon={<FiBook />}>
+              <NavLink href="/notebook-gallery" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+                <FiBook className="mr-2" /> All Products
+              </NavLink>
+              <NavLink href="/categories" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+                <FiBook className="mr-2" /> Categories
+              </NavLink>
+              <div className="border-t my-1"></div>
+              <NavLink href="/new-arrivals" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+                <span className="mr-2">🆕</span> New Arrivals
+              </NavLink>
+            </Submenu>
+            
+            <Submenu title="Information" icon={<FiInfo />}>
+              <NavLink href="/about-us" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+                <FiInfo className="mr-2" /> About Us
+              </NavLink>
+              <NavLink href="/blog" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+                <FiFileText className="mr-2" /> Blog
+              </NavLink>
+            </Submenu>
+
+            <div className="flex items-center space-x-2 ml-2">
+              <NavLink href="/search" pathname={pathname} className="p-2">
+                <FiSearch />
+              </NavLink>
+              <NavLink href="/cart" pathname={pathname} className="p-2 relative">
+                <FiShoppingCart />
+              </NavLink>
+              
+              <Submenu title={<FiUser />} className="p-2">
+                <NavLink href="/login" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+                  <FiUser className="mr-2" /> Login/Register
+                </NavLink>
+                <NavLink href="/profile" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+                  <FiUser className="mr-2" /> My Account
+                </NavLink>
+              </Submenu>
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
@@ -76,13 +223,30 @@ const Navbar = () => {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="md:hidden bg-white shadow-lg overflow-hidden fixed top-16 w-full left-0 z-40"
-          >
-            <div className="px-6 py-4 flex flex-col space-y-4">
-              <NavLink href="/" pathname={pathname}>Home</NavLink>
-              <NavLink href="/notebook-gallery" pathname={pathname}>Notebook Gallery</NavLink>
-              <NavLink href="/about-us" pathname={pathname}>About Us</NavLink>
-              <NavLink href="/contact-us" pathname={pathname}>Contact</NavLink>
+            className="md:hidden bg-white shadow-lg overflow-y-auto max-h-[calc(100vh-4rem)] fixed top-16 w-full left-0 z-40"
+          > 
+            <div className="px-4 py-2 flex flex-col">
+              <MobileNavLink href="/" pathname={pathname}>Home</MobileNavLink>
+              
+              <Submenu title="Shop" icon={<FiBook />} pathname={pathname} isMobile>
+                <MobileNavLink href="/notebook-gallery" pathname={pathname}>All Products</MobileNavLink>
+                <MobileNavLink href="/categories" pathname={pathname}>Categories</MobileNavLink>
+                <MobileNavLink href="/new-arrivals" pathname={pathname}>New Arrivals</MobileNavLink>
+              </Submenu>
+              
+              <Submenu title="Information" icon={<FiInfo />} pathname={pathname} isMobile>
+                <MobileNavLink href="/about-us" pathname={pathname}>About Us</MobileNavLink>
+                <MobileNavLink href="/blog" pathname={pathname}>Blog</MobileNavLink>
+              </Submenu>
+
+              <Submenu title="Account" icon={<FiUser />} pathname={pathname} isMobile>
+                <MobileNavLink href="/login" pathname={pathname}>Login/Register</MobileNavLink>
+                <MobileNavLink href="/profile" pathname={pathname}>My Account</MobileNavLink>
+              </Submenu>
+
+              <div className="border-t my-1"></div>
+              <MobileNavLink href="/search" pathname={pathname} icon={<FiSearch />}>Search</MobileNavLink>
+              <MobileNavLink href="/cart" pathname={pathname} icon={<FiShoppingCart />}>Cart</MobileNavLink>
             </div>
           </motion.div>
         )}
@@ -91,25 +255,47 @@ const Navbar = () => {
   );
 };
 
-// Enhanced NavLink component
-const NavLink = ({ href, pathname, children }) => {
+// Enhanced NavLink component for desktop
+const NavLink = ({ href, pathname, children, className = "" }) => {
   const isActive = pathname === href;
-  
+  const isProductRoute = href === '/notebook-gallery' && 
+    (pathname.startsWith('/notebook') || 
+    pathname.startsWith('/diary') || 
+    pathname.startsWith('/combination') || 
+    pathname === '/notebook-gallery');
+
   return (
     <Link href={href} passHref>
       <motion.div
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className={`relative px-2 py-1 text-lg font-medium transition-colors ${isActive ? "text-blue-600" : "text-gray-700 hover:text-blue-500"}`}
+        className={`relative px-3 py-1 text-lg font-medium transition-colors ${isActive || isProductRoute ? "text-blue-600" : "text-gray-700 hover:text-blue-500"} ${className}`}
       >
         {children}
-        {isActive && (
+        {(isActive || isProductRoute) && (
           <motion.span 
             layoutId="navActive"
             className="absolute left-0 bottom-0 w-full h-0.5 bg-blue-600"
             transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
           />
         )}
+      </motion.div>
+    </Link>
+  );
+};
+
+// Mobile-specific NavLink component
+const MobileNavLink = ({ href, pathname, children, icon }) => {
+  const isActive = pathname === href;
+  
+  return (
+    <Link href={href} passHref>
+      <motion.div
+        whileTap={{ scale: 0.98 }}
+        className={`flex items-center py-3 px-4 rounded-md ${isActive ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"}`}
+      >
+        {icon && <span className="mr-3">{icon}</span>}
+        <span className="font-medium">{children}</span>
       </motion.div>
     </Link>
   );
