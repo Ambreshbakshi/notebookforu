@@ -6,7 +6,7 @@ app.use(express.json());
 app.post("/verify", (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-  const secret = "YOUR_RAZORPAY_KEY_SECRET"; // Replace this with a Railway secret later
+  const secret = "s7SyZ6G2HbI4qLzqsCX3rjAB"; // Replace this with a Railway secret later
 
   const generated_signature = crypto
     .createHmac("sha256", secret)
