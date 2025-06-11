@@ -4,9 +4,9 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   try {
     const body = await req.json();
-    const amount = body.amount;
+    const { amount } = body;
 
-    if (!amount || amount <= 0) {
+    if (!amount || typeof amount !== "number" || amount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
@@ -16,15 +16,20 @@ export async function POST(req) {
     });
 
     const options = {
-      amount: amount * 100, // convert to paise
+      amount: Math.round(amount * 100), // ₹ to paise
       currency: "INR",
       receipt: `receipt_order_${Date.now()}`,
     };
 
     const order = await razorpay.orders.create(options);
-    return NextResponse.json(order);
+
+    return NextResponse.json({
+      id: order.id,
+      amount: order.amount,
+      currency: order.currency,
+    });
   } catch (error) {
-    console.error("🔴 Razorpay order creation error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("🔴 Razorpay order creation failed:", error);
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 }

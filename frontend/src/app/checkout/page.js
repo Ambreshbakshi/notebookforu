@@ -6,7 +6,6 @@ const CheckoutPage = () => {
   const router = useRouter();
 
   useEffect(() => {
-    // Load Razorpay script
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
@@ -17,6 +16,7 @@ const CheckoutPage = () => {
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
     const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+    // 1. Create order on backend
     const res = await fetch("/api/razorpay", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -35,33 +35,50 @@ const CheckoutPage = () => {
       return;
     }
 
+    // 2. Razorpay Checkout Options
     const options = {
-  key: 'rzp_test_xxxxxxxx',
-  amount: 50000, // in paise = ₹500
-  currency: 'INR',
-  name: 'Your Store Name',
-  description: 'Notebook Purchase',
-  order_id: 'order_xyzabc123',
-  handler: function (response) {
-    // handle payment success
-  },
-  prefill: {
-    name: 'John Doe',
-    email: 'john@example.com',
-    contact: '9999999999'
-  },
-  theme: {
-    color: '#3399cc'
-  },
-  // ✅ Add this to show UPI:
-  method: {
-    upi: true,
-    card: true,
-    netbanking: true,
-    wallet: true
-  }
-};
+      key: "rzp_test_xxxxxxxx", // 🔁 Replace with your Razorpay key_id
+      amount: data.amount,
+      currency: "INR",
+      name: "Notebookforu Store",
+      description: "Notebook Purchase",
+      order_id: data.id,
+      handler: async function (response) {
+        const verifyRes = await fetch("/api/razorpay/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          }),
+        });
 
+        const verifyData = await verifyRes.json();
+
+        if (verifyData.success) {
+          alert("✅ Payment verified successfully!");
+          router.push("/success");
+        } else {
+          alert("❌ Payment verification failed!");
+          router.push("/failed");
+        }
+      },
+      prefill: {
+        name: "John Doe",
+        email: "john@example.com",
+        contact: "9999999999",
+      },
+      theme: {
+        color: "#3399cc",
+      },
+      method: {
+        upi: true,
+        card: true,
+        netbanking: true,
+        wallet: true,
+      },
+    };
 
     const rzp = new window.Razorpay(options);
     rzp.open();
