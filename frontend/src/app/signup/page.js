@@ -1,25 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiUser, FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import {
+  getRedirectResult,
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect
 } from "firebase/auth";
+
 import { auth } from "@/lib/firebase";
- // Make sure this path is correct
+import { createUserIfNotExists } from "@/lib/utils/createUserIfNotExists";
 
 const SignupPage = () => {
+  const router = useRouter();
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
-  const router = useRouter();
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          router.push("/profile");
+        }
+      })
+      .catch((error) => {
+        console.error("Redirect login error:", error);
+        setErrors({ form: "Google redirect login failed." });
+      });
+  }, []);
+  
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -44,36 +60,44 @@ const SignupPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    if (!validateForm()) {
-      setIsSubmitting(false);
-      return;
-    }
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+  if (!validateForm()) {
+    setIsSubmitting(false);
+    return;
+  }
 
-    try {
-      await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      setSuccessMessage("Registration successful! Redirecting...");
-      setTimeout(() => router.push("/login"), 2000);
-    } catch (error) {
-      console.error("Signup error:", error);
-      setErrors({ form: error.message });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  try {
+    const result = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+    await createUserIfNotExists(result.user); // ✅ Firestore
+    setSuccessMessage("Registration successful! Redirecting...");
+    setTimeout(() => router.push("/login"), 2000);
+  } catch (error) {
+    console.error("Signup error:", error);
+    setErrors({ form: error.message });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
-  const handleGoogleSignup = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      router.push("/profile");
-    } catch (err) {
-      console.error(err);
+
+ const handleGoogleSignup = async () => {
+  const provider = new GoogleAuthProvider();
+
+  try {
+    await signInWithPopup(auth, provider);
+    router.push("/profile");
+  } catch (error) {
+    if (error.code === "auth/popup-blocked") {
+      await signInWithRedirect(auth, provider);
+    } else {
+      console.error("Google signup error:", error);
       setErrors({ form: "Google signup failed." });
     }
-  };
+  }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100">

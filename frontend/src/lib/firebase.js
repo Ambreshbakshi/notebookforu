@@ -1,13 +1,7 @@
-// Import the functions you need from the SDKs you need
+// Import necessary Firebase functions
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCHRVid_5lTWxr2KmqWHcDCyvaYUY-IoFs",
@@ -16,16 +10,23 @@ const firebaseConfig = {
   storageBucket: "notebookforu-ce0f7.firebasestorage.app",
   messagingSenderId: "427956865500",
   appId: "1:427956865500:web:13eaf9895c39846d7d6719",
-  measurementId: "G-PMX5LG23ND"
+  measurementId: "G-PMX5LG23ND",
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Optional: Only get analytics on the client
 let analytics = null;
 if (typeof window !== "undefined") {
-  const { getAnalytics } = require("firebase/analytics");
-  analytics = getAnalytics(app);
+  import("firebase/analytics").then(({ getAnalytics }) => {
+    analytics = getAnalytics(app);
+  });
 }
+
+// Firebase services
 const auth = getAuth(app);
+const db = getFirestore(app); // ✅ Add Firestore
 const provider = new GoogleAuthProvider();
-export { auth, provider, analytics };
+
+export { auth, db, provider, analytics };
