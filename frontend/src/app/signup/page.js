@@ -23,6 +23,7 @@ const SignupPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   useEffect(() => {
     getRedirectResult(auth)
@@ -70,27 +71,50 @@ const SignupPage = () => {
     }
 
     try {
-      const result = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      // Create user and update profile in parallel with Firestore initialization
+      const [{ user }] = await Promise.all([
+        createUserWithEmailAndPassword(auth, formData.email, formData.password)
+          .then(async (result) => {
+            await updateProfile(result.user, { displayName: formData.name });
+            return result;
+          }),
+        
+        // Pre-load Firestore while auth operations are happening
+        (async () => {
+          const { getFirestore } = await import('firebase/firestore');
+          return getFirestore();
+        })()
+      ]);
 
-      // Update user profile with the provided name
-      await updateProfile(result.user, {
-        displayName: formData.name
-      });
-
-      // Save user details in Firestore
-      await createUserIfNotExists(result.user);
+      // Firestore write happens separately but doesn't block UI
+      createUserIfNotExists(user)
+        .catch(error => console.error("Non-critical Firestore error:", error));
 
       setSuccessMessage("Registration successful! Redirecting...");
-      setTimeout(() => router.push("/login"), 2000);
+      setTimeout(() => router.push("/login"), 1500); // Reduced delay
     } catch (error) {
       console.error("Signup error:", error);
-      setErrors({ form: error.message });
+      setErrors({ form: getFriendlyError(error) });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const getFriendlyError = (error) => {
+    switch (error.code) {
+      case 'auth/email-already-in-use':
+        return 'This email is already registered';
+      case 'auth/weak-password':
+        return 'Please choose a stronger password (min 8 characters)';
+      case 'auth/network-request-failed':
+        return 'Network error. Please check your connection';
+      default:
+        return error.message || 'Registration failed. Please try again';
+    }
+  };
+
   const handleGoogleSignup = async () => {
+    setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
 
     try {
@@ -102,8 +126,10 @@ const SignupPage = () => {
         await signInWithRedirect(auth, provider);
       } else {
         console.error("Google signup error:", error);
-        setErrors({ form: "Google signup failed." });
+        setErrors({ form: getFriendlyError(error) });
       }
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -138,7 +164,7 @@ const SignupPage = () => {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="John Doe"
+                placeholder="Name"
                 className={`pl-10 w-full py-2 px-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.name ? "border-red-500" : "border-gray-300"
                 }`}
@@ -157,7 +183,7 @@ const SignupPage = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="you@example.com"
+                placeholder="email"
                 className={`pl-10 w-full py-2 px-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.email ? "border-red-500" : "border-gray-300"
                 }`}
@@ -234,18 +260,41 @@ const SignupPage = () => {
               <div className="w-full border-t border-gray-300" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              <span className="px-2 bg-white text-gray-500">Or</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
-            <button
-              type="button"
-              onClick={handleGoogleSignup}
-              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Google
-            </button>
+         <button
+  type="button"
+  onClick={handleGoogleSignup}
+  className="w-full flex items-center justify-center gap-3 py-2 px-4 rounded-xl border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-100 transition duration-200 shadow-sm"
+>
+  <svg
+    className="w-5 h-5"
+    viewBox="0 0 533.5 544.3"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M533.5 278.4c0-17.7-1.4-35-4.3-51.8H272v98h147.5c-6.4 34.4-25 63.5-53.6 83l86.6 67.2c50.6-46.6 80-115.3 80-196.4z"
+      fill="#4285f4"
+    />
+    <path
+      d="M272 544.3c72.6 0 133.6-24 178.2-65.1l-86.6-67.2c-24.1 16.2-55 25.7-91.6 25.7-70.4 0-130.1-47.6-151.4-111.6l-89.2 68.9c43.9 87.1 134.1 149.3 240.6 149.3z"
+      fill="#34a853"
+    />
+    <path
+      d="M120.6 325.8c-10.3-30.2-10.3-62.6 0-92.8l-89.2-68.9c-39.1 77.9-39.1 170.1 0 248l89.2-68.9z"
+      fill="#fbbc04"
+    />
+    <path
+      d="M272 107.6c39.5-.6 77.4 13.7 106.5 39.9l79.5-79.5C419.8 23.2 346.8-2.3 272 0 165.5 0 75.3 62.1 31.4 149.3l89.2 68.9C141.9 155.2 201.6 107.6 272 107.6z"
+      fill="#ea4335"
+    />
+  </svg>
+  Continue with Google
+</button>
+
           </div>
         </div>
       </div>
