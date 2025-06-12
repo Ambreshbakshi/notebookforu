@@ -1,9 +1,10 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const CheckoutPage = () => {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const script = document.createElement("script");
@@ -14,74 +15,84 @@ const CheckoutPage = () => {
 
   const handlePayment = async () => {
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
+    if (cart.length === 0) {
+      alert("Your cart is empty.");
+      return;
+    }
+
     const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    setLoading(true);
 
-    // 1. Create order on backend
-    const res = await fetch("/api/razorpay", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: totalAmount }),
-    });
+    try {
+      const res = await fetch("/api/razorpay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: totalAmount }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!data || !data.id) {
-      alert("Something went wrong with the order creation.");
-      return;
+      if (!data?.id) {
+        alert("Something went wrong with order creation.");
+        console.error("Order creation error:", data);
+        return;
+      }
+
+      if (!window.Razorpay) {
+        alert("Razorpay SDK not loaded. Please refresh.");
+        return;
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: data.amount,
+        currency: "INR",
+        name: "Notebookforu Store",
+        description: "Notebook Purchase",
+        order_id: data.id,
+        handler: async function (response) {
+          const verifyRes = await fetch("/api/razorpay/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          });
+
+          const verifyData = await verifyRes.json();
+
+          if (verifyData.success) {
+            alert("✅ Payment verified successfully!");
+            router.push("/success");
+          } else {
+            alert("❌ Payment verification failed!");
+            router.push("/failed");
+          }
+        },
+        prefill: {
+          name: "John Doe",
+          email: "john@example.com",
+          contact: "9999999999",
+        },
+        theme: { color: "#3399cc" },
+        method: {
+          upi: true,
+          card: true,
+          netbanking: true,
+          wallet: true,
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error("Payment Error:", err);
+      alert("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    if (!window.Razorpay) {
-      alert("Razorpay SDK failed to load. Please refresh the page.");
-      return;
-    }
-
-    // 2. Razorpay Checkout Options
-    const options = {
-      key: "rzp_test_xxxxxxxx", // 🔁 Replace with your Razorpay key_id
-      amount: data.amount,
-      currency: "INR",
-      name: "Notebookforu Store",
-      description: "Notebook Purchase",
-      order_id: data.id,
-      handler: async function (response) {
-        const verifyRes = await fetch("/api/razorpay/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          }),
-        });
-
-        const verifyData = await verifyRes.json();
-
-        if (verifyData.success) {
-          alert("✅ Payment verified successfully!");
-          router.push("/success");
-        } else {
-          alert("❌ Payment verification failed!");
-          router.push("/failed");
-        }
-      },
-      prefill: {
-        name: "John Doe",
-        email: "john@example.com",
-        contact: "9999999999",
-      },
-      theme: {
-        color: "#3399cc",
-      },
-      method: {
-        upi: true,
-        card: true,
-        netbanking: true,
-        wallet: true,
-      },
-    };
-
-    const rzp = new window.Razorpay(options);
-    rzp.open();
   };
 
   return (
@@ -89,9 +100,10 @@ const CheckoutPage = () => {
       <h1 className="text-4xl font-bold text-center mb-10">Checkout</h1>
       <button
         onClick={handlePayment}
-        className="block mx-auto bg-green-600 text-white px-6 py-3 rounded-lg text-lg hover:bg-green-700"
+        className="block mx-auto bg-green-600 text-white px-6 py-3 rounded-lg text-lg hover:bg-green-700 disabled:opacity-50"
+        disabled={loading}
       >
-        Pay Now
+        {loading ? "Processing..." : "Pay Now"}
       </button>
     </div>
   );

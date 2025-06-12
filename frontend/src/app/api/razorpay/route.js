@@ -5,7 +5,7 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const { amount } = body;
-
+console.log("Razorpay Key:", process.env.RAZORPAY_KEY_ID); 
     if (!amount || typeof amount !== "number" || amount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
@@ -16,7 +16,7 @@ export async function POST(req) {
     });
 
     const options = {
-      amount: Math.round(amount * 100), // ₹ to paise
+      amount: Math.round(amount * 100), // Convert ₹ to paise
       currency: "INR",
       receipt: `receipt_order_${Date.now()}`,
     };
