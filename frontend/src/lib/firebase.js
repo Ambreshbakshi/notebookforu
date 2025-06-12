@@ -4,13 +4,13 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCHRVid_5lTWxr2KmqWHcDCyvaYUY-IoFs",
-  authDomain: "notebookforu-ce0f7.firebaseapp.com",
-  projectId: "notebookforu-ce0f7",
-  storageBucket: "notebookforu-ce0f7.firebasestorage.app",
-  messagingSenderId: "427956865500",
-  appId: "1:427956865500:web:13eaf9895c39846d7d6719",
-  measurementId: "G-PMX5LG23ND",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase
@@ -26,7 +26,7 @@ if (typeof window !== "undefined") {
 
 // Firebase services
 const auth = getAuth(app);
-const db = getFirestore(app); // ✅ Add Firestore
+const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
 export { auth, db, provider, analytics };
