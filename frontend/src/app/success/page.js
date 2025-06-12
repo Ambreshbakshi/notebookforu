@@ -1,8 +1,9 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+'use client';
 
-const SuccessPage = () => {
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+
+function SuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -48,6 +49,12 @@ const SuccessPage = () => {
       </div>
     </div>
   );
-};
+}
 
-export default SuccessPage;
+export default function SuccessPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <SuccessContent />
+    </Suspense>
+  );
+}
