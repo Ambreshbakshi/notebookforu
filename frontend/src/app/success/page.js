@@ -10,10 +10,16 @@ function SuccessContent() {
   const [orderId, setOrderId] = useState(null);
 
   useEffect(() => {
+    // Get the order ID from search params
     const order = searchParams.get("order_id");
     if (order) {
       setOrderId(order);
     }
+
+    // Clear cart from localStorage
+    localStorage.removeItem("cart");
+
+    // Simulate loading state
     const timeout = setTimeout(() => setLoading(false), 1500);
     return () => clearTimeout(timeout);
   }, [searchParams]);
