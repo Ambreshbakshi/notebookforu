@@ -65,7 +65,7 @@ const CheckoutPage = () => {
 
           if (verifyData.success) {
             alert("✅ Payment verified successfully!");
-            router.push("/success");
+           router.push("/success?order_id=" + response.razorpay_order_id);
           } else {
             alert("❌ Payment verification failed!");
             router.push("/failed");
