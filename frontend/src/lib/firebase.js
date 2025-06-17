@@ -4,7 +4,7 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import {
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
+  persistentMultipleTabManager
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -28,12 +28,13 @@ if (typeof window !== "undefined") {
   });
 }
 
-// ✅ Modern Firestore Initialization with Persistence and Multi-Tab Support
+// ✅ Firestore with offline support and robust network compatibility
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(), // Allows multi-tab offline access
   }),
-  experimentalForceLongPolling: true, // Optional: helps in certain network conditions
+  experimentalForceLongPolling: true, // Helps in network-restricted environments
+  useFetchStreams: false, // Avoids issues with fetch-based streaming (fallback to xhr)
 });
 
 // Firebase Auth
