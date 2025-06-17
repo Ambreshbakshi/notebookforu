@@ -41,3 +41,11 @@ h1, h2, h3, h4, h5, h6 {
 html {
   scroll-behavior: smooth;
 }
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  20%, 80% { opacity: 1; }
+}
+
+.animate-fadeInOut {
+  animation: fadeInOut 5s ease-in-out infinite;
+}

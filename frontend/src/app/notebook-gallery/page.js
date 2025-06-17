@@ -7,33 +7,68 @@ import { FaHeart, FaRegHeart, FaStar, FaCartPlus, FaSearch, FaChevronLeft, FaChe
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const useLocalStorage = (key, initialValue) => {
+  const [storedValue, setStoredValue] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const item = window.localStorage.getItem(key);
+        return item ? JSON.parse(item) : initialValue;
+      }
+      return initialValue;
+    } catch (error) {
+      console.error(error);
+      return initialValue;
+    }
+  });
+
+  const setValue = (value) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return [storedValue, setValue];
+};
+
 const NotebookGallery = () => {
   const [selectedType, setSelectedType] = useState("all");
-  const [wishlist, setWishlist] = useState([]);
+  const [wishlist, setWishlist] = useLocalStorage("wishlist", []);
   const [quickView, setQuickView] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("featured");
 
-  // Load wishlist from localStorage on component mount
-  useEffect(() => {
-    const savedWishlist = localStorage.getItem("wishlist");
-    if (savedWishlist) {
-      setWishlist(JSON.parse(savedWishlist));
-    }
-  }, []);
+  const filterOptions = useMemo(() => [
+    { value: "all", label: "All Products" },
+    { value: "diary", label: "Diaries" },
+    { value: "notebook", label: "Notebooks" },
+    { value: "combination", label: "Combination Packs" },
+    { value: "notebook 200", label: "Notebooks (200 Pages)" },
+    { value: "notebook 300", label: "Notebooks (300 Pages)" },
+    { value: "notebook 400", label: "Notebooks (400 Pages)" },
+  ], []);
 
-  // Save wishlist to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem("wishlist", JSON.stringify(wishlist));
-  }, [wishlist]);
+  const sortOptions = useMemo(() => [
+    { value: "featured", label: "Featured" },
+    { value: "price-low", label: "Price: Low to High" },
+    { value: "price-high", label: "Price: High to Low" },
+    { value: "name-asc", label: "Name: A to Z" },
+    { value: "name-desc", label: "Name: Z to A" },
+    { value: "newest", label: "Newest Arrivals" },
+  ], []);
 
   const { notebooks, diaries, combinations, allProducts } = useMemo(() => {
-    const notebooks = Object.values(productData.notebooks).map((item) => ({
+    const notebooks = Object.values(productData.notebooks || {}).map((item) => ({
       ...item,
       type: "notebook",
     }));
-    const diaries = Object.values(productData.diaries).map((item) => ({
+    const diaries = Object.values(productData.diaries || {}).map((item) => ({
       ...item,
       type: "diary",
     }));
@@ -64,13 +99,13 @@ const NotebookGallery = () => {
         products = combinations;
         break;
       case "notebook 200":
-        products = notebooks.filter((item) => item.details.pages === 200);
+        products = notebooks.filter((item) => item.details?.pages === 200);
         break;
       case "notebook 300":
-        products = notebooks.filter((item) => item.details.pages === 300);
+        products = notebooks.filter((item) => item.details?.pages === 300);
         break;
       case "notebook 400":
-        products = notebooks.filter((item) => item.details.pages === 400);
+        products = notebooks.filter((item) => item.details?.pages === 400);
         break;
       default:
         products = allProducts;
@@ -79,7 +114,7 @@ const NotebookGallery = () => {
     // Apply search filter
     if (searchQuery) {
       products = products.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
@@ -87,19 +122,37 @@ const NotebookGallery = () => {
     // Apply sorting
     switch (sortOption) {
       case "price-low":
-        products = [...products].sort((a, b) => parseFloat(a.price.replace(/[^0-9.-]+/g, "")) - parseFloat(b.price.replace(/[^0-9.-]+/g, "")));
+        products = [...products].sort((a, b) => {
+          const priceA = typeof a.price === 'string' 
+            ? parseFloat(a.price.replace(/[^0-9.-]+/g, "")) 
+            : a.price || 0;
+          const priceB = typeof b.price === 'string' 
+            ? parseFloat(b.price.replace(/[^0-9.-]+/g, "")) 
+            : b.price || 0;
+          return priceA - priceB;
+        });
         break;
       case "price-high":
-        products = [...products].sort((a, b) => parseFloat(b.price.replace(/[^0-9.-]+/g, "")) - parseFloat(a.price.replace(/[^0-9.-]+/g, "")));
+        products = [...products].sort((a, b) => {
+          const priceA = typeof a.price === 'string' 
+            ? parseFloat(a.price.replace(/[^0-9.-]+/g, "")) 
+            : a.price || 0;
+          const priceB = typeof b.price === 'string' 
+            ? parseFloat(b.price.replace(/[^0-9.-]+/g, "")) 
+            : b.price || 0;
+          return priceB - priceA;
+        });
         break;
       case "name-asc":
-        products = [...products].sort((a, b) => a.name.localeCompare(b.name));
+        products = [...products].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         break;
       case "name-desc":
-        products = [...products].sort((a, b) => b.name.localeCompare(a.name));
+        products = [...products].sort((a, b) => (b.name || "").localeCompare(a.name || ""));
         break;
       case "newest":
-        products = [...products].sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
+        products = [...products].sort((a, b) => 
+          new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0)
+        );
         break;
       default:
         // featured (default sorting)
@@ -109,50 +162,43 @@ const NotebookGallery = () => {
     return products;
   }, [selectedType, notebooks, diaries, combinations, allProducts, searchQuery, sortOption]);
 
-  const filterOptions = [
-    { value: "all", label: "All Products" },
-    { value: "diary", label: "Diaries" },
-    { value: "notebook", label: "Notebooks" },
-    { value: "combination", label: "Combination Packs" },
-    { value: "notebook 200", label: "Notebooks (200 Pages)" },
-    { value: "notebook 300", label: "Notebooks (300 Pages)" },
-    { value: "notebook 400", label: "Notebooks (400 Pages)" },
-  ];
-
-  const sortOptions = [
-    { value: "featured", label: "Featured" },
-    { value: "price-low", label: "Price: Low to High" },
-    { value: "price-high", label: "Price: High to Low" },
-    { value: "name-asc", label: "Name: A to Z" },
-    { value: "name-desc", label: "Name: Z to A" },
-    { value: "newest", label: "Newest Arrivals" },
-  ];
-
   const getProductRoute = (type, id) => {
     return type === "combination" ? `/combination/${id}` : `/${type}/${id}`;
   };
 
   const addToCart = (product) => {
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    const existingItemIndex = cart.findIndex(
-      (item) => item.id === product.id && item.type === product.type
-    );
+    try {
+      const cart = JSON.parse(localStorage.getItem("cart")) || [];
+      const existingItemIndex = cart.findIndex(
+        (item) => item.id === product.id && item.type === product.type
+      );
 
-    if (existingItemIndex > -1) {
-      cart[existingItemIndex].quantity += 1;
-    } else {
-      cart.push({ ...product, quantity: 1 });
+      if (existingItemIndex > -1) {
+        cart[existingItemIndex].quantity += 1;
+      } else {
+        cart.push({ ...product, quantity: 1 });
+      }
+
+      localStorage.setItem("cart", JSON.stringify(cart));
+      toast.success(`${product.name} added to cart!`, {
+        position: "bottom-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    } catch (error) {
+      toast.error("Failed to add item to cart", {
+        position: "bottom-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      console.error("Error adding to cart:", error);
     }
-
-    localStorage.setItem("cart", JSON.stringify(cart));
-    toast.success(`${product.name} added to cart!`, {
-      position: "bottom-right",
-      autoClose: 3000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-    });
   };
 
   const toggleWishlist = (product) => {
@@ -219,6 +265,7 @@ const NotebookGallery = () => {
                 <button 
                   onClick={closeQuickView}
                   className="text-gray-500 hover:text-gray-700 text-2xl"
+                  aria-label="Close quick view"
                 >
                   &times;
                 </button>
@@ -240,12 +287,14 @@ const NotebookGallery = () => {
                       <button 
                         onClick={() => navigateImage('prev')}
                         className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white p-2 rounded-full shadow-md hover:bg-gray-100"
+                        aria-label="Previous image"
                       >
                         <FaChevronLeft />
                       </button>
                       <button 
                         onClick={() => navigateImage('next')}
                         className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white p-2 rounded-full shadow-md hover:bg-gray-100"
+                        aria-label="Next image"
                       >
                         <FaChevronRight />
                       </button>
@@ -255,6 +304,7 @@ const NotebookGallery = () => {
                             key={index}
                             onClick={() => setCurrentImageIndex(index)}
                             className={`w-3 h-3 rounded-full ${currentImageIndex === index ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                            aria-label={`Go to image ${index + 1}`}
                           />
                         ))}
                       </div>
@@ -266,7 +316,11 @@ const NotebookGallery = () => {
                   <div className="flex items-center mb-2">
                     <div className="flex text-yellow-400">
                       {[...Array(5)].map((_, i) => (
-                        <FaStar key={i} className={i < (quickView.rating || 4) ? "text-yellow-400" : "text-gray-300"} />
+                        <FaStar 
+                          key={i} 
+                          className={i < (quickView.rating || 4) ? "text-yellow-400" : "text-gray-300"} 
+                          aria-hidden="true"
+                        />
                       ))}
                     </div>
                     <span className="text-gray-600 ml-2 text-sm">
@@ -313,6 +367,7 @@ const NotebookGallery = () => {
                     <button
                       onClick={() => toggleWishlist(quickView)}
                       className="p-3 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                      aria-label={wishlist.includes(`${quickView.type}-${quickView.id}`) ? "Remove from wishlist" : "Add to wishlist"}
                     >
                       {wishlist.includes(`${quickView.type}-${quickView.id}`) ? (
                         <FaHeart className="text-red-500" />
@@ -347,6 +402,7 @@ const NotebookGallery = () => {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search products"
               />
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             </div>
@@ -355,6 +411,7 @@ const NotebookGallery = () => {
               className="px-4 py-3 text-base border border-gray-300 rounded-xl shadow-sm bg-white focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition"
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
+              aria-label="Filter products by type"
             >
               {filterOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -367,6 +424,7 @@ const NotebookGallery = () => {
               className="px-4 py-3 text-base border border-gray-300 rounded-xl shadow-sm bg-white focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition"
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value)}
+              aria-label="Sort products"
             >
               {sortOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -379,7 +437,7 @@ const NotebookGallery = () => {
 
         {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((item) => {
+            {filteredProducts.map((item, index) => {
               const productKey = `${item.type}-${item.id}`;
               const isInWishlist = wishlist.includes(productKey);
               
@@ -392,6 +450,7 @@ const NotebookGallery = () => {
                     <Link
                       href={getProductRoute(item.type, item.id)}
                       className="w-full"
+                      aria-label={`View details for ${item.name}`}
                     >
                       <div className="relative w-full" style={{ paddingBottom: "141.4%" }}>
                         <Image
@@ -400,7 +459,8 @@ const NotebookGallery = () => {
                           fill
                           className="object-contain rounded-lg transition duration-300 group-hover:opacity-90"
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                          priority={item.id <= 4}
+                          priority={index < 4}
+                          loading={index > 3 ? "lazy" : "eager"}
                         />
                       </div>
                     </Link>
@@ -411,25 +471,26 @@ const NotebookGallery = () => {
                         toggleWishlist(item);
                       }}
                       className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition"
-                      >
-                        {isInWishlist ? (
-                          <FaHeart className="text-red-500" />
-                        ) : (
-                          <FaRegHeart />
-                        )}
-                      </button>
-                      
-                      {item.type === "combination" && (
-                        <div className="absolute top-3 left-3 bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                          COMBO
-                        </div>
+                      aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                    >
+                      {isInWishlist ? (
+                        <FaHeart className="text-red-500" />
+                      ) : (
+                        <FaRegHeart />
                       )}
-                      
-                      {item.discount && (
-                        <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                          {item.discount}% OFF
-                        </div>
-                      )}
+                    </button>
+                    
+                    {item.type === "combination" && (
+                      <div className="absolute top-3 left-3 bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        COMBO
+                      </div>
+                    )}
+                    
+                    {item.discount && (
+                      <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        {item.discount}% OFF
+                      </div>
+                    )}
                   </div>
                   
                   <div className="mt-4">
@@ -442,7 +503,11 @@ const NotebookGallery = () => {
                     <div className="flex items-center mt-1">
                       <div className="flex text-yellow-400 text-sm">
                         {[...Array(5)].map((_, i) => (
-                          <FaStar key={i} className={i < (item.rating || 4) ? "text-yellow-400" : "text-gray-300"} />
+                          <FaStar 
+                            key={i} 
+                            className={i < (item.rating || 4) ? "text-yellow-400" : "text-gray-300"} 
+                            aria-hidden="true"
+                          />
                         ))}
                       </div>
                       <span className="text-gray-500 text-sm ml-1">
