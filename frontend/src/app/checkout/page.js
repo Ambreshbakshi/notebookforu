@@ -4,15 +4,17 @@ import { useRouter } from "next/navigation";
 import { FiTruck, FiCreditCard, FiUser, FiMail, FiPhone, FiMapPin, FiLoader } from "react-icons/fi";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { calculateShippingCost, calculateTotalWeight } from '@/components/DeliveryChargeCalculator';
 
 const CheckoutPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [pickupPincode] = useState("110001"); // Default Shiprocket warehouse
   const [deliveryPincode, setDeliveryPincode] = useState("");
   const [shippingCost, setShippingCost] = useState(null);
+  const [selectedPayment, setSelectedPayment] = useState("razorpay");
   const [checkingShipping, setCheckingShipping] = useState(false);
   const [cartItems, setCartItems] = useState([]);
+  const [deliveryEstimate, setDeliveryEstimate] = useState("");
   const [customerDetails, setCustomerDetails] = useState({
     name: "",
     email: "",
@@ -20,15 +22,23 @@ const CheckoutPage = () => {
     address: "",
   });
 
+  // Calculate order totals
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const amountWithShipping = subtotal + (shippingCost || 0);
+
   useEffect(() => {
-    // Load cart items
+    // Load cart items from localStorage
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
     setCartItems(cart);
 
-    // Load Razorpay script
+    // Load Razorpay script with error handling
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
+    script.onerror = () => {
+      console.error("Failed to load Razorpay script");
+      toast.error("Payment service unavailable. Please refresh the page.");
+    };
     document.body.appendChild(script);
 
     return () => {
@@ -36,7 +46,7 @@ const CheckoutPage = () => {
     };
   }, []);
 
-  const handleCheckShipping = async () => {
+  const handleCheckShipping = () => {
     if (!deliveryPincode) {
       toast.error("Please enter your pincode");
       return;
@@ -49,30 +59,17 @@ const CheckoutPage = () => {
 
     setCheckingShipping(true);
     try {
-      const res = await fetch("/api/shiprocket/shipping-cost", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pickup_pincode: pickupPincode,
-          delivery_pincode: deliveryPincode,
-          weight: 0.5, // in KG
-        }),
-      });
-
-      const data = await res.json();
-      const bestRate = data?.data?.available_courier_companies?.[0]?.rate;
-
-      if (bestRate !== undefined) {
-        setShippingCost(bestRate);
-        toast.success(`Shipping available for ₹${bestRate}`);
-      } else {
-        setShippingCost(null);
-        toast.error("No shipping service available for this pincode");
-      }
+      const totalWeight = calculateTotalWeight(cartItems);
+      const shippingInfo = calculateShippingCost(deliveryPincode, totalWeight);
+      
+      setShippingCost(shippingInfo.shippingCost);
+      setDeliveryEstimate(shippingInfo.deliveryEstimate);
+      toast.success(`Shipping available to ${shippingInfo.zone} for ₹${shippingInfo.shippingCost}`);
     } catch (err) {
-      console.error("Error checking shipping:", err);
+      console.error("Shipping error:", err);
       toast.error("Error checking shipping availability");
       setShippingCost(null);
+      setDeliveryEstimate("");
     } finally {
       setCheckingShipping(false);
     }
@@ -80,10 +77,7 @@ const CheckoutPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setCustomerDetails(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setCustomerDetails(prev => ({ ...prev, [name]: value }));
   };
 
   const validateForm = () => {
@@ -91,45 +85,47 @@ const CheckoutPage = () => {
       toast.error("Please enter your name");
       return false;
     }
+    
     if (!customerDetails.email || !/^\S+@\S+\.\S+$/.test(customerDetails.email)) {
       toast.error("Please enter a valid email");
       return false;
     }
+    
     if (!customerDetails.phone || !/^\d{10}$/.test(customerDetails.phone)) {
       toast.error("Please enter a valid 10-digit phone number");
       return false;
     }
+    
     if (!customerDetails.address) {
       toast.error("Please enter your address");
       return false;
     }
+    
     if (!deliveryPincode) {
       toast.error("Please enter your pincode");
       return false;
     }
-    if (shippingCost === null || typeof shippingCost !== 'number') {
+    
+    if (shippingCost === null) {
       toast.error("Please check shipping availability");
       return false;
     }
+    
     return true;
   };
 
   const handlePayment = async () => {
     if (!validateForm()) return;
-
     if (cartItems.length === 0) {
       toast.error("Your cart is empty");
       return;
     }
 
-    const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const amountWithShipping = subtotal + shippingCost;
-
     setLoading(true);
 
     try {
-      // First create an order in your database
-      const orderRes = await fetch("/api/orders/create", {
+      // 1. Create order in database
+      const orderRes = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -138,46 +134,49 @@ const CheckoutPage = () => {
           customer: customerDetails,
           shipping: {
             cost: shippingCost,
-            pincode: deliveryPincode
+            pincode: deliveryPincode,
+            estimate: deliveryEstimate
           }
         }),
       });
 
-      const orderData = await orderRes.json();
-
-      if (!orderData.success) {
-        throw new Error("Order creation failed");
+      if (!orderRes.ok) {
+        const error = await orderRes.json().catch(() => ({}));
+        throw new Error(error.message || 'Failed to create order');
       }
 
-      // Then create Razorpay order
+      const orderData = await orderRes.json();
+
+      // 2. Create Razorpay order
       const paymentRes = await fetch("/api/razorpay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          amount: amountWithShipping * 100, // Convert to paise
+          amount: amountWithShipping * 100,
           orderId: orderData.orderId
         }),
       });
 
+      if (!paymentRes.ok) {
+        const error = await paymentRes.json().catch(() => ({}));
+        throw new Error(error.message || 'Payment initialization failed');
+      }
+
       const paymentData = await paymentRes.json();
 
-      if (!paymentData?.id) {
-        throw new Error("Payment order creation failed");
-      }
-
       if (!window.Razorpay) {
-        toast.error("Payment service not available. Please refresh.");
-        return;
+        throw new Error('Payment service not loaded. Please refresh the page.');
       }
 
+      // 3. Open Razorpay payment modal
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: paymentData.amount,
         currency: "INR",
         name: "Notebookforu",
-        description: "Purchase of Notebooks",
+        description: `Order #${orderData.orderId}`,
         order_id: paymentData.id,
-        handler: async function (response) {
+        handler: async (response) => {
           try {
             const verifyRes = await fetch("/api/razorpay/verify", {
               method: "POST",
@@ -192,18 +191,16 @@ const CheckoutPage = () => {
 
             const verifyData = await verifyRes.json();
 
-            if (verifyData.success) {
-              // Clear cart on successful payment
-              localStorage.removeItem("cart");
-              toast.success("Payment successful! Order confirmed.");
-              router.push(`/success?order_id=${orderData.orderId}`);
-            } else {
-              toast.error("Payment verification failed");
-              router.push(`/failed?order_id=${orderData.orderId}`);
+            if (!verifyData.success) {
+              throw new Error(verifyData.message || 'Payment verification failed');
             }
-          } catch (err) {
-            console.error("Verification error:", err);
-            toast.error("Error verifying payment");
+
+            localStorage.removeItem("cart");
+            toast.success("Payment successful! Order confirmed.");
+            router.push(`/success?order_id=${orderData.orderId}`);
+          } catch (error) {
+            console.error("Payment verification error:", error);
+            toast.error(error.message || "Payment verification failed");
             router.push(`/failed?order_id=${orderData.orderId}`);
           }
         },
@@ -214,36 +211,32 @@ const CheckoutPage = () => {
         },
         notes: {
           address: customerDetails.address,
-          pincode: deliveryPincode,
+          orderId: orderData.orderId,
         },
         theme: {
           color: "#4f46e5",
         },
         modal: {
-          ondismiss: function() {
-            toast.info("Payment window closed");
+          ondismiss: () => {
+            toast.info("Payment cancelled");
           }
         }
       };
 
       const rzp = new window.Razorpay(options);
       rzp.open();
-    } catch (err) {
-      console.error("Checkout Error:", err);
-      toast.error("An error occurred during checkout");
+
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast.error(error.message || "Payment failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateSubtotal = () => {
-    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  };
-
   return (
     <div className="container mx-auto px-4 py-8 min-h-screen">
       <ToastContainer position="bottom-right" />
-      
       <h1 className="text-3xl font-bold text-center mb-8">Checkout</h1>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -281,7 +274,7 @@ const CheckoutPage = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Phone Number*</label>
+                <label className="block text-sm font-medium mb-1">Phone*</label>
                 <input
                   type="tel"
                   name="phone"
@@ -293,12 +286,12 @@ const CheckoutPage = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Delivery Pincode*</label>
+                <label className="block text-sm font-medium mb-1">Pincode*</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={deliveryPincode}
-                    onChange={(e) => setDeliveryPincode(e.target.value)}
+                    onChange={(e) => setDeliveryPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     className="flex-1 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="6-digit pincode"
                     maxLength="6"
@@ -306,7 +299,7 @@ const CheckoutPage = () => {
                   />
                   <button
                     onClick={handleCheckShipping}
-                    disabled={checkingShipping}
+                    disabled={checkingShipping || deliveryPincode.length !== 6}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
                   >
                     {checkingShipping ? <FiLoader className="animate-spin" /> : <FiTruck />}
@@ -317,7 +310,7 @@ const CheckoutPage = () => {
             </div>
             
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Complete Address*</label>
+              <label className="block text-sm font-medium mb-1">Address*</label>
               <textarea
                 name="address"
                 value={customerDetails.address}
@@ -328,14 +321,14 @@ const CheckoutPage = () => {
               />
             </div>
             
-            {shippingCost !== null && typeof shippingCost === 'number' && (
+            {shippingCost !== null && (
               <div className="bg-blue-50 p-3 rounded-lg flex items-center gap-3">
                 <FiTruck className="text-blue-600 text-xl" />
                 <div>
-                  <p className="font-medium">Shipping available to your location</p>
-                  <p className="text-sm">Estimated delivery: 3-5 business days</p>
+                  <p className="font-medium">Shipping available</p>
+                  <p className="text-sm">Estimated delivery: {deliveryEstimate}</p>
                 </div>
-                <div className="ml-auto font-bold">₹{shippingCost}</div>
+                <div className="ml-auto font-bold">₹{shippingCost.toFixed(2)}</div>
               </div>
             )}
           </div>
@@ -348,13 +341,21 @@ const CheckoutPage = () => {
             <div className="border rounded-lg overflow-hidden">
               <div className="p-4 bg-gray-50 border-b">
                 <div className="flex items-center gap-3">
-                  <input type="radio" id="razorpay" name="payment" checked className="accent-blue-600" />
+                  <input
+                    type="radio"
+                    id="razorpay"
+                    name="payment"
+                    value="razorpay"
+                    checked={selectedPayment === "razorpay"}
+                    onChange={(e) => setSelectedPayment(e.target.value)}
+                    className="accent-blue-600"
+                  />
                   <label htmlFor="razorpay" className="font-medium">Pay with Razorpay</label>
                 </div>
               </div>
               <div className="p-4">
                 <p className="text-sm text-gray-600">
-                  You'll be redirected to Razorpay's secure payment gateway to complete your purchase.
+                  Secure payment via Razorpay
                 </p>
               </div>
             </div>
@@ -381,7 +382,7 @@ const CheckoutPage = () => {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>₹{calculateSubtotal().toFixed(2)}</span>
+                <span>₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Shipping</span>
@@ -398,12 +399,7 @@ const CheckoutPage = () => {
             <div className="border-t pt-4 mb-6">
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span>
-                  ₹{(
-                    calculateSubtotal() + 
-                    (shippingCost && typeof shippingCost === 'number' ? shippingCost : 0)
-                  ).toFixed(2)}
-                </span>
+                <span>₹{amountWithShipping.toFixed(2)}</span>
               </div>
             </div>
             
@@ -426,7 +422,7 @@ const CheckoutPage = () => {
             </button>
             
             <p className="text-xs text-gray-500 mt-4 text-center">
-              Your personal data will be used to process your order and for other purposes described in our privacy policy.
+              Your personal data will be used to process your order.
             </p>
           </div>
         </div>

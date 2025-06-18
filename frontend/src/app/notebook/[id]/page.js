@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import productData from "@/data/productData";
+import DeliveryChargeCalculator from "@/components/DeliveryChargeCalculator";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useSwipeable } from "react-swipeable";
@@ -152,7 +153,7 @@ const NotebookDetail = () => {
     setShowShareModal(false);
   };
 
-  const totalPrice = notebook.price * quantity + shippingCost;
+  const totalPrice = notebook.price * quantity;
 
   return (
     <div className="bg-gray-50 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
@@ -320,42 +321,42 @@ const NotebookDetail = () => {
               </div>
             </div>
 
-            {/* Shipping Section */}
-            <div className="space-y-2 mt-4">
-              <div className="flex items-center justify-between">
-                <label className="block font-medium">Shipping Address:</label>
-                <button 
-                  onClick={() => setUseCurrentLocation(!useCurrentLocation)}
-                  className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-                >
-                  <FiMapPin className="mr-1" />
-                  {useCurrentLocation ? 'Using Current Location' : 'Use Current Location'}
-                </button>
-              </div>
-              <textarea
-                value={useCurrentLocation ? (loadingLocation ? "Fetching location..." : autoAddress) : address}
-                onChange={(e) => setAddress(e.target.value)}
-                disabled={useCurrentLocation}
-                placeholder={useCurrentLocation ? "Fetching your location..." : "Enter your full address"}
-                className="w-full px-3 py-2 border rounded resize-none min-h-[80px]"
-              />
-            </div>
+          {/* Shipping Section */}
+<div className="space-y-2 mt-4">
+  <div className="flex items-center justify-between">
+    <label className="block font-medium">Shipping Address:</label>
+    <button 
+      onClick={() => setUseCurrentLocation(!useCurrentLocation)}
+      className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+    >
+      <FiMapPin className="mr-1" />
+      {useCurrentLocation ? 'Using Current Location' : 'Use Current Location'}
+    </button>
+  </div>
+  <textarea
+    value={useCurrentLocation ? (loadingLocation ? "Fetching location..." : autoAddress) : address}
+    onChange={(e) => setAddress(e.target.value)}
+    disabled={useCurrentLocation}
+    placeholder={useCurrentLocation ? "Fetching your location..." : "Enter your full address"}
+    className="w-full px-3 py-2 border rounded resize-none min-h-[80px]"
+  />
+</div>
 
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex justify-between py-1">
-                <span className="text-gray-600">Price ({quantity} items)</span>
-                <span>₹{(notebook.price * quantity).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-gray-600">Shipping</span>
-                <span>₹{shippingCost.toFixed(2)}</span>
-              </div>
-              <div className="border-t my-2"></div>
-              <div className="flex justify-between font-semibold text-lg">
-                <span>Total</span>
-                <span>₹{totalPrice.toFixed(2)}</span>
-              </div>
-            </div>
+<div className="bg-gray-50 p-4 rounded-lg">
+  <div className="flex justify-between py-1">
+    <span className="text-gray-600">Price ({quantity} items)</span>
+    <span>₹{(notebook.price * quantity).toFixed(2)}</span>
+  </div>
+
+  {/* Removed Shipping Row */}
+
+  <div className="border-t my-2"></div>
+  <div className="flex justify-between font-semibold text-lg">
+    <span>Total</span>
+    <span>₹{(notebook.price * quantity).toFixed(2)}</span>
+  </div>
+</div>
+
 
             <div className="flex gap-3 mt-4">
               <button

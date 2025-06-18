@@ -1,5 +1,5 @@
 "use client";
-
+import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -179,15 +179,18 @@ const Navbar = () => {
         <div className="container mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <motion.div whileHover={{ scale: 1.05 }}>
-            <Link
-              href="/"
-              className="text-2xl sm:text-3xl font-bold text-blue-600 tracking-tight flex items-center"
-            >
-              <FiBook className="mr-2" />
-              <span className="hidden sm:inline">NOTEBOOK</span>
-              <span className="text-blue-800 hidden sm:inline">FORU</span>
-              <span className="sm:hidden">NF</span>
-            </Link>
+           <Link href="/" className="flex items-center">
+ 
+<Image
+  src="/logo.png"
+  alt="Notebook Foru Logo"
+  width={120}     // smaller width
+  height={32}     // adjust proportionally
+  priority
+/>
+
+
+</Link>
           </motion.div>
 
           {/* Desktop Navigation */}

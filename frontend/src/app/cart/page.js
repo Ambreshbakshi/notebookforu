@@ -1,23 +1,65 @@
 "use client";
 import { useEffect, useState } from "react";
-import { FiTrash2, FiPlus, FiMinus, FiShoppingBag, FiArrowLeft } from "react-icons/fi";
+import { FiTrash2, FiPlus, FiMinus, FiShoppingBag, FiArrowLeft, FiTruck } from "react-icons/fi";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Image from "next/image";
 import Link from "next/link";
+import productData from "@/data/productData";
 
 const CartPage = () => {
   const [cartItems, setCartItems] = useState([]);
   const [promoCode, setPromoCode] = useState("");
   const [discount, setDiscount] = useState(0);
-  const [shippingCost, setShippingCost] = useState(50);
+  const [shippingCost, setShippingCost] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [deliveryPincode, setDeliveryPincode] = useState("");
+  const [isCheckingShipping, setIsCheckingShipping] = useState(false);
+  const [deliveryEstimate, setDeliveryEstimate] = useState("");
+
+  // Shipping rates from the provided image
+  const shippingRates = {
+    local: { base: 45, perKg3to5: 12, perKgAbove5: 14 },
+    withinState: { base: 80, perKg3to5: 20, perKgAbove5: 22 },
+    neighbouringState: { base: 100, perKg3to5: 25, perKgAbove5: 28 },
+    otherStates: { base: 115, perKg3to5: 30, perKgAbove5: 32 },
+    metroToCapital: { base: 105, perKg3to5: 25, perKgAbove5: 28 },
+    ncr: { base: 70, perKg3to5: 15, perKgAbove5: 18 },
+  };
+
+  // Delivery time estimates from the provided image
+  const deliveryTimes = {
+    local: "3 Days",
+    metroToCapital: "4-5 Days",
+    withinState: "3-6 Days",
+    neighbouringState: "4-6 Days",
+    otherStates: "6-7 Days"
+  };
 
   useEffect(() => {
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    setCartItems(cart);
+    // Enrich cart items with product data including weight
+    const enrichedCart = cart.map(item => {
+      let product;
+      // Search through all product categories
+      for (const category in productData) {
+        if (productData[category][item.id]) {
+          product = productData[category][item.id];
+          break;
+        }
+      }
+      return { ...item, ...product };
+    });
+    setCartItems(enrichedCart);
     setIsLoading(false);
   }, []);
+
+  // Recalculate shipping when cart items or pincode changes
+  useEffect(() => {
+    if (deliveryPincode.length === 6 && cartItems.length > 0) {
+      calculateShipping();
+    }
+  }, [cartItems, deliveryPincode]);
 
   const handleRemoveItem = (id) => {
     const updatedCart = cartItems.filter((item) => item.id !== id);
@@ -37,9 +79,8 @@ const CartPage = () => {
   };
 
   const applyPromoCode = () => {
-    // In a real app, you would validate the promo code with your backend
     if (promoCode.toUpperCase() === "NOTEBOOK10") {
-      setDiscount(total * 0.1); // 10% discount
+      setDiscount(total * 0.1);
       toast.success("Promo code applied! 10% discount added");
     } else if (promoCode) {
       toast.error("Invalid promo code");
@@ -51,10 +92,97 @@ const CartPage = () => {
   };
 
   const calculateTax = () => {
-    return calculateSubtotal() * 0.18; // 18% tax
+    return calculateSubtotal() * 0.18;
   };
 
-  const total = calculateSubtotal() + shippingCost + calculateTax() - discount;
+  const calculateTotalWeight = () => {
+    return cartItems.reduce((sum, item) => sum + (item.weight || 0.5) * item.quantity, 0);
+  };
+
+  const getZoneFromPIN = (pin) => {
+  const first3 = pin.substring(0, 3);
+  
+  const localPINs = [
+    "273001", "273002", "273003", "273004", "273005", "273006", "273007",
+    "273008", "273009", "273010", "273012", "273013", "273014", "273015",
+    "273016", "273017", "273158", "273165", "273202", "273203", "273209",
+    "273212", "273213", "273306", "273307"
+  ];
+
+  const UP3s = ["273", "226", "201", "247", "250", "284"]; // UP regions
+  const ncr = ["110", "201", "122"]; // Delhi NCR
+  const metro = ["400", "700", "560", "600"]; // Metro cities
+
+  if (localPINs.includes(pin)) return "local";
+  if (ncr.includes(first3)) return "ncr";
+  if (metro.includes(first3)) return "metroToCapital";
+  if (UP3s.includes(first3)) return "withinState";
+  return "otherStates";
+};
+
+
+  const calculateShipping = async () => {
+    if (!deliveryPincode || deliveryPincode.length !== 6) return;
+    if (cartItems.length === 0) return;
+
+    setIsCheckingShipping(true);
+    try {
+      const totalWeight = calculateTotalWeight();
+      const zone = getZoneFromPIN(deliveryPincode);
+      
+      // Get rates for the zone
+      const { base, perKg3to5, perKgAbove5 } = shippingRates[zone];
+      let charge = base;
+
+    // Calculate additional weight charges using ceil logic
+if (totalWeight > 2 && totalWeight <= 5) {
+  const extraWeight = Math.ceil(totalWeight - 2);
+  charge += extraWeight * perKg3to5;
+} else if (totalWeight > 5) {
+  const extraBetween3to5 = 3; // from 2kg to 5kg, always 3kg range
+  const extraAbove5 = Math.ceil(totalWeight - 5);
+  charge += extraBetween3to5 * perKg3to5 + extraAbove5 * perKgAbove5;
+}
+
+
+      setShippingCost(charge);
+      setDeliveryEstimate(deliveryTimes[zone]);
+      toast.success(`Shipping calculated for ${zone.replace(/([A-Z])/g, ' $1').trim()}`);
+    } catch (err) {
+      console.error("Error calculating shipping:", err);
+      toast.error("Error calculating shipping");
+      setShippingCost(null);
+      setDeliveryEstimate("");
+    } finally {
+      setIsCheckingShipping(false);
+    }
+  };
+
+  const handlePincodeChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    setDeliveryPincode(value);
+    // Reset shipping when pincode changes
+    if (value.length !== 6) {
+      setShippingCost(null);
+      setDeliveryEstimate("");
+    }
+  };
+
+  const handleCheckShipping = () => {
+    if (!deliveryPincode) {
+      toast.error("Please enter your pincode");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(deliveryPincode)) {
+      toast.error("Please enter a valid 6-digit pincode");
+      return;
+    }
+
+    calculateShipping();
+  };
+
+  const total = calculateSubtotal() + (shippingCost || 0) + calculateTax() - discount;
 
   if (isLoading) {
     return (
@@ -119,6 +247,9 @@ const CartPage = () => {
                         {item.designation}
                       </span>
                     )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Weight: {(item.weight || 0.5) * item.quantity} kg
+                    </p>
                   </div>
                 </div>
 
@@ -157,6 +288,62 @@ const CartPage = () => {
                 </div>
               </div>
             ))}
+
+            {/* Shipping Calculator */}
+            <div className="mt-8 bg-white p-6 rounded-lg shadow-sm border">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <FiTruck className="text-blue-600" />
+                Shipping Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Delivery Pincode</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={deliveryPincode}
+                    onChange={handlePincodeChange}
+                    placeholder="Enter 6-digit pincode"
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleCheckShipping}
+                    disabled={isCheckingShipping || deliveryPincode.length !== 6}
+                    className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isCheckingShipping ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Calculating...
+                      </>
+                    ) : (
+                      <>
+                        <FiTruck />
+                        Check Availability
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="mt-2 text-sm text-gray-500">
+                Total package weight: {calculateTotalWeight().toFixed(2)} kg
+              </div>
+              {shippingCost !== null && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-md">
+                  <p className="font-medium">
+                    Shipping to {deliveryPincode}: ₹{shippingCost.toFixed(2)}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Estimated delivery: {deliveryEstimate}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Order Summary */}
@@ -192,7 +379,13 @@ const CartPage = () => {
               </div>
               <div className="flex justify-between">
                 <span>Shipping</span>
-                <span>₹{shippingCost.toFixed(2)}</span>
+                <span>
+                  {shippingCost === null ? (
+                    <span className="text-red-500">Check availability</span>
+                  ) : (
+                    `₹${shippingCost.toFixed(2)}`
+                  )}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Tax (18%)</span>
@@ -215,13 +408,27 @@ const CartPage = () => {
 
             <Link
               href="/checkout"
-              className="block w-full bg-green-600 hover:bg-green-700 text-white text-center py-3 px-4 rounded-lg font-medium transition"
+              className={`block w-full text-center py-3 px-4 rounded-lg font-medium transition ${
+                shippingCost === null 
+                  ? "bg-gray-400 cursor-not-allowed" 
+                  : "bg-green-600 hover:bg-green-700 text-white"
+              }`}
+              onClick={(e) => {
+                if (shippingCost === null) {
+                  e.preventDefault();
+                  toast.error("Please check shipping availability first");
+                }
+              }}
             >
-              Proceed to Checkout
+              Buy Now
             </Link>
 
             <p className="text-xs text-gray-500 mt-4 text-center">
-              Free shipping on orders over ₹500
+              {calculateSubtotal() > 500 ? (
+                <span className="text-green-600">Free shipping applied!</span>
+              ) : (
+                `Add ₹${(500 - calculateSubtotal()).toFixed(2)} more for free shipping`
+              )}
             </p>
           </div>
         </div>
