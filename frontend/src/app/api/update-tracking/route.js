@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import { firebaseConfig } from '@/lib/firebaseConfig';
+import { firebaseConfig } from '@/lib/firebase';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
