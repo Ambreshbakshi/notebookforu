@@ -4,13 +4,17 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 // Initialize Firebase Admin SDK securely using environment variables
 if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
-    }),
-  });
+  try {
+    initializeApp({
+      credential: cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      }),
+    });
+  } catch (err) {
+    console.error('🔥 Firebase Admin Init Error:', err);
+  }
 }
 
 const db = getFirestore();
@@ -60,7 +64,7 @@ export async function POST(request) {
         email: customer.email,
         phone: customer.phone || '',
       },
-      shipping: { ...shipping },
+      shipping,
       paymentMethod,
       status: 'pending',
       trackingId: '',
@@ -79,7 +83,7 @@ export async function POST(request) {
   }
 }
 
-// GET: Fetch all orders (admin only)
+// GET: Fetch all orders
 export async function GET() {
   try {
     const snapshot = await db.collection('orders').get();
@@ -94,7 +98,7 @@ export async function GET() {
   }
 }
 
-// PATCH: Update order (tracking/status)
+// PATCH: Update order status/tracking
 export async function PATCH(request) {
   try {
     const { orderId, trackingId, status } = await request.json();
