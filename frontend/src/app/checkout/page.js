@@ -31,7 +31,7 @@ const CheckoutPage = () => {
     state: ""
   });
 
-  // Calculate order totals with memoization
+  // Calculate order totals
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalWeight = calculateTotalWeight(cartItems);
   const amountWithShipping = subtotal + (shippingCost || 0);
@@ -50,7 +50,7 @@ const CheckoutPage = () => {
       localStorage.setItem("cart", "[]");
     }
 
-    // Load Razorpay script with retry mechanism
+    // Load Razorpay script
     const loadRazorpay = () => {
       if (window.Razorpay) {
         setIsRazorpayLoaded(true);
@@ -67,24 +67,16 @@ const CheckoutPage = () => {
           setIsRazorpayLoaded(true);
         } else {
           console.error("Razorpay object not available after script load");
-          retryLoading();
+          setTimeout(loadRazorpay, 2000);
         }
       };
       
       script.onerror = () => {
         console.error("Failed to load Razorpay script");
-        retryLoading();
+        setTimeout(loadRazorpay, 2000);
       };
 
       document.body.appendChild(script);
-    };
-
-    const retryLoading = () => {
-      const existingScript = document.getElementById("razorpay-script");
-      if (existingScript) {
-        document.body.removeChild(existingScript);
-      }
-      setTimeout(loadRazorpay, 2000); // Retry after 2 seconds
     };
 
     loadRazorpay();
@@ -95,7 +87,7 @@ const CheckoutPage = () => {
     };
   }, []);
 
-  // Validate all form fields
+  // Validate form fields
   const validateForm = useCallback(() => {
     const errors = {};
     let isValid = true;
@@ -120,6 +112,16 @@ const CheckoutPage = () => {
       isValid = false;
     }
 
+    if (!customerDetails.city.trim()) {
+      errors.city = "City is required";
+      isValid = false;
+    }
+
+    if (!customerDetails.state.trim()) {
+      errors.state = "State is required";
+      isValid = false;
+    }
+
     if (!/^\d{6}$/.test(deliveryPincode)) {
       errors.pincode = "Valid 6-digit pincode required";
       isValid = false;
@@ -139,7 +141,7 @@ const CheckoutPage = () => {
     return isValid;
   }, [customerDetails, deliveryPincode, shippingCost, cartItems]);
 
-  // Handle shipping check with better error handling
+  // Check shipping availability
   const handleCheckShipping = async () => {
     if (!/^\d{6}$/.test(deliveryPincode)) {
       toast.error("Please enter a valid 6-digit pincode");
@@ -177,196 +179,183 @@ const CheckoutPage = () => {
       .trim();
   };
 
-  // Handle payment with comprehensive error handling
+  // Process payment
   const handlePayment = async () => {
-  // Validate form first
-  if (!validateForm()) {
-    toast.error("Please fix all form errors before proceeding");
-    return;
-  }
-
-  if (!isRazorpayLoaded) {
-    toast.error("Payment system is still loading. Please wait a moment...");
-    return;
-  }
-
-  setLoading(true);
-  const toastId = toast.loading("Processing your order...");
-
-  try {
-    // 1. Prepare sanitized order data with additional validation
-    const orderData = {
-      amount: Math.round(amountWithShipping * 100), // Convert to paise
-      currency: "INR",
-      items: cartItems.map(item => ({
-        id: item.id,
-        name: sanitizeInput(item.name),
-        price: item.price,
-        quantity: item.quantity,
-        weight: item.weight || 0.5
-      })),
-      customer: {
-        name: sanitizeInput(customerDetails.name),
-        email: sanitizeInput(customerDetails.email),
-        phone: sanitizeInput(customerDetails.phone),
-        userId: user?.uid || "guest"
-      },
-      shipping: {
-        cost: shippingCost,
-        pincode: deliveryPincode,
-        estimate: deliveryEstimate,
-        address: sanitizeInput(shippingAddress)
-      },
-      paymentMethod: "razorpay",
-      createdAt: new Date().toISOString()
-    };
-
-    console.log("Creating order with data:", JSON.stringify(orderData, null, 2));
-
-    // 2. Create order first
-   const orderResponse = await fetch("/api/orders", {
-  method: "POST",
-  headers: { 
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${await user?.getIdToken?.() || ''}`
-  },
-  body: JSON.stringify(orderData)
-});
-
-if (orderResponse.status === 401) {
-  throw new Error("Please sign in to complete your order");
-}
-
-    if (!orderResponse.ok) {
-      const errorData = await orderResponse.json().catch(() => ({}));
-      throw new Error(errorData.message || "Failed to create order");
+    if (!validateForm()) {
+      toast.error("Please fix all form errors before proceeding");
+      return;
     }
 
-    const { order: createdOrder } = await orderResponse.json();
-    console.log("Order created:", createdOrder.orderId);
+    if (!isRazorpayLoaded) {
+      toast.error("Payment system is still loading. Please wait...");
+      return;
+    }
 
-    // 3. Create Razorpay payment
-    const paymentResponse = await fetch("/api/razorpay", {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${await user.getIdToken()}`
-      },
-      body: JSON.stringify({
-        amount: orderData.amount,
+    setLoading(true);
+    const toastId = toast.loading("Processing your order...");
+
+    try {
+      // 1. Get user token
+      const idToken = await user?.getIdToken();
+      if (!idToken) throw new Error("Authentication required");
+
+      // 2. Prepare order data
+      const orderData = {
+        amount: Math.round(amountWithShipping * 100),
         currency: "INR",
-        receipt: `order_${createdOrder.orderId}`,
-        notes: {
-          orderId: createdOrder.orderId
+        items: cartItems.map(item => ({
+          id: item.id,
+          name: sanitizeInput(item.name),
+          price: item.price,
+          quantity: item.quantity,
+          weight: item.weight || 0.5
+        })),
+        customer: {
+          name: sanitizeInput(customerDetails.name),
+          email: sanitizeInput(customerDetails.email),
+          phone: sanitizeInput(customerDetails.phone),
+          userId: user?.uid || "guest"
+        },
+        shipping: {
+          cost: shippingCost,
+          pincode: deliveryPincode,
+          estimate: deliveryEstimate,
+          address: sanitizeInput(shippingAddress)
+        },
+        paymentMethod: "razorpay",
+        _metadata: {
+          userAgent: navigator.userAgent,
+          ip: await fetch('https://api.ipify.org?format=json')
+               .then(res => res.json())
+               .then(data => data.ip)
+               .catch(() => "unknown"),
+          device: window.innerWidth < 768 ? "mobile" : "desktop"
         }
-      })
-    });
+      };
 
-    if (!paymentResponse.ok) {
-      const errorData = await paymentResponse.json().catch(() => ({}));
-      throw new Error(errorData.message || "Failed to create payment");
-    }
+      // 3. Create order with timeout
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
 
-    const { payment } = await paymentResponse.json();
-    console.log("Payment created:", payment.id);
+      const orderResponse = await fetch("/api/orders", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+          "X-Request-ID": `order_${Date.now()}`
+        },
+        body: JSON.stringify(orderData),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
 
-    // 4. Initialize Razorpay payment UI
-    const rzpOptions = {
-      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      amount: payment.amount,
-      currency: payment.currency,
-      name: "Your Notebook Store",
-      description: `Order #${createdOrder.orderId}`,
-      order_id: payment.id,
-      handler: async (response) => {
-        try {
-          console.log("Payment callback received:", response);
-          const verification = await fetch("/api/razorpay/verify", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${await user.getIdToken()}`
-            },
-            body: JSON.stringify({
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
-              orderId: createdOrder.orderId
-            })
-          });
-
-          const verificationData = await verification.json();
-          console.log("Verification response:", verificationData);
-
-          if (!verificationData.verified) {
-            throw new Error("Payment verification failed");
-          }
-
-          localStorage.removeItem("cart");
-          toast.success("Payment successful! Redirecting...");
-          router.push(`/order-success?id=${createdOrder.orderId}`);
-        } catch (verificationError) {
-          console.error("Verification error:", verificationError);
-          toast.error("Payment verification failed");
-          router.push(`/order-failed?id=${createdOrder.orderId}`);
-        }
-      },
-      prefill: {
-        name: customerDetails.name,
-        email: customerDetails.email,
-        contact: customerDetails.phone
-      },
-      theme: {
-        color: "#4f46e5"
+      if (!orderResponse.ok) {
+        const error = await orderResponse.json().catch(() => ({}));
+        throw new Error(error.message || "Order creation failed");
       }
-    };
 
-    const rzp = new window.Razorpay(rzpOptions);
-    rzp.open();
+      const { order: createdOrder } = await orderResponse.json();
+      if (!createdOrder?.orderId) {
+        throw new Error("Invalid order response");
+      }
 
-    rzp.on("payment.failed", (response) => {
-      console.error("Payment failed:", response.error);
-      toast.error(`Payment failed: ${response.error.description}`);
-      router.push(`/order-failed?id=${createdOrder.orderId}`);
-    });
+      // 4. Create Razorpay payment
+      const paymentResponse = await fetch("/api/razorpay", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          amount: orderData.amount,
+          currency: "INR",
+          receipt: createdOrder.orderId,
+          notes: {
+            orderId: createdOrder.orderId,
+            userId: user.uid
+          }
+        })
+      });
 
-  } catch (error) {
-  console.error("Full error details:", {
-    error: error.toString(),
-    message: error.message,  // Explicitly get message
-    name: error.name,       // Error type
-    stack: error.stack,     // Stack trace
-    response: error.response?.data, // Axios response if available
-    time: new Date().toISOString()
-  });
+      if (!paymentResponse.ok) {
+        throw new Error("Payment gateway error");
+      }
 
-  // More robust error message handling
-  let errorMessage = "Checkout failed. Please try again.";
-  
-  if (!error) {
-    errorMessage = "Unknown error occurred";
-  } else if (error.message) {
-    errorMessage = error.message;
-  } else if (error.response?.data?.message) {
-    errorMessage = error.response.data.message;
-  }
+      const payment = await paymentResponse.json();
+      if (!payment?.id) {
+        throw new Error("Invalid payment response");
+      }
 
-  toast.error(errorMessage);
-} finally {
-    toast.dismiss(toastId);
-    setLoading(false);
-  }
-};
+      // 5. Initialize Razorpay
+      const rzpOptions = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: payment.amount,
+        currency: payment.currency,
+        name: "Your Store",
+        description: `Order #${createdOrder.orderId}`,
+        order_id: payment.id,
+        handler: async (response) => {
+          try {
+            const verification = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${idToken}`
+              },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                orderId: createdOrder.orderId
+              })
+            });
 
-  // Handle input changes with validation
+            if (!verification.ok) {
+              throw new Error("Verification failed");
+            }
+
+            localStorage.removeItem("cart");
+            toast.success("Payment successful!");
+            router.push(`/order-success?id=${createdOrder.orderId}`);
+          } catch (error) {
+            console.error("Verification error:", error);
+            toast.error("Payment verification failed");
+            router.push(`/order-failed?id=${createdOrder.orderId}`);
+          }
+        },
+        prefill: {
+          name: customerDetails.name,
+          email: customerDetails.email,
+          contact: customerDetails.phone
+        },
+        theme: {
+          color: "#4f46e5"
+        }
+      };
+
+      const rzp = new window.Razorpay(rzpOptions);
+      rzp.on("payment.failed", (response) => {
+        toast.error(`Payment failed: ${response.error.description}`);
+        router.push(`/order-failed?id=${createdOrder.orderId}`);
+      });
+      rzp.open();
+
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast.error(error.message || "Payment processing failed");
+    } finally {
+      toast.dismiss(toastId);
+      setLoading(false);
+    }
+  };
+
+  // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setCustomerDetails(prev => ({
       ...prev,
       [name]: value
     }));
-
-    // Clear error when correcting
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: "" }));
     }
@@ -495,6 +484,45 @@ if (orderResponse.status === 401) {
                   <FiAlertCircle /> {formErrors.address}
                 </p>
               )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">City*</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={customerDetails.city}
+                  onChange={handleInputChange}
+                  className={`w-full border rounded-lg px-4 py-2 focus:ring-2 ${
+                    formErrors.city ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
+                  }`}
+                  required
+                />
+                {formErrors.city && (
+                  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                    <FiAlertCircle /> {formErrors.city}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">State*</label>
+                <input
+                  type="text"
+                  name="state"
+                  value={customerDetails.state}
+                  onChange={handleInputChange}
+                  className={`w-full border rounded-lg px-4 py-2 focus:ring-2 ${
+                    formErrors.state ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
+                  }`}
+                  required
+                />
+                {formErrors.state && (
+                  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                    <FiAlertCircle /> {formErrors.state}
+                  </p>
+                )}
+              </div>
             </div>
             
             {formErrors.shipping && (

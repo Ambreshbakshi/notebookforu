@@ -6,6 +6,7 @@ export default function CheckoutError({ error, reset }) {
   const router = useRouter()
 
   const getErrorDetails = () => {
+    if (!error?.message) return 'Something went wrong'
     if (error.message.includes('network')) return 'Network error - please check your connection'
     if (error.message.includes('payment')) return 'Payment processing failed'
     if (error.message.includes('cart')) return 'Your cart has issues'
@@ -17,10 +18,10 @@ export default function CheckoutError({ error, reset }) {
       <div className="text-red-500 flex justify-center mb-4">
         <FiAlertTriangle size={48} />
       </div>
-      
+
       <h1 className="text-2xl font-bold text-gray-800 mb-2">Checkout Failed</h1>
       <p className="text-red-600 mb-6">{getErrorDetails()}</p>
-      
+
       <div className="space-y-3">
         <button
           onClick={() => reset()}
@@ -47,7 +48,9 @@ export default function CheckoutError({ error, reset }) {
       {process.env.NODE_ENV === 'development' && (
         <div className="mt-8 p-4 bg-gray-100 rounded text-left text-sm">
           <h3 className="font-bold mb-2">Debug Information:</h3>
-          <pre className="whitespace-pre-wrap">{error.stack || JSON.stringify(error, null, 2)}</pre>
+          <pre className="whitespace-pre-wrap">
+            {error?.stack || JSON.stringify(error, null, 2)}
+          </pre>
         </div>
       )}
     </div>

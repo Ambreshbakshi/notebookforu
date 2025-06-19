@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getApps, initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
+
+import { db, adminAuth } from '@/lib/firebase-admin';
 
 // Configuration
 const CONFIG = {
@@ -30,32 +31,7 @@ const STATUS_CODES = {
 };
 
 // Firebase init
-let db;
-try {
-  if (!getApps().length) {
-    initializeApp({
-      credential: cert({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_ADMIN_EMAIL,
-        privateKey: process.env.FIREBASE_ADMIN_KEY?.replace(/\\n/g, '\n')
-      }),
-      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL
-    });
-  }
-  if (!db) {
-  db = getFirestore();
-  try {
-    db.settings({ ignoreUndefinedProperties: true });
-  } catch (err) {
-    // settings() can only be called once — ignore if already set
-    if (!err.message.includes("settings() once")) throw err;
-  }
-}
 
-} catch (error) {
-  console.error('🔥 Firebase Init Error:', error);
-  throw new Error(ERROR_MESSAGES.INIT_FAILURE);
-}
 
 // Middleware: validate and verify token
 const validateRequest = async (request) => {
@@ -69,7 +45,8 @@ const validateRequest = async (request) => {
 
     let decodedToken;
     try {
-      decodedToken = await getAuth().verifyIdToken(authToken);
+      decodedToken = await adminAuth.verifyIdToken(authToken);
+
     } catch (err) {
       console.error("❌ Token verification failed:", err);
       return { error: "Invalid or expired token", status: STATUS_CODES.UNAUTHORIZED };
@@ -124,75 +101,31 @@ const sanitizeOrder = (data) => {
 };
 
 // POST
+// Add enhanced validation and logging
+import { adminApp } from '@/lib/firebase-admin';
+import { validateOrderData } from '@/lib/orderValidation';
+
 export async function POST(request) {
   try {
-    const validation = await validateRequest(request);
-    if (validation.error) {
-      return NextResponse.json(
-        { success: false, message: validation.error },
-        { status: validation.status }
-      );
-    }
-
-    const { data, decodedToken } = validation;
-
-    // Debug logs
-    console.log("🔐 Decoded Firebase Token:", decodedToken);
-    console.log("📦 Incoming Order Data:", JSON.stringify(data, null, 2));
-
-    // Inject userId from verified token
-    data.customer = {
-      ...data.customer,
-      userId: decodedToken?.uid || 'guest'
-    };
-
-    const sanitizedData = sanitizeOrder(data);
-    const orderId = generateOrderId();
-    const orderRef = db.collection('orders').doc(orderId);
-    const now = Timestamp.now();
-
-    const orderData = {
-      ...sanitizedData,
-      orderId,
+    const orderData = await request.json();
+    await validateOrderData(orderData); // New validation
+    
+    const db = getFirestore(adminApp);
+    const orderRef = await db.collection('orders').add({
+      ...orderData,
       status: 'pending',
-      trackingId: '',
-      createdAt: now,
-      updatedAt: now,
-      _metadata: {
-        ip: request.headers.get('x-forwarded-for') || request.ip,
-        userAgent: request.headers.get('user-agent')
-      }
-    };
-
-    console.log("📝 Final Order Data to Save:", JSON.stringify(orderData, null, 2));
-
-    await db.runTransaction(async (transaction) => {
-      transaction.set(orderRef, orderData);
-      transaction.set(orderRef.collection('history').doc(), {
-        event: 'created',
-        status: 'pending',
-        timestamp: now,
-        by: orderData.customer.userId
-      });
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
 
-    return NextResponse.json({
-      success: true,
-      orderId,
-      amount: orderData.amount,
-      status: orderData.status
-    });
-
+    console.log(`✅ Order ${orderRef.id} created`);
+    return Response.json({ success: true, orderId: orderRef.id });
+    
   } catch (error) {
-    console.error('[ORDER_POST_ERROR]', error.message);
-    console.error('[STACK_TRACE]', error.stack);
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message || ERROR_MESSAGES.SERVER_ERROR,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
-      { status: STATUS_CODES.SERVER_ERROR }
+    console.error('Order creation failed:', error);
+    return Response.json(
+      { error: error.message || 'Order processing failed' },
+      { status: 400 }
     );
   }
 }
