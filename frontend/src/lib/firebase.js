@@ -1,12 +1,13 @@
-// Import necessary Firebase functions
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import {
+  getFirestore,
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager
+  persistentMultipleTabManager,
 } from "firebase/firestore";
 
+// ✅ Firebase config from environment variables
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -17,28 +18,35 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// ✅ Prevent reinitialization
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Optional: Only get analytics on the client
-let analytics = null;
+// ✅ Firestore setup (client vs server safe)
+let db;
 if (typeof window !== "undefined") {
-  import("firebase/analytics").then(({ getAnalytics }) => {
-    analytics = getAnalytics(app);
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+    experimentalForceLongPolling: true,
+    useFetchStreams: false,
   });
+} else {
+  db = getFirestore(app); // for server
 }
 
-// ✅ Firestore with offline support and robust network compatibility
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(), // Allows multi-tab offline access
-  }),
-  experimentalForceLongPolling: true, // Helps in network-restricted environments
-  useFetchStreams: false, // Avoids issues with fetch-based streaming (fallback to xhr)
-});
-
-// Firebase Auth
+// ✅ Auth and Google Provider
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-export { auth, db, provider, analytics };
+// ✅ Analytics only in browser
+let analytics = null;
+if (typeof window !== "undefined") {
+  import("firebase/analytics")
+    .then(({ getAnalytics }) => {
+      analytics = getAnalytics(app);
+    })
+    .catch((err) => console.warn("Firebase Analytics not available:", err));
+}
+
+export { app, auth, db, provider, analytics, firebaseConfig };

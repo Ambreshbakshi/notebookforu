@@ -12,7 +12,19 @@ const CheckoutPage = () => {
   const [deliveryPincode, setDeliveryPincode] = useState("");
   const [shippingCost, setShippingCost] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState("razorpay");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("Razorpay");
   const [checkingShipping, setCheckingShipping] = useState(false);
+  const [formData, setFormData] = useState({
+  name: "",
+  email: "",
+  phone: "",
+  address: "",
+  city: "",
+  state: "",
+  pincode: ""
+});
+
+  const shippingAddress = `${formData.address}, ${formData.city}, ${formData.state} - ${formData.pincode}`;
   const [cartItems, setCartItems] = useState([]);
   const [deliveryEstimate, setDeliveryEstimate] = useState("");
   const [customerDetails, setCustomerDetails] = useState({
@@ -114,125 +126,123 @@ const CheckoutPage = () => {
     return true;
   };
 
-  const handlePayment = async () => {
-    if (!validateForm()) return;
-    if (cartItems.length === 0) {
-      toast.error("Your cart is empty");
-      return;
+const handlePayment = async () => {
+  if (!validateForm()) return;
+  if (cartItems.length === 0) {
+    toast.error("Your cart is empty");
+    return;
+  }
+
+  setLoading(true);
+  const toastId = toast.loading("Processing order...");
+
+  try {
+    const orderPayload = {
+      amount: amountWithShipping,
+      items: cartItems,
+      customer: customerDetails,
+      shipping: {
+        cost: shippingCost,
+        pincode: deliveryPincode,
+        estimate: deliveryEstimate,
+        address: shippingAddress
+      },
+      paymentMethod: selectedPaymentMethod || "Razorpay"
+    };
+
+    const paymentPayload = {
+      amount: amountWithShipping * 100,
+      orderId: `TEMP-${Date.now()}`
+    };
+
+    // Run both API requests in parallel
+    const [orderRes, paymentRes] = await Promise.all([
+      fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload)
+      }),
+      fetch("/api/razorpay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paymentPayload)
+      })
+    ]);
+
+    if (!orderRes.ok || !paymentRes.ok) {
+      const orderErr = await orderRes.json().catch(() => ({}));
+      const payErr = await paymentRes.json().catch(() => ({}));
+      throw new Error(orderErr.message || payErr.message || 'Failed to create order/payment');
     }
 
-    setLoading(true);
+    const orderData = await orderRes.json();
+    const paymentData = await paymentRes.json();
 
-    try {
-      // 1. Create order in database
-      const orderRes = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: amountWithShipping,
-          items: cartItems,
-          customer: customerDetails,
-          shipping: {
-            cost: shippingCost,
-            pincode: deliveryPincode,
-            estimate: deliveryEstimate
+    if (!window.Razorpay) {
+      throw new Error("Payment gateway not loaded. Please refresh.");
+    }
+
+    const rzp = new window.Razorpay({
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      amount: paymentData.amount,
+      currency: "INR",
+      name: "Notebookforu",
+      description: `Order #${orderData.orderId}`,
+      order_id: paymentData.id,
+      handler: async (response) => {
+        try {
+          const verifyRes = await fetch("/api/razorpay/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId: orderData.orderId
+            }),
+          });
+
+          const verifyData = await verifyRes.json();
+
+          if (!verifyData.success) {
+            throw new Error(verifyData.message || "Payment verification failed");
           }
-        }),
-      });
 
-      if (!orderRes.ok) {
-        const error = await orderRes.json().catch(() => ({}));
-        throw new Error(error.message || 'Failed to create order');
-      }
-
-      const orderData = await orderRes.json();
-
-      // 2. Create Razorpay order
-      const paymentRes = await fetch("/api/razorpay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          amount: amountWithShipping * 100,
-          orderId: orderData.orderId
-        }),
-      });
-
-      if (!paymentRes.ok) {
-        const error = await paymentRes.json().catch(() => ({}));
-        throw new Error(error.message || 'Payment initialization failed');
-      }
-
-      const paymentData = await paymentRes.json();
-
-      if (!window.Razorpay) {
-        throw new Error('Payment service not loaded. Please refresh the page.');
-      }
-
-      // 3. Open Razorpay payment modal
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: paymentData.amount,
-        currency: "INR",
-        name: "Notebookforu",
-        description: `Order #${orderData.orderId}`,
-        order_id: paymentData.id,
-        handler: async (response) => {
-          try {
-            const verifyRes = await fetch("/api/razorpay/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                orderId: orderData.orderId
-              }),
-            });
-
-            const verifyData = await verifyRes.json();
-
-            if (!verifyData.success) {
-              throw new Error(verifyData.message || 'Payment verification failed');
-            }
-
-            localStorage.removeItem("cart");
-            toast.success("Payment successful! Order confirmed.");
-            router.push(`/success?order_id=${orderData.orderId}`);
-          } catch (error) {
-            console.error("Payment verification error:", error);
-            toast.error(error.message || "Payment verification failed");
-            router.push(`/failed?order_id=${orderData.orderId}`);
-          }
-        },
-        prefill: {
-          name: customerDetails.name,
-          email: customerDetails.email,
-          contact: customerDetails.phone,
-        },
-        notes: {
-          address: customerDetails.address,
-          orderId: orderData.orderId,
-        },
-        theme: {
-          color: "#4f46e5",
-        },
-        modal: {
-          ondismiss: () => {
-            toast.info("Payment cancelled");
-          }
+          localStorage.removeItem("cart");
+          toast.success("Payment successful! Redirecting...");
+          router.push(`/success?order_id=${orderData.orderId}`);
+        } catch (err) {
+          console.error("Verification error:", err);
+          toast.error(err.message || "Verification failed");
+          router.push(`/failed?order_id=${orderData.orderId}`);
         }
-      };
+      },
+      prefill: {
+        name: customerDetails.name,
+        email: customerDetails.email,
+        contact: customerDetails.phone
+      },
+      notes: {
+        address: shippingAddress,
+        orderId: orderData.orderId
+      },
+      theme: { color: "#4f46e5" },
+      modal: {
+        ondismiss: () => toast.info("Payment cancelled")
+      }
+    });
 
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+    rzp.open();
+  } catch (error) {
+    console.error("Payment error:", error);
+    toast.error(error.message || "Payment failed. Try again.");
+  } finally {
+    toast.dismiss(toastId);
+    setLoading(false);
+  }
+};
 
-    } catch (error) {
-      console.error("Payment error:", error);
-      toast.error(error.message || "Payment failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   return (
     <div className="container mx-auto px-4 py-8 min-h-screen">

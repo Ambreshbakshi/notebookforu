@@ -246,10 +246,10 @@ const Navbar = () => {
               </div>
               
               <Submenu title={<FiUser className="text-xl" />} isIconOnly>
-                <NavLink href="/login" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+                <NavLink href="/admin/login" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
                   <FiUser className="mr-2" /> Login/Register
                 </NavLink>
-                <NavLink href="/profile" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+                <NavLink href="/admin/dashboard" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
                   <FiUser className="mr-2" /> My Account
                 </NavLink>
                 <NavLink href="/orders" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
