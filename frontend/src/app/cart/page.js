@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { FiTrash2, FiPlus, FiMinus, FiShoppingBag, FiArrowLeft, FiTruck } from "react-icons/fi";
+import { useEffect, useState, useMemo } from "react";
+import { FiTrash2, FiPlus, FiMinus, FiShoppingBag, FiArrowLeft, FiTruck, FiAlertCircle } from "react-icons/fi";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { onAuthStateChanged } from "firebase/auth";
@@ -18,9 +18,28 @@ const CartPage = () => {
   const [deliveryPincode, setDeliveryPincode] = useState("");
   const [isCheckingShipping, setIsCheckingShipping] = useState(false);
   const [deliveryEstimate, setDeliveryEstimate] = useState("");
-  
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
 
-  // Shipping rates from the provided image
+  // Memoized calculations
+  const subtotal = useMemo(() => 
+    cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0), 
+    [cartItems]
+  );
+  
+  const tax = useMemo(() => subtotal * 0.18, [subtotal]);
+  
+  const totalWeight = useMemo(() => 
+    cartItems.reduce((sum, item) => sum + (item.weight || 0.5) * item.quantity, 0), 
+    [cartItems]
+  );
+
+  const total = useMemo(() => 
+    subtotal + (shippingCost || 0) + tax - discount, 
+    [subtotal, shippingCost, tax, discount]
+  );
+
+  // Shipping configuration
   const shippingRates = {
     local: { base: 45, perKg3to5: 12, perKgAbove5: 14 },
     withinState: { base: 80, perKg3to5: 20, perKgAbove5: 22 },
@@ -30,47 +49,104 @@ const CartPage = () => {
     ncr: { base: 70, perKg3to5: 15, perKgAbove5: 18 },
   };
 
-  // Delivery time estimates from the provided image
   const deliveryTimes = {
-    local: "3 Days",
-    metroToCapital: "4-5 Days",
+    local: "2-3 Days",
+    metroToCapital: "3-5 Days",
     withinState: "3-6 Days",
     neighbouringState: "4-6 Days",
-    otherStates: "6-7 Days"
+    otherStates: "5-7 Days"
   };
 
   useEffect(() => {
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    // Enrich cart items with product data including weight
-    const enrichedCart = cart.map(item => {
-      let product;
-      // Search through all product categories
-      for (const category in productData) {
-        if (productData[category][item.id]) {
-          product = productData[category][item.id];
-          break;
-        }
+    const loadCart = () => {
+      try {
+        const cart = JSON.parse(localStorage.getItem("cart")) || [];
+        const enrichedCart = cart.map(item => {
+          let product;
+          for (const category in productData) {
+            if (productData[category][item.id]) {
+              product = productData[category][item.id];
+              break;
+            }
+          }
+          return { ...item, ...product };
+        });
+        setCartItems(enrichedCart);
+      } catch (err) {
+        console.error("Error loading cart:", err);
+        toast.error("Could not load your cart");
+        localStorage.setItem("cart", "[]");
+        setCartItems([]);
+      } finally {
+        setIsLoading(false);
       }
-      return { ...item, ...product };
+    };
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsLoggedIn(!!user);
+      loadCart();
     });
-    setCartItems(enrichedCart);
-    setIsLoading(false);
+
+    return () => unsubscribe();
   }, []);
-const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, (user) => {
-    setIsLoggedIn(!!user);
-  });
-  return () => unsubscribe();
-}, []);
+  const getZoneFromPIN = (pin) => {
+    if (!pin || pin.length !== 6) return "otherStates";
+    
+    const first3 = pin.substring(0, 3);
+    const localPINs = [
+      "273001", "273002", "273003", "273004", "273005", "273006", "273007",
+      "273008", "273009", "273010", "273012", "273013", "273014", "273015",
+      "273016", "273017", "273158", "273165", "273202", "273203", "273209",
+      "273212", "273213", "273306", "273307"
+    ];
 
-  // Recalculate shipping when cart items or pincode changes
-  useEffect(() => {
-    if (deliveryPincode.length === 6 && cartItems.length > 0) {
-      calculateShipping();
+    const UP3s = ["273", "226", "201", "247", "250", "284"];
+    const ncr = ["110", "201", "122"];
+    const metro = ["400", "700", "560", "600"];
+
+    if (localPINs.includes(pin)) return "local";
+    if (ncr.includes(first3)) return "ncr";
+    if (metro.includes(first3)) return "metroToCapital";
+    if (UP3s.includes(first3)) return "withinState";
+    return "otherStates";
+  };
+
+  const calculateShipping = () => {
+    if (!deliveryPincode || deliveryPincode.length !== 6) {
+      setFormErrors(prev => ({ ...prev, pincode: "Enter valid 6-digit pincode" }));
+      return;
     }
-  }, [cartItems, deliveryPincode]);
+    if (cartItems.length === 0) return;
+
+    setIsCheckingShipping(true);
+    try {
+      const zone = getZoneFromPIN(deliveryPincode);
+      const { base, perKg3to5, perKgAbove5 } = shippingRates[zone];
+      let charge = base;
+
+      if (totalWeight > 2 && totalWeight <= 5) {
+        const extraWeight = Math.ceil(totalWeight - 2);
+        charge += extraWeight * perKg3to5;
+      } else if (totalWeight > 5) {
+        const extraBetween3to5 = 3;
+        const extraAbove5 = Math.ceil(totalWeight - 5);
+        charge += extraBetween3to5 * perKg3to5 + extraAbove5 * perKgAbove5;
+      }
+
+      setShippingCost(charge);
+      setDeliveryEstimate(deliveryTimes[zone]);
+      setFormErrors(prev => ({ ...prev, pincode: "" }));
+      toast.success(`Shipping to ${zone.replace(/([A-Z])/g, ' $1').trim()}`);
+    } catch (err) {
+      console.error("Shipping error:", err);
+      toast.error("Error calculating shipping");
+      setShippingCost(null);
+      setDeliveryEstimate("");
+    } finally {
+      setIsCheckingShipping(false);
+    }
+  };
 
   const handleRemoveItem = (id) => {
     const updatedCart = cartItems.filter((item) => item.id !== id);
@@ -80,7 +156,7 @@ useEffect(() => {
   };
 
   const handleUpdateQuantity = (id, newQuantity) => {
-    if (newQuantity < 1) return;
+    if (newQuantity < 1 || newQuantity > 99) return;
     
     const updatedCart = cartItems.map((item) =>
       item.id === id ? { ...item, quantity: newQuantity } : item
@@ -89,90 +165,35 @@ useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(updatedCart));
   };
 
-  const applyPromoCode = () => {
-    if (promoCode.toUpperCase() === "NOTEBOOK10") {
-      setDiscount(total * 0.1);
-      toast.success("Promo code applied! 10% discount added");
-    } else if (promoCode) {
-      toast.error("Invalid promo code");
-    }
+ const applyPromoCode = () => {
+  if (!promoCode) {
+    toast.info("Please enter a promo code");
+    return;
+  }
+
+  const validCodes = {
+    "NOTEBOOK10": 0.1,
+    "NOTEBOOK20": 0.2,
+    "FREESHIP": shippingCost ? shippingCost : 0
   };
 
-  const calculateSubtotal = () => {
-    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  };
-
-  const calculateTax = () => {
-    return calculateSubtotal() * 0.18;
-  };
-
-  const calculateTotalWeight = () => {
-    return cartItems.reduce((sum, item) => sum + (item.weight || 0.5) * item.quantity, 0);
-  };
-
-  const getZoneFromPIN = (pin) => {
-  const first3 = pin.substring(0, 3);
-  
-  const localPINs = [
-    "273001", "273002", "273003", "273004", "273005", "273006", "273007",
-    "273008", "273009", "273010", "273012", "273013", "273014", "273015",
-    "273016", "273017", "273158", "273165", "273202", "273203", "273209",
-    "273212", "273213", "273306", "273307"
-  ];
-
-  const UP3s = ["273", "226", "201", "247", "250", "284"]; // UP regions
-  const ncr = ["110", "201", "122"]; // Delhi NCR
-  const metro = ["400", "700", "560", "600"]; // Metro cities
-
-  if (localPINs.includes(pin)) return "local";
-  if (ncr.includes(first3)) return "ncr";
-  if (metro.includes(first3)) return "metroToCapital";
-  if (UP3s.includes(first3)) return "withinState";
-  return "otherStates";
+  const code = promoCode.toUpperCase();
+  if (validCodes[code]) {
+    const discountValue = code === "FREESHIP" 
+      ? validCodes[code] 
+      : subtotal * validCodes[code];
+    
+    setDiscount(discountValue);
+    toast.success(`Promo code applied! ${code === "FREESHIP" ? "Free shipping" : `${validCodes[code]*100}% discount`}`);
+  } else {
+    setDiscount(0);
+    toast.error("Invalid promo code");
+  }
 };
-
-
-  const calculateShipping = async () => {
-    if (!deliveryPincode || deliveryPincode.length !== 6) return;
-    if (cartItems.length === 0) return;
-
-    setIsCheckingShipping(true);
-    try {
-      const totalWeight = calculateTotalWeight();
-      const zone = getZoneFromPIN(deliveryPincode);
-      
-      // Get rates for the zone
-      const { base, perKg3to5, perKgAbove5 } = shippingRates[zone];
-      let charge = base;
-
-    // Calculate additional weight charges using ceil logic
-if (totalWeight > 2 && totalWeight <= 5) {
-  const extraWeight = Math.ceil(totalWeight - 2);
-  charge += extraWeight * perKg3to5;
-} else if (totalWeight > 5) {
-  const extraBetween3to5 = 3; // from 2kg to 5kg, always 3kg range
-  const extraAbove5 = Math.ceil(totalWeight - 5);
-  charge += extraBetween3to5 * perKg3to5 + extraAbove5 * perKgAbove5;
-}
-
-
-      setShippingCost(charge);
-      setDeliveryEstimate(deliveryTimes[zone]);
-      toast.success(`Shipping calculated for ${zone.replace(/([A-Z])/g, ' $1').trim()}`);
-    } catch (err) {
-      console.error("Error calculating shipping:", err);
-      toast.error("Error calculating shipping");
-      setShippingCost(null);
-      setDeliveryEstimate("");
-    } finally {
-      setIsCheckingShipping(false);
-    }
-  };
 
   const handlePincodeChange = (e) => {
     const value = e.target.value.replace(/\D/g, '').slice(0, 6);
     setDeliveryPincode(value);
-    // Reset shipping when pincode changes
     if (value.length !== 6) {
       setShippingCost(null);
       setDeliveryEstimate("");
@@ -184,16 +205,12 @@ if (totalWeight > 2 && totalWeight <= 5) {
       toast.error("Please enter your pincode");
       return;
     }
-
     if (!/^\d{6}$/.test(deliveryPincode)) {
       toast.error("Please enter a valid 6-digit pincode");
       return;
     }
-
     calculateShipping();
   };
-
-  const total = calculateSubtotal() + (shippingCost || 0) + calculateTax() - discount;
 
   if (isLoading) {
     return (
@@ -238,10 +255,7 @@ if (totalWeight > 2 && totalWeight <= 5) {
             </div>
 
             {cartItems.map((item) => (
-              <div
-                key={item.id}
-                className="grid grid-cols-12 gap-4 items-center border-b py-4"
-              >
+              <div key={item.id} className="grid grid-cols-12 gap-4 items-center border-b py-4">
                 <div className="col-span-5 flex items-center">
                   <div className="relative w-20 h-20 mr-4">
                     <Image
@@ -249,6 +263,7 @@ if (totalWeight > 2 && totalWeight <= 5) {
                       alt={item.name}
                       fill
                       className="object-cover rounded-lg"
+                      sizes="(max-width: 80px) 100vw"
                     />
                   </div>
                   <div>
@@ -273,29 +288,37 @@ if (totalWeight > 2 && totalWeight <= 5) {
                   <button
                     onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                     className="p-1 text-gray-600 hover:bg-gray-100 rounded"
+                    aria-label="Decrease quantity"
                   >
                     <FiMinus size={16} />
                   </button>
                   <input
                     type="number"
                     min="1"
+                    max="99"
                     value={item.quantity}
-                    onChange={(e) =>
-                      handleUpdateQuantity(item.id, parseInt(e.target.value) || 1)
-                    }
+                    onChange={(e) => handleUpdateQuantity(item.id, Math.min(99, Math.max(1, parseInt(e.target.value) || 1)))}
                     className="w-12 text-center border rounded mx-2 py-1"
                   />
                   <button
                     onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                     className="p-1 text-gray-600 hover:bg-gray-100 rounded"
+                    aria-label="Increase quantity"
                   >
                     <FiPlus size={16} />
                   </button>
                 </div>
 
-                <div className="col-span-2 text-right">
+                <div className="col-span-2 flex items-center justify-end gap-2">
                   <span className="md:hidden text-sm text-gray-500 mr-2">Total:</span>
                   ₹{(item.price * item.quantity).toFixed(2)}
+                  <button
+                    onClick={() => handleRemoveItem(item.id)}
+                    className="p-1 text-red-500 hover:bg-red-50 rounded ml-2"
+                    aria-label="Remove item"
+                  >
+                    <FiTrash2 size={16} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -308,15 +331,22 @@ if (totalWeight > 2 && totalWeight <= 5) {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Delivery Pincode</label>
+                  <label className="block text-sm font-medium mb-1">Delivery Pincode*</label>
                   <input
                     type="text"
                     maxLength={6}
                     value={deliveryPincode}
                     onChange={handlePincodeChange}
                     placeholder="Enter 6-digit pincode"
-                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                    className={`w-full p-2 border rounded-md focus:ring-2 ${
+                      formErrors.pincode ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
+                    }`}
                   />
+                  {formErrors.pincode && (
+                    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                      <FiAlertCircle /> {formErrors.pincode}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-end">
                   <button
@@ -342,7 +372,7 @@ if (totalWeight > 2 && totalWeight <= 5) {
                 </div>
               </div>
               <div className="mt-2 text-sm text-gray-500">
-                Total package weight: {calculateTotalWeight().toFixed(2)} kg
+                Total package weight: {totalWeight.toFixed(2)} kg
               </div>
               {shippingCost !== null && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-md">
@@ -386,7 +416,7 @@ if (totalWeight > 2 && totalWeight <= 5) {
             <div className="space-y-3 mb-6">
               <div className="flex justify-between">
                 <span>Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                <span>₹{calculateSubtotal().toFixed(2)}</span>
+                <span>₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Shipping</span>
@@ -400,7 +430,7 @@ if (totalWeight > 2 && totalWeight <= 5) {
               </div>
               <div className="flex justify-between">
                 <span>Tax (18%)</span>
-                <span>₹{calculateTax().toFixed(2)}</span>
+                <span>₹{tax.toFixed(2)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-green-600">
@@ -417,30 +447,31 @@ if (totalWeight > 2 && totalWeight <= 5) {
               </div>
             </div>
 
-       <Link
-  href={isLoggedIn ? "/checkout" : "/login"}
-  className={`block w-full text-center py-3 px-4 rounded-lg font-medium transition ${
-    shippingCost === null 
-      ? "bg-gray-400 cursor-not-allowed" 
-      : "bg-green-600 hover:bg-green-700 text-white"
-  }`}
-  onClick={(e) => {
-    if (shippingCost === null) {
-      e.preventDefault();
-      toast.error("Please check shipping availability first");
-    }
-  }}
->
-  {isLoggedIn ? "Buy Now" : "Login to Buy"}
-</Link>
-
-
+            <Link
+              href={isLoggedIn ? "/checkout" : "/login"}
+              className={`block w-full text-center py-3 px-4 rounded-lg font-medium transition ${
+                shippingCost === null 
+                  ? "bg-gray-400 cursor-not-allowed" 
+                  : "bg-green-600 hover:bg-green-700 text-white"
+              }`}
+              onClick={(e) => {
+                if (shippingCost === null) {
+                  e.preventDefault();
+                  toast.error("Please check shipping availability first");
+                } else if (cartItems.length === 0) {
+                  e.preventDefault();
+                  toast.error("Your cart is empty");
+                }
+              }}
+            >
+              {isLoggedIn ? "Proceed to Checkout" : "Login to Checkout"}
+            </Link>
 
             <p className="text-xs text-gray-500 mt-4 text-center">
-              {calculateSubtotal() > 500 ? (
+              {subtotal > 500 ? (
                 <span className="text-green-600">Free shipping applied!</span>
               ) : (
-                `Add ₹${(500 - calculateSubtotal()).toFixed(2)} more for free shipping`
+                `Add ₹${(500 - subtotal).toFixed(2)} more for free shipping`
               )}
             </p>
           </div>
