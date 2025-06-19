@@ -5,7 +5,7 @@ import { FiTruck, FiCreditCard, FiUser, FiMail, FiPhone, FiMapPin, FiLoader } fr
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { calculateShippingCost, calculateTotalWeight } from '@/components/DeliveryChargeCalculator';
-
+import { getAuth } from "firebase/auth";
 const CheckoutPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -23,6 +23,8 @@ const CheckoutPage = () => {
   state: "",
   pincode: ""
 });
+const auth = getAuth();
+const user = auth.currentUser;
 
   const shippingAddress = `${formData.address}, ${formData.city}, ${formData.state} - ${formData.pincode}`;
   const [cartItems, setCartItems] = useState([]);
@@ -137,18 +139,22 @@ const handlePayment = async () => {
   const toastId = toast.loading("Processing order...");
 
   try {
-    const orderPayload = {
-      amount: amountWithShipping,
-      items: cartItems,
-      customer: customerDetails,
-      shipping: {
-        cost: shippingCost,
-        pincode: deliveryPincode,
-        estimate: deliveryEstimate,
-        address: shippingAddress
-      },
-      paymentMethod: selectedPaymentMethod || "Razorpay"
-    };
+   const orderPayload = {
+  amount: amountWithShipping,
+  items: cartItems,
+  customer: {
+    name: customerDetails.name,
+    email: user?.email || customerDetails.email,
+    phone: customerDetails.phone,
+  },
+  shipping: {
+    cost: shippingCost,
+    pincode: deliveryPincode,
+    estimate: deliveryEstimate,
+    address: shippingAddress
+  },
+  paymentMethod: selectedPaymentMethod || "Razorpay"
+};
 
     const paymentPayload = {
       amount: amountWithShipping * 100,

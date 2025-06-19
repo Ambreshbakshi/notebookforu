@@ -20,8 +20,9 @@ import {
   FiClock
 } from "react-icons/fi";
 import { useRouter } from "next/navigation";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -41,76 +42,51 @@ const ProfilePage = () => {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         router.push("/login");
         return;
       }
-      
-      const mockUser = {
-        email: u.email,
-        name: u.displayName || "John Doe",
-        joinedDate: new Date(u.metadata.creationTime).toLocaleDateString(),
-        phone: "+91 98765 43210",
-        address: "123 Main Street, Mumbai, Maharashtra 400001",
+
+      const userEmail = u.email;
+      const userName = u.displayName || "John Doe";
+      const joinDate = new Date(u.metadata.creationTime).toLocaleDateString();
+
+      setUser({
+        email: userEmail,
+        name: userName,
+        joinedDate: joinDate,
+        phone: "",
+        address: "",
         lastLogin: new Date().toLocaleString()
-      };
-      
-      setUser(mockUser);
-      setFormData({
-        name: mockUser.name,
-        email: mockUser.email,
-        phone: mockUser.phone,
-        address: mockUser.address
       });
 
-      // Simulate fetching orders from API
-      setTimeout(() => {
-        setOrders([
-          { 
-            id: "ORD-2023-001", 
-            date: "2023-05-15", 
-            total: 2499, 
-            status: "delivered", 
-            items: [
-              { id: 1, name: "Notebook | Vines", price: 750, quantity: 2, image: "/products/notebook/notebook1/notebook1-cover.png" },
-              { id: 2, name: "Notebook | Sunset", price: 999, quantity: 1, image: "/products/notebook/notebook2/notebook2-cover.png" }
-            ],
-            trackingId: "TRK123456789",
-            deliveryDate: "2023-05-20",
-            paymentMethod: "Razorpay"
-          },
-          { 
-            id: "ORD-2023-002", 
-            date: "2023-06-20", 
-            total: 2999, 
-            status: "shipped", 
-            items: [
-              { id: 3, name: "Notebook | Ocean", price: 1350, quantity: 1, image: "/products/notebook/notebook3/notebook3-cover.png" },
-              { id: 4, name: "Notebook | Galaxy", price: 950, quantity: 1, image: "/products/notebook/notebook4/notebook4-cover.png" },
-              { id: 5, name: "Notebook | Starlit", price: 750, quantity: 1, image: "/products/notebook/notebook5/notebook5-cover.png" }
-            ],
-            trackingId: "TRK987654321",
-            estimatedDelivery: "2023-06-27",
-            paymentMethod: "Razorpay"
-          },
-          { 
-            id: "ORD-2023-003", 
-            date: "2023-07-10", 
-            total: 999, 
-            status: "processing", 
-            items: [
-              { id: 6, name: "Notebook | Abstract", price: 750, quantity: 1, image: "/products/notebook/notebook6/notebook6-cover.jpg" }
-            ],
-            paymentMethod: "Cash on Delivery"
-          }
-        ]);
+      setFormData({
+        name: userName,
+        email: userEmail,
+        phone: "",
+        address: ""
+      });
+
+      try {
+        const q = query(
+          collection(db, "orders"),
+          where("customer.email", "==", userEmail)
+        );
+        const snapshot = await getDocs(q);
+        const myOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setOrders(myOrders);
+      } catch (err) {
+        console.error("Error fetching orders:", err);
+      } finally {
         setIsLoading(false);
-      }, 1000);
+      }
     });
-    
+
     return () => unsubscribe();
   }, []);
+
+  // ...rest of your ProfilePage remains unchanged
 
   const handleLogout = async () => {
     try {
@@ -276,7 +252,8 @@ const ProfilePage = () => {
                           </div>
                           <div className="text-right">
                             <p className="text-sm text-gray-500">Total</p>
-                            <p className="text-lg font-bold">₹{order.total.toFixed(2)}</p>
+                            <p className="text-lg font-bold">₹{(order.total || order.amount || 0).toFixed(2)}</p>
+
                           </div>
                         </div>
                         

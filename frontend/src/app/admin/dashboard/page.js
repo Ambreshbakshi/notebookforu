@@ -9,7 +9,7 @@ import Link from 'next/link';
 
 const AdminDashboard = () => {
   const router = useRouter();
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@example.com'; // 🔐 safer
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@example.com';
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +22,8 @@ const AdminDashboard = () => {
 
       try {
         const ordersRef = collection(db, 'orders');
-        const snapshot = await getDocs(ordersRef); // Add query(orderBy('createdAt', 'desc')) if you store timestamps
+        const q = query(ordersRef, orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
         const data = snapshot.docs.map((doc) => ({ ...doc.data(), docId: doc.id }));
         setOrders(data);
       } catch (error) {
@@ -42,6 +43,19 @@ const AdminDashboard = () => {
       </div>
     );
   }
+
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case 'delivered':
+        return 'text-green-700 bg-green-100';
+      case 'shipped':
+        return 'text-blue-700 bg-blue-100';
+      case 'cancelled':
+        return 'text-red-700 bg-red-100';
+      default:
+        return 'text-yellow-800 bg-yellow-100';
+    }
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -65,7 +79,14 @@ const AdminDashboard = () => {
             <tbody>
               {orders.map((order) => (
                 <tr key={order.orderId || order.docId} className="border-t hover:bg-gray-50">
-                  <td className="p-3 font-medium text-blue-900">{order.orderId || 'N/A'}</td>
+                  <td className="p-3 font-medium text-blue-900">
+                    <Link
+                      href={`/admin/orders/${order.docId}`}
+                      className="underline hover:text-blue-700"
+                    >
+                      {order.orderId || 'N/A'}
+                    </Link>
+                  </td>
                   <td className="p-3">{order.customer?.email || 'Unknown'}</td>
                   <td className="p-3">₹{order.amount?.toFixed(2) || '0.00'}</td>
                   <td className="p-3">{order.paymentMethod || 'N/A'}</td>
@@ -82,7 +103,11 @@ const AdminDashboard = () => {
                       <span className="text-gray-400 italic">Not Assigned</span>
                     )}
                   </td>
-                  <td className="p-3 capitalize">{order.status || 'processing'}</td>
+                  <td className="p-3">
+                    <span className={`capitalize px-2 py-1 rounded text-xs ${getStatusStyle(order.status)}`}>
+                      {order.status || 'processing'}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>

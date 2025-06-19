@@ -1,61 +1,122 @@
 import { NextResponse } from 'next/server';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getApps, initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
-// Utility: generate a unique order ID
-const generateOrderId = () => {
-  const timestamp = Date.now();
-  const random = Math.floor(Math.random() * 1000);
-  return `ORD-${timestamp}-${random}`;
-};
+// Initialize Firebase Admin SDK securely using environment variables
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    }),
+  });
+}
 
+const db = getFirestore();
+
+// POST: Create new order
 export async function POST(request) {
   try {
-    const { amount, items, customer, shipping, paymentMethod } = await request.json();
+    const body = await request.json();
+    const { amount, items, customer, shipping, paymentMethod } = body;
 
-    if (!amount || !items || !customer || !shipping || !paymentMethod) {
+    if (!amount || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'Missing required fields' },
+        { success: false, message: 'Amount or items missing/invalid' },
         { status: 400 }
       );
     }
 
-    const orderId = generateOrderId();
+    if (!customer?.name || !customer?.email) {
+      return NextResponse.json(
+        { success: false, message: 'Customer details incomplete' },
+        { status: 400 }
+      );
+    }
 
-    // Prepare the order object
+    if (!shipping?.cost || !shipping?.pincode) {
+      return NextResponse.json(
+        { success: false, message: 'Shipping info incomplete' },
+        { status: 400 }
+      );
+    }
+
+    if (!paymentMethod) {
+      return NextResponse.json(
+        { success: false, message: 'Payment method missing' },
+        { status: 400 }
+      );
+    }
+
+    const orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
     const orderData = {
       orderId,
       amount,
       items,
-      customer,
-      shipping,
+      customer: {
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone || '',
+      },
+      shipping: { ...shipping },
       paymentMethod,
-      trackingId: null,
-      courier: 'India Post',
-      createdAt: new Date().toISOString(),
+      status: 'pending',
+      trackingId: '',
+      createdAt: new Date(), // server timestamp
     };
-console.log("Order saved to Firestore:", orderId);
 
-    // Send response immediately
-    const response = NextResponse.json({
-      success: true,
-      orderId,
-      amount,
-      itemsCount: items.length,
-      customerName: customer.name,
-      shippingCost: shipping.cost,
-    });
+    await db.collection('orders').doc(orderId).set(orderData);
 
-    // Perform Firestore write in the background
-    setDoc(doc(db, 'orders', orderId), orderData).catch((err) =>
-      console.error('[ORDER_WRITE_ERROR]', err)
-    );
-
-    return response;
+    return NextResponse.json({ success: true, orderId });
   } catch (error) {
-    console.error('[ORDER_ERROR]', error);
+    console.error('[ORDER_POST_ERROR]', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: 'Server error while creating order.' },
+      { status: 500 }
+    );
+  }
+}
+
+// GET: Fetch all orders (admin only)
+export async function GET() {
+  try {
+    const snapshot = await db.collection('orders').get();
+    const orders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return NextResponse.json({ success: true, orders });
+  } catch (error) {
+    console.error('[ORDER_GET_ERROR]', error);
+    return NextResponse.json(
+      { success: false, message: 'Server error while fetching orders.' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH: Update order (tracking/status)
+export async function PATCH(request) {
+  try {
+    const { orderId, trackingId, status } = await request.json();
+
+    if (!orderId || (!trackingId && !status)) {
+      return NextResponse.json(
+        { success: false, message: 'Order ID and update field(s) required' },
+        { status: 400 }
+      );
+    }
+
+    const updateData = {};
+    if (trackingId) updateData.trackingId = trackingId;
+    if (status) updateData.status = status;
+
+    await db.collection('orders').doc(orderId).update(updateData);
+
+    return NextResponse.json({ success: true, message: 'Order updated' });
+  } catch (error) {
+    console.error('[ORDER_PATCH_ERROR]', error);
+    return NextResponse.json(
+      { success: false, message: 'Server error while updating order.' },
       { status: 500 }
     );
   }

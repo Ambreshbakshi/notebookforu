@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { FiTrash2, FiPlus, FiMinus, FiShoppingBag, FiArrowLeft, FiTruck } from "react-icons/fi";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import Image from "next/image";
 import Link from "next/link";
 import productData from "@/data/productData";
@@ -16,6 +18,7 @@ const CartPage = () => {
   const [deliveryPincode, setDeliveryPincode] = useState("");
   const [isCheckingShipping, setIsCheckingShipping] = useState(false);
   const [deliveryEstimate, setDeliveryEstimate] = useState("");
+  
 
   // Shipping rates from the provided image
   const shippingRates = {
@@ -53,6 +56,14 @@ const CartPage = () => {
     setCartItems(enrichedCart);
     setIsLoading(false);
   }, []);
+const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    setIsLoggedIn(!!user);
+  });
+  return () => unsubscribe();
+}, []);
 
   // Recalculate shipping when cart items or pincode changes
   useEffect(() => {
@@ -406,22 +417,24 @@ if (totalWeight > 2 && totalWeight <= 5) {
               </div>
             </div>
 
-            <Link
-              href="/checkout"
-              className={`block w-full text-center py-3 px-4 rounded-lg font-medium transition ${
-                shippingCost === null 
-                  ? "bg-gray-400 cursor-not-allowed" 
-                  : "bg-green-600 hover:bg-green-700 text-white"
-              }`}
-              onClick={(e) => {
-                if (shippingCost === null) {
-                  e.preventDefault();
-                  toast.error("Please check shipping availability first");
-                }
-              }}
-            >
-              Buy Now
-            </Link>
+       <Link
+  href={isLoggedIn ? "/checkout" : "/login"}
+  className={`block w-full text-center py-3 px-4 rounded-lg font-medium transition ${
+    shippingCost === null 
+      ? "bg-gray-400 cursor-not-allowed" 
+      : "bg-green-600 hover:bg-green-700 text-white"
+  }`}
+  onClick={(e) => {
+    if (shippingCost === null) {
+      e.preventDefault();
+      toast.error("Please check shipping availability first");
+    }
+  }}
+>
+  {isLoggedIn ? "Buy Now" : "Login to Buy"}
+</Link>
+
+
 
             <p className="text-xs text-gray-500 mt-4 text-center">
               {calculateSubtotal() > 500 ? (
