@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { FiTruck, FiCreditCard, FiUser, FiMail, FiPhone, FiMapPin, FiLoader, FiAlertCircle } from "react-icons/fi";
+import { FiTruck, FiCreditCard, FiUser, FiMail, FiPhone, FiMapPin, FiLoader, FiAlertCircle, FiCheck } from "react-icons/fi";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { calculateShippingCost, calculateTotalWeight } from '@/components/DeliveryChargeCalculator';
@@ -18,6 +18,7 @@ const CheckoutPage = () => {
   const [deliveryEstimate, setDeliveryEstimate] = useState("");
   const [formErrors, setFormErrors] = useState({});
   const [isRazorpayLoaded, setIsRazorpayLoaded] = useState(false);
+  const [shippingChecked, setShippingChecked] = useState(false);
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -39,18 +40,19 @@ const CheckoutPage = () => {
 
   // Load cart and Razorpay script
   useEffect(() => {
-    // Load cart with error handling
-    try {
-      const cart = JSON.parse(localStorage.getItem("cart")) || [];
-      if (!Array.isArray(cart)) throw new Error("Invalid cart data");
-      setCartItems(cart);
-    } catch (err) {
-      console.error("Error loading cart:", err);
-      toast.error("Could not load your cart. Please refresh the page.");
-      localStorage.setItem("cart", "[]");
-    }
+    const loadCart = () => {
+      try {
+        const cart = JSON.parse(localStorage.getItem("cart")) || [];
+        if (!Array.isArray(cart)) throw new Error("Invalid cart data");
+        setCartItems(cart);
+      } catch (err) {
+        console.error("Error loading cart:", err);
+        toast.error("Could not load your cart. Please refresh the page.");
+        localStorage.setItem("cart", "[]");
+        setCartItems([]);
+      }
+    };
 
-    // Load Razorpay script
     const loadRazorpay = () => {
       if (window.Razorpay) {
         setIsRazorpayLoaded(true);
@@ -79,6 +81,7 @@ const CheckoutPage = () => {
       document.body.appendChild(script);
     };
 
+    loadCart();
     loadRazorpay();
 
     return () => {
@@ -127,7 +130,7 @@ const CheckoutPage = () => {
       isValid = false;
     }
 
-    if (shippingCost === null) {
+    if (!shippingChecked) {
       errors.shipping = "Please check shipping availability";
       isValid = false;
     }
@@ -139,7 +142,7 @@ const CheckoutPage = () => {
 
     setFormErrors(errors);
     return isValid;
-  }, [customerDetails, deliveryPincode, shippingCost, cartItems]);
+  }, [customerDetails, deliveryPincode, shippingChecked, cartItems]);
 
   // Check shipping availability
   const handleCheckShipping = async () => {
@@ -158,12 +161,14 @@ const CheckoutPage = () => {
 
       setShippingCost(shippingInfo.shippingCost);
       setDeliveryEstimate(shippingInfo.deliveryEstimate || "4-7 business days");
+      setShippingChecked(true);
       toast.success(`Shipping to ${deliveryPincode} available`);
     } catch (err) {
       console.error("Shipping error:", err);
       toast.error(err.message || "Could not calculate shipping");
       setShippingCost(null);
       setDeliveryEstimate("");
+      setShippingChecked(false);
     } finally {
       setCheckingShipping(false);
     }
@@ -201,7 +206,7 @@ const CheckoutPage = () => {
 
       // 2. Prepare order data
       const orderData = {
-        amount: Math.round(amountWithShipping * 100),
+        amount: Math.round(amountWithShipping * 100), // Convert to paise
         currency: "INR",
         items: cartItems.map(item => ({
           id: item.id,
@@ -233,10 +238,7 @@ const CheckoutPage = () => {
         }
       };
 
-      // 3. Create order with timeout
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
+      // 3. Create order in database
       const orderResponse = await fetch("/api/orders", {
         method: "POST",
         headers: { 
@@ -245,19 +247,20 @@ const CheckoutPage = () => {
           "X-Request-ID": `order_${Date.now()}`
         },
         body: JSON.stringify(orderData),
-        signal: controller.signal
       });
-      clearTimeout(timeout);
 
       if (!orderResponse.ok) {
         const error = await orderResponse.json().catch(() => ({}));
-        throw new Error(error.message || "Order creation failed");
+        throw new Error(error.error || "Order creation failed");
       }
 
-      const { order: createdOrder } = await orderResponse.json();
-      if (!createdOrder?.orderId) {
-        throw new Error("Invalid order response");
+      const orderResult = await orderResponse.json();
+      if (!orderResult?.data?.orderId) {
+        console.error('Invalid order response:', orderResult);
+        throw new Error("Invalid order response - Missing orderId");
       }
+
+      const { orderId } = orderResult.data;
 
       // 4. Create Razorpay payment
       const paymentResponse = await fetch("/api/razorpay", {
@@ -268,12 +271,7 @@ const CheckoutPage = () => {
         },
         body: JSON.stringify({
           amount: orderData.amount,
-          currency: "INR",
-          receipt: createdOrder.orderId,
-          notes: {
-            orderId: createdOrder.orderId,
-            userId: user.uid
-          }
+          orderId
         })
       });
 
@@ -281,62 +279,113 @@ const CheckoutPage = () => {
         throw new Error("Payment gateway error");
       }
 
-      const payment = await paymentResponse.json();
-      if (!payment?.id) {
-        throw new Error("Invalid payment response");
+      const paymentData = await paymentResponse.json();
+      if (!paymentData?.data?.id) {
+        throw new Error(
+          paymentData.error || 
+          `Payment failed (Status: ${paymentResponse.status})`
+        );
       }
 
       // 5. Initialize Razorpay
-      const rzpOptions = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: payment.amount,
-        currency: payment.currency,
-        name: "Your Store",
-        description: `Order #${createdOrder.orderId}`,
-        order_id: payment.id,
-        handler: async (response) => {
-          try {
-            const verification = await fetch("/api/razorpay/verify", {
-              method: "POST",
-              headers: { 
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${idToken}`
-              },
-              body: JSON.stringify({
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-                orderId: createdOrder.orderId
-              })
-            });
-
-            if (!verification.ok) {
-              throw new Error("Verification failed");
-            }
-
-            localStorage.removeItem("cart");
-            toast.success("Payment successful!");
-            router.push(`/order-success?id=${createdOrder.orderId}`);
-          } catch (error) {
-            console.error("Verification error:", error);
-            toast.error("Payment verification failed");
-            router.push(`/order-failed?id=${createdOrder.orderId}`);
-          }
-        },
-        prefill: {
-          name: customerDetails.name,
-          email: customerDetails.email,
-          contact: customerDetails.phone
-        },
-        theme: {
-          color: "#4f46e5"
+     const rzpOptions = {
+  key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+  amount: paymentData.data.amount,
+  currency: paymentData.data.currency,
+  name: "Your Store",
+  description: `Order #${orderId}`,
+  order_id: paymentData.data.id,
+  handler: async (response) => {
+    try {
+      const verificationToast = toast.loading("Verifying payment...");
+      
+      // Add additional verification data
+      const verificationData = {
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_order_id: response.razorpay_order_id,
+        razorpay_signature: response.razorpay_signature,
+        orderId,
+        _metadata: {
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+          ip: await fetch('https://api.ipify.org?format=json')
+               .then(res => res.json())
+               .then(data => data.ip)
+               .catch(() => "unknown")
         }
       };
 
+      console.log('Verification payload:', verificationData);
+
+      const verification = await fetch("/api/razorpay/verify", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+          "X-Request-ID": `verify_${Date.now()}`
+        },
+        body: JSON.stringify(verificationData),
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
+
+      const verificationResult = await verification.json();
+
+      if (!verification.ok || !verificationResult.success) {
+        console.error('Verification failed:', {
+          status: verification.status,
+          response: verificationResult,
+          payload: verificationData
+        });
+        
+        throw new Error(verificationResult.error || "Payment verification failed");
+      }
+
+      // Clear cart and show success
+      localStorage.removeItem("cart");
+      toast.dismiss(verificationToast);
+      toast.success("Payment successful!");
+      router.push(`/order-success?id=${orderId}`);
+      
+    } catch (error) {
+      console.error("Payment verification error:", {
+        error: error.message,
+        stack: error.stack,
+        orderId,
+        timestamp: new Date().toISOString()
+      });
+
+      toast.dismiss();
+      toast.error(error.message || "Payment verification failed");
+      
+      // Redirect to failure page with error details
+      router.push(`/order-failed?id=${orderId}&error=${encodeURIComponent(error.message)}`);
+    }
+  },
+  prefill: {
+    name: customerDetails.name,
+    email: customerDetails.email,
+    contact: customerDetails.phone
+  },
+  theme: {
+    color: "#4f46e5"
+  },
+  modal: {
+    ondismiss: () => {
+      toast.info("Payment window closed - payment not completed");
+    }
+  },
+  notes: {
+    orderId,
+    userId: user?.uid || "guest",
+    source: "web-checkout"
+  }
+};
+
       const rzp = new window.Razorpay(rzpOptions);
       rzp.on("payment.failed", (response) => {
+        console.error("Payment failed:", response.error);
         toast.error(`Payment failed: ${response.error.description}`);
-        router.push(`/order-failed?id=${createdOrder.orderId}`);
+        router.push(`/order-failed?id=${orderId}`);
       });
       rzp.open();
 
@@ -442,6 +491,7 @@ const CheckoutPage = () => {
                     onChange={(e) => {
                       setDeliveryPincode(e.target.value.replace(/\D/g, '').slice(0, 6));
                       if (formErrors.pincode) setFormErrors(prev => ({ ...prev, pincode: "" }));
+                      setShippingChecked(false);
                     }}
                     className={`flex-1 border rounded-lg px-4 py-2 focus:ring-2 ${
                       formErrors.pincode ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
@@ -455,8 +505,14 @@ const CheckoutPage = () => {
                     disabled={checkingShipping || deliveryPincode.length !== 6}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
                   >
-                    {checkingShipping ? <FiLoader className="animate-spin" /> : <FiTruck />}
-                    {checkingShipping ? "Checking..." : "Check"}
+                    {checkingShipping ? (
+                      <FiLoader className="animate-spin" />
+                    ) : shippingChecked ? (
+                      <FiCheck />
+                    ) : (
+                      <FiTruck />
+                    )}
+                    {checkingShipping ? "Checking..." : shippingChecked ? "Verified" : "Check"}
                   </button>
                 </div>
                 {formErrors.pincode && (
@@ -531,14 +587,26 @@ const CheckoutPage = () => {
               </p>
             )}
             
-            {shippingCost !== null && (
-              <div className="bg-blue-50 p-3 rounded-lg flex items-center gap-3">
-                <FiTruck className="text-blue-600 text-xl" />
+            {shippingChecked && (
+              <div className={`p-3 rounded-lg flex items-center gap-3 ${
+                shippingCost === null ? "bg-red-50" : "bg-blue-50"
+              }`}>
+                {shippingCost === null ? (
+                  <FiAlertCircle className="text-red-600 text-xl" />
+                ) : (
+                  <FiTruck className="text-blue-600 text-xl" />
+                )}
                 <div>
-                  <p className="font-medium">Shipping available</p>
-                  <p className="text-sm">Estimated delivery: {deliveryEstimate}</p>
+                  <p className="font-medium">
+                    {shippingCost === null ? "Shipping unavailable" : "Shipping available"}
+                  </p>
+                  {shippingCost !== null && (
+                    <p className="text-sm">Estimated delivery: {deliveryEstimate}</p>
+                  )}
                 </div>
-                <div className="ml-auto font-bold">₹{shippingCost.toFixed(2)}</div>
+                {shippingCost !== null && (
+                  <div className="ml-auto font-bold">₹{shippingCost.toFixed(2)}</div>
+                )}
               </div>
             )}
           </div>
@@ -621,7 +689,7 @@ const CheckoutPage = () => {
             
             <button
               onClick={handlePayment}
-              disabled={loading || !isRazorpayLoaded || shippingCost === null || cartItems.length === 0}
+              disabled={loading || !isRazorpayLoaded || !shippingChecked || cartItems.length === 0}
               className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -632,7 +700,7 @@ const CheckoutPage = () => {
               ) : (
                 <>
                   <FiCreditCard />
-                  {!isRazorpayLoaded ? "Loading payment..." : "Pay Now"}
+                  {!isRazorpayLoaded ? "Loading payment..." : `Pay ₹${amountWithShipping.toFixed(2)}`}
                 </>
               )}
             </button>
