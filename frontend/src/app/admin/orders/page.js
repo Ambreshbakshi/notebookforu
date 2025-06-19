@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import UpdateTrackingForm from '../../components/UpdateTrackingForm';
+import UpdateTrackingForm from "@/components/UpdateTrackingForm";
 import { FiSearch, FiRefreshCcw } from 'react-icons/fi';
 
 const OrdersPage = () => {
