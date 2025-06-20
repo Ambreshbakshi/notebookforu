@@ -344,7 +344,7 @@ const CheckoutPage = () => {
       localStorage.removeItem("cart");
       toast.dismiss(verificationToast);
       toast.success("Payment successful!");
-      router.push(`/order-success?id=${orderId}`);
+      router.push(`/success?id=${orderId}`);
       
     } catch (error) {
       console.error("Payment verification error:", {
