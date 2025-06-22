@@ -58,7 +58,8 @@ const ProfilePage = () => {
         joinedDate: joinDate,
         phone: "",
         address: "",
-        lastLogin: new Date().toLocaleString()
+        lastLogin: new Date().toLocaleString(),
+        uid: u.uid
       });
 
       setFormData({
@@ -71,22 +72,27 @@ const ProfilePage = () => {
       try {
         const q = query(
           collection(db, "orders"),
-          where("customer.email", "==", userEmail)
+          where("customer.userId", "==", u.uid)
         );
+        
         const snapshot = await getDocs(q);
-        const myOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const myOrders = snapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data(),
+          date: doc.data().date?.toDate?.() || 
+                (doc.data().date?.seconds ? new Date(doc.data().date.seconds * 1000) : null)
+        }));
         setOrders(myOrders);
       } catch (err) {
         console.error("Error fetching orders:", err);
+        toast.error("Failed to load orders");
       } finally {
         setIsLoading(false);
       }
     });
 
     return () => unsubscribe();
-  }, []);
-
-  // ...rest of your ProfilePage remains unchanged
+  }, [router]);
 
   const handleLogout = async () => {
     try {
@@ -105,7 +111,6 @@ const ProfilePage = () => {
   };
 
   const handleSaveField = () => {
-    // In a real app, you would update the user's data in your database here
     toast.success("Profile updated successfully");
     setIsEditing(false);
     setEditField(null);
@@ -202,13 +207,9 @@ const ProfilePage = () => {
                       <div>
                         <p className="font-medium">Order #{order.id}</p>
                         <p className="text-sm text-gray-500">
-  <FiCalendar className="inline mr-1" size={14} />
-  Placed on{" "}
-  {order.date?.toDate
-    ? order.date.toDate().toLocaleDateString("en-IN")
-    : "N/A"}
-</p>
-
+                          <FiCalendar className="inline mr-1" size={14} />
+                          Placed on {order.date ? order.date.toLocaleDateString('en-IN') : 'N/A'}
+                        </p>
                       </div>
                       {getStatusBadge(order.status)}
                     </div>
@@ -257,7 +258,6 @@ const ProfilePage = () => {
                           <div className="text-right">
                             <p className="text-sm text-gray-500">Total</p>
                             <p className="text-lg font-bold">₹{(order.total || order.amount || 0).toFixed(2)}</p>
-
                           </div>
                         </div>
                         
@@ -386,7 +386,6 @@ const ProfilePage = () => {
         <h1 className="text-3xl font-bold mb-8">My Account</h1>
         
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Sidebar Navigation */}
           <div className="w-full md:w-64 flex-shrink-0">
             <div className="bg-white p-6 rounded-lg shadow-sm sticky top-8">
               <div className="flex items-center mb-6">
@@ -437,7 +436,6 @@ const ProfilePage = () => {
             </div>
           </div>
           
-          {/* Main Content */}
           <div className="flex-1">
             {renderContent()}
           </div>
