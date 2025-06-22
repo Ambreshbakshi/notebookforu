@@ -70,8 +70,9 @@ const ProfilePage = () => {
 
       try {
         const q = query(
-          collection(db, "orders"),
-          where("customer.email", "==", userEmail)
+  collection(db, "orders"),
+  where("customer.userId", "==", user.uid)  // Use UID instead of email for security
+);
         );
         const snapshot = await getDocs(q);
         const myOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
