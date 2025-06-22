@@ -202,9 +202,13 @@ const ProfilePage = () => {
                       <div>
                         <p className="font-medium">Order #{order.id}</p>
                         <p className="text-sm text-gray-500">
-                          <FiCalendar className="inline mr-1" size={14} />
-                          Placed on {new Date(order.date).toLocaleDateString('en-IN')}
-                        </p>
+  <FiCalendar className="inline mr-1" size={14} />
+  Placed on{" "}
+  {order.date?.toDate
+    ? order.date.toDate().toLocaleDateString("en-IN")
+    : "N/A"}
+</p>
+
                       </div>
                       {getStatusBadge(order.status)}
                     </div>
