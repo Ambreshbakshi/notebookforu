@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
@@ -110,12 +110,14 @@ const Submenu = ({
       ref={menuRef}
     >
       <button 
-        className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${isOpen ? 'bg-gray-100 text-blue-600' : 'hover:bg-gray-50'} ${isIconOnly ? 'p-2' : ''}`}
+        className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${
+          isOpen ? 'bg-gray-100 text-blue-600' : 'hover:bg-gray-50'
+        } ${isIconOnly ? 'p-2' : ''}`}
         onClick={toggleMenu}
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        {icon && <span className="text-lg">{icon}</span>}
+        {icon && <span className={`${isIconOnly ? 'text-xl' : 'text-lg'}`}>{icon}</span>}
         {!isIconOnly && title}
         {!isIconOnly && (
           <span className="text-sm ml-1">
@@ -128,7 +130,9 @@ const Submenu = ({
         initial={{ opacity: 0, y: -10 }}
         animate={isOpen ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
         transition={{ duration: 0.2 }}
-        className={`absolute top-full left-0 bg-white shadow-lg rounded-md mt-1 py-2 min-w-[200px] z-50 ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        className={`absolute top-full left-0 bg-white shadow-lg rounded-md mt-1 py-2 min-w-[200px] z-50 ${
+          isOpen ? 'pointer-events-auto' : 'pointer-events-none'
+        }`}
       >
         {children}
       </motion.div>
@@ -168,7 +172,9 @@ const UserSubmenu = ({ isMobile = false }) => {
       </NavLink>
       <button
         onClick={handleLogout}
-        className={`w-full text-left flex items-center px-4 py-2 hover:bg-gray-50 text-red-600 ${isMobile ? 'py-3' : ''}`}
+        className={`w-full text-left flex items-center px-4 py-2 hover:bg-gray-50 text-red-600 ${
+          isMobile ? 'py-3' : ''
+        }`}
       >
         <FiLogOut className="mr-2" /> Logout
       </button>
@@ -211,7 +217,9 @@ const Navbar = () => {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className={`fixed top-0 left-0 w-full ${scrolled ? "bg-white shadow-md" : "bg-white/95 backdrop-blur-sm"} transition-all duration-300 h-16 flex items-center z-50 border-b border-gray-100`}
+        className={`fixed top-0 left-0 w-full ${
+          scrolled ? "bg-white shadow-md" : "bg-white/95 backdrop-blur-sm"
+        } transition-all duration-300 h-16 flex items-center z-50 border-b border-gray-100`}
       >
         <div className="container mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8">
           <motion.div whileHover={{ scale: 1.05 }}>
@@ -277,7 +285,11 @@ const Navbar = () => {
                 </NavLink>
               </div>
               
-              <Submenu title={<FiUser className="text-xl" />} isIconOnly>
+              <Submenu 
+                icon={<FiUser className="text-xl" />} 
+                isIconOnly={true}
+                className="p-0"
+              >
                 <UserSubmenu />
               </Submenu>
             </div>
@@ -359,7 +371,9 @@ const NavLink = ({ href, pathname, children, className = "", icon, isMobile = fa
       <Link href={href} passHref>
         <motion.div
           whileTap={{ scale: 0.98 }}
-          className={`flex items-center py-3 px-4 rounded-md ${isActive || isProductRoute ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"} ${className}`}
+          className={`flex items-center py-3 px-4 rounded-md ${
+            isActive || isProductRoute ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
+          } ${className}`}
         >
           {icon && <span className="mr-3">{icon}</span>}
           <span className="font-medium">{children}</span>
@@ -373,7 +387,9 @@ const NavLink = ({ href, pathname, children, className = "", icon, isMobile = fa
       <motion.div
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className={`relative px-3 py-2 text-sm font-medium transition-colors flex items-center ${isActive || isProductRoute ? "text-blue-600" : "text-gray-700 hover:text-blue-500"} ${className}`}
+        className={`relative px-3 py-2 text-sm font-medium transition-colors flex items-center ${
+          isActive || isProductRoute ? "text-blue-600" : "text-gray-700 hover:text-blue-500"
+        } ${className}`}
       >
         {icon && <span className="mr-2 md:hidden">{icon}</span>}
         {children}
