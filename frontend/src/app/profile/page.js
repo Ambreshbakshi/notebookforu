@@ -202,10 +202,16 @@ const ProfilePage = () => {
                     <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
                       <div>
                         <p className="font-medium">Order #{order.id}</p>
-                        <p className="text-sm text-gray-500">
-                          <FiCalendar className="inline mr-1" size={14} />
-                          Placed on {new Date(order.date).toLocaleDateString('en-IN')}
-                        </p>
+                    <p className="text-sm text-gray-500">
+  <FiCalendar className="inline mr-1" size={14} />
+  Placed on {
+    order.date?.toDate 
+      ? order.date.toDate().toLocaleDateString('en-IN')  // If Firestore Timestamp
+      : typeof order.date?.seconds === 'number'
+        ? new Date(order.date.seconds * 1000).toLocaleDateString('en-IN')  // If timestamp object
+        : new Date(order.date).toLocaleDateString('en-IN') || 'N/A'  // Fallback
+  }
+</p>
                       </div>
                       {getStatusBadge(order.status)}
                     </div>
