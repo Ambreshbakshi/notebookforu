@@ -1,11 +1,3 @@
-{
-  "dependencies": {
-    "@stripe/stripe-js": "^7.3.1",
-    "firebase": "^11.9.1",
-    "framer-motion": "^12.18.1",
-    "razorpay": "^2.9.6",
-    "react-icons": "^5.5.0",
-    "react-swipeable": "^7.0.2",
-    "react-toastify": "^11.0.5"
-  }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:3755d49a05e3a10045bdbe5908e2efaf7c668d21862be09e47fc6a66b6dd889e
+size 254
