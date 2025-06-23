@@ -6,6 +6,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { calculateShippingCost, calculateTotalWeight } from '@/components/DeliveryChargeCalculator';
 import { getAuth } from "firebase/auth";
+import productData from "@/data/productData";
 
 const CheckoutPage = () => {
   const router = useRouter();
@@ -32,6 +33,29 @@ const CheckoutPage = () => {
     state: ""
   });
 
+  // Enrich cart items with product data
+  const enrichCartItems = (cart) => {
+    return cart.map(cartItem => {
+      let foundProduct = null;
+      
+      // Search through all categories in productData
+      for (const category in productData) {
+        if (productData[category][cartItem.id]) {
+          foundProduct = productData[category][cartItem.id];
+          break;
+        }
+      }
+      
+      return {
+        ...cartItem,
+        name: foundProduct?.name || "Unknown Product",
+        price: foundProduct?.price || 0,
+        weight: foundProduct?.weight || 0.5,
+        product: foundProduct || null
+      };
+    });
+  };
+
   // Calculate order totals
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalWeight = calculateTotalWeight(cartItems);
@@ -44,7 +68,9 @@ const CheckoutPage = () => {
       try {
         const cart = JSON.parse(localStorage.getItem("cart")) || [];
         if (!Array.isArray(cart)) throw new Error("Invalid cart data");
-        setCartItems(cart);
+        
+        const enrichedCart = enrichCartItems(cart);
+        setCartItems(enrichedCart);
       } catch (err) {
         console.error("Error loading cart:", err);
         toast.error("Could not load your cart. Please refresh the page.");
@@ -288,98 +314,82 @@ const CheckoutPage = () => {
       }
 
       // 5. Initialize Razorpay
-     const rzpOptions = {
-  key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-  amount: paymentData.data.amount,
-  currency: paymentData.data.currency,
-  name: "Your Store",
-  description: `Order #${orderId}`,
-  order_id: paymentData.data.id,
-  handler: async (response) => {
-    try {
-      const verificationToast = toast.loading("Verifying payment...");
-      
-      // Add additional verification data
-      const verificationData = {
-        razorpay_payment_id: response.razorpay_payment_id,
-        razorpay_order_id: response.razorpay_order_id,
-        razorpay_signature: response.razorpay_signature,
-        orderId,
-        _metadata: {
-          userAgent: navigator.userAgent,
-          timestamp: new Date().toISOString(),
-          ip: await fetch('https://api.ipify.org?format=json')
-               .then(res => res.json())
-               .then(data => data.ip)
-               .catch(() => "unknown")
+      const rzpOptions = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: paymentData.data.amount,
+        currency: paymentData.data.currency,
+        name: "Your Store",
+        description: `Order #${orderId}`,
+        order_id: paymentData.data.id,
+        handler: async (response) => {
+          try {
+            const verificationToast = toast.loading("Verifying payment...");
+            
+            // Add additional verification data
+            const verificationData = {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId,
+              _metadata: {
+                userAgent: navigator.userAgent,
+                timestamp: new Date().toISOString(),
+                ip: await fetch('https://api.ipify.org?format=json')
+                     .then(res => res.json())
+                     .then(data => data.ip)
+                     .catch(() => "unknown")
+              }
+            };
+
+            const verification = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${idToken}`,
+                "X-Request-ID": `verify_${Date.now()}`
+              },
+              body: JSON.stringify(verificationData),
+              signal: AbortSignal.timeout(10000) // 10 second timeout
+            });
+
+            const verificationResult = await verification.json();
+
+            if (!verification.ok || !verificationResult.success) {
+              throw new Error(verificationResult.error || "Payment verification failed");
+            }
+
+            // Clear cart and show success
+            localStorage.removeItem("cart");
+            toast.dismiss(verificationToast);
+            toast.success("Payment successful!");
+            router.push(`/success?order_id=${orderId}`);
+            
+          } catch (error) {
+            console.error("Payment verification error:", error);
+            toast.dismiss();
+            toast.error(error.message || "Payment verification failed");
+            router.push(`/order-failed?id=${orderId}&error=${encodeURIComponent(error.message)}`);
+          }
+        },
+        prefill: {
+          name: customerDetails.name,
+          email: customerDetails.email,
+          contact: customerDetails.phone
+        },
+        theme: {
+          color: "#4f46e5"
+        },
+        modal: {
+          ondismiss: () => {
+            toast.info("Payment window closed - payment not completed");
+          }
+        },
+        notes: {
+          orderId,
+          userId: user?.uid || "guest",
+          source: "web-checkout"
         }
       };
-
-      console.log('Verification payload:', verificationData);
-
-      const verification = await fetch("/api/razorpay/verify", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`,
-          "X-Request-ID": `verify_${Date.now()}`
-        },
-        body: JSON.stringify(verificationData),
-        signal: AbortSignal.timeout(10000) // 10 second timeout
-      });
-
-      const verificationResult = await verification.json();
-
-      if (!verification.ok || !verificationResult.success) {
-        console.error('Verification failed:', {
-          status: verification.status,
-          response: verificationResult,
-          payload: verificationData
-        });
-        
-        throw new Error(verificationResult.error || "Payment verification failed");
-      }
-
-      // Clear cart and show success
-      localStorage.removeItem("cart");
-      toast.dismiss(verificationToast);
-      toast.success("Payment successful!");
-      router.push(`/success?order_id=${orderId}`);
-      
-    } catch (error) {
-      console.error("Payment verification error:", {
-        error: error.message,
-        stack: error.stack,
-        orderId,
-        timestamp: new Date().toISOString()
-      });
-
-      toast.dismiss();
-      toast.error(error.message || "Payment verification failed");
-      
-      // Redirect to failure page with error details
-      router.push(`/order-failed?id=${orderId}&error=${encodeURIComponent(error.message)}`);
-    }
-  },
-  prefill: {
-    name: customerDetails.name,
-    email: customerDetails.email,
-    contact: customerDetails.phone
-  },
-  theme: {
-    color: "#4f46e5"
-  },
-  modal: {
-    ondismiss: () => {
-      toast.info("Payment window closed - payment not completed");
-    }
-  },
-  notes: {
-    orderId,
-    userId: user?.uid || "guest",
-    source: "web-checkout"
-  }
-};
 
       const rzp = new window.Razorpay(rzpOptions);
       rzp.on("payment.failed", (response) => {

@@ -1,6 +1,27 @@
 const productData = {
  notebooks : {
-  11: {
+  
+  12: {
+    id: 12,
+    name: "Notebook | Rustic Earth",
+    price: 85,
+    weight: 0.5,
+    gridImage: "/products/notebook/notebook12/notebook12-cover.png",
+    detailImage1: "/products/notebook/notebook12/notebook12-detail1.jpeg",
+    detailImage2: "/products/notebook/notebook12/notebook12-detail2.jpeg",
+    detailImage3: "/products/notebook/notebook12/notebook12-detail3.jpeg",
+    detailImage4: "/products/notebook/notebook12/notebook12-detail4.jpeg",
+    detailImage5: "/products/notebook/notebook12/notebook12-detail5.jpeg",
+    details: {
+      size: "15 cm x 21 cm",
+      pages: 300,
+      material: "Recycled Kraft Paper Cover",
+      binding: "Wiro Binding",
+      gsm: 120,
+      description: "A sustainable choice for eco-conscious creatives, with earthy tones and smooth recycled pages."
+    },
+  },
+  1: {
     id: 1,
     name: "Notebook | Vines",
     price: 75,
@@ -20,11 +41,11 @@ const productData = {
       description: "A beautifully crafted notebook with nature-inspired vines design, perfect for journaling or sketching."
     },
   },
-  12: {
+  2: {
     id: 2,
     name: "Notebook | Sunset",
     price: 115,
-    weight: 0.5,
+    weight: 0.6,
     gridImage: "/products/notebook/notebook2/notebook2-cover.png",
     detailImage1: "/products/notebook/notebook2/notebook2-detail1.jpg",
     detailImage2: "/products/notebook/notebook2/notebook2-detail2.jpg",
@@ -40,7 +61,7 @@ const productData = {
       description: "Capture your thoughts under the hues of a stunning sunset. A vibrant and durable notebook for all creatives."
     },
   },
-  13: {
+  3: {
     id: 3,
     name: "Notebook | Ocean",
     price: 135,
@@ -60,7 +81,7 @@ const productData = {
       description: "Feel the waves of creativity flow with this ocean-themed notebook, featuring soft-touch covers and smooth pages."
     },
   },
- 14: {
+ 4: {
     id: 4,
     name: "Notebook | Galaxy",
     price: 95,
@@ -201,7 +222,7 @@ const productData = {
       description: "Charming floral design with smooth pages to accompany your daily thoughts and notes."
     },
   },
-    1: {
+    11: {
     id: 11,
     name: "Notebook | Astraunout",
     price: 95,
@@ -221,27 +242,7 @@ const productData = {
       description: "Inspired by the northern lights, this notebook brings a magical touch to your journaling experience."
     },
   },
-  2: {
-    id: 12,
-    name: "Notebook | Rustic Earth",
-    price: 85,
-    weight: 0.5,
-    gridImage: "/products/notebook/notebook12/notebook12-cover.png",
-    detailImage1: "/products/notebook/notebook12/notebook12-detail1.jpeg",
-    detailImage2: "/products/notebook/notebook12/notebook12-detail2.jpeg",
-    detailImage3: "/products/notebook/notebook12/notebook12-detail3.jpeg",
-    detailImage4: "/products/notebook/notebook12/notebook12-detail4.jpeg",
-    detailImage5: "/products/notebook/notebook12/notebook12-detail5.jpeg",
-    details: {
-      size: "15 cm x 21 cm",
-      pages: 300,
-      material: "Recycled Kraft Paper Cover",
-      binding: "Wiro Binding",
-      gsm: 120,
-      description: "A sustainable choice for eco-conscious creatives, with earthy tones and smooth recycled pages."
-    },
-  },
-  3: {
+  13: {
     id: 13,
     name: "Notebook | Doodle Space",
     price: 70,
@@ -261,7 +262,7 @@ const productData = {
       description: "Fun and quirky notebook filled with space-themed doodle art — perfect for kids or the young-at-heart."
     },
   },
-  4: {
+  14: {
     id: 14,
     name: "Notebook | Pastel Dreams",
     price: 80,

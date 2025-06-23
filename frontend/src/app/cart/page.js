@@ -1,6 +1,6 @@
-"use client";
+'use client';
 import { useEffect, useState, useMemo } from "react";
-import { FiTrash2, FiPlus, FiMinus, FiShoppingBag, FiArrowLeft, FiTruck, FiAlertCircle } from "react-icons/fi";
+import { FiTrash2, FiPlus, FiMinus, FiShoppingBag, FiArrowLeft, FiTruck, FiAlertCircle, FiExternalLink } from "react-icons/fi";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { onAuthStateChanged } from "firebase/auth";
@@ -8,6 +8,7 @@ import { auth } from "@/lib/firebase";
 import Image from "next/image";
 import Link from "next/link";
 import productData from "@/data/productData";
+import { calculateShippingCost } from "@/components/DeliveryChargeCalculator";
 
 const CartPage = () => {
   const [cartItems, setCartItems] = useState([]);
@@ -23,59 +24,52 @@ const CartPage = () => {
 
   // Memoized calculations
   const subtotal = useMemo(() => 
-    cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0), 
+    cartItems.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0), 
     [cartItems]
   );
-  
-  const tax = useMemo(() => subtotal * 0.18, [subtotal]);
   
   const totalWeight = useMemo(() => 
-    cartItems.reduce((sum, item) => sum + (item.weight || 0.5) * item.quantity, 0), 
+    cartItems.reduce((sum, item) => sum + (item.product?.weight || 0.5) * item.quantity, 0), 
     [cartItems]
   );
 
-  const total = useMemo(() => 
-    subtotal + (shippingCost || 0) + tax - discount, 
-    [subtotal, shippingCost, tax, discount]
-  );
-
-  // Shipping configuration
-  const shippingRates = {
-    local: { base: 45, perKg3to5: 12, perKgAbove5: 14 },
-    withinState: { base: 80, perKg3to5: 20, perKgAbove5: 22 },
-    neighbouringState: { base: 100, perKg3to5: 25, perKgAbove5: 28 },
-    otherStates: { base: 115, perKg3to5: 30, perKgAbove5: 32 },
-    metroToCapital: { base: 105, perKg3to5: 25, perKgAbove5: 28 },
-    ncr: { base: 70, perKg3to5: 15, perKgAbove5: 18 },
-  };
-
-  const deliveryTimes = {
-    local: "2-3 Days",
-    metroToCapital: "3-5 Days",
-    withinState: "3-6 Days",
-    neighbouringState: "4-6 Days",
-    otherStates: "5-7 Days"
-  };
+  const total = useMemo(() => {
+    // Apply free shipping if subtotal > 499
+    const finalShippingCost = subtotal > 499 ? 0 : (shippingCost || 0);
+    return subtotal + finalShippingCost - discount;
+  }, [subtotal, shippingCost, discount]);
 
   useEffect(() => {
     const loadCart = () => {
       try {
         const cart = JSON.parse(localStorage.getItem("cart")) || [];
-        const enrichedCart = cart.map(item => {
-          let product;
+        
+        const enrichedCart = cart.map(cartItem => {
+          let foundProduct = null;
+          
+          // Search through all categories in productData
           for (const category in productData) {
-            if (productData[category][item.id]) {
-              product = productData[category][item.id];
+            if (productData[category][cartItem.id]) {
+              foundProduct = productData[category][cartItem.id];
               break;
             }
           }
-          return { ...item, ...product };
+          
+          return {
+            ...cartItem,
+            product: foundProduct || {
+              name: "Unknown Product",
+              price: 0,
+              weight: 0.5,
+              gridImage: "/placeholder-product.jpg"
+            }
+          };
         });
+
         setCartItems(enrichedCart);
       } catch (err) {
         console.error("Error loading cart:", err);
         toast.error("Could not load your cart");
-        localStorage.setItem("cart", "[]");
         setCartItems([]);
       } finally {
         setIsLoading(false);
@@ -90,28 +84,6 @@ const CartPage = () => {
     return () => unsubscribe();
   }, []);
 
-  const getZoneFromPIN = (pin) => {
-    if (!pin || pin.length !== 6) return "otherStates";
-    
-    const first3 = pin.substring(0, 3);
-    const localPINs = [
-      "273001", "273002", "273003", "273004", "273005", "273006", "273007",
-      "273008", "273009", "273010", "273012", "273013", "273014", "273015",
-      "273016", "273017", "273158", "273165", "273202", "273203", "273209",
-      "273212", "273213", "273306", "273307"
-    ];
-
-    const UP3s = ["273", "226", "201", "247", "250", "284"];
-    const ncr = ["110", "201", "122"];
-    const metro = ["400", "700", "560", "600"];
-
-    if (localPINs.includes(pin)) return "local";
-    if (ncr.includes(first3)) return "ncr";
-    if (metro.includes(first3)) return "metroToCapital";
-    if (UP3s.includes(first3)) return "withinState";
-    return "otherStates";
-  };
-
   const calculateShipping = () => {
     if (!deliveryPincode || deliveryPincode.length !== 6) {
       setFormErrors(prev => ({ ...prev, pincode: "Enter valid 6-digit pincode" }));
@@ -121,23 +93,17 @@ const CartPage = () => {
 
     setIsCheckingShipping(true);
     try {
-      const zone = getZoneFromPIN(deliveryPincode);
-      const { base, perKg3to5, perKgAbove5 } = shippingRates[zone];
-      let charge = base;
-
-      if (totalWeight > 2 && totalWeight <= 5) {
-        const extraWeight = Math.ceil(totalWeight - 2);
-        charge += extraWeight * perKg3to5;
-      } else if (totalWeight > 5) {
-        const extraBetween3to5 = 3;
-        const extraAbove5 = Math.ceil(totalWeight - 5);
-        charge += extraBetween3to5 * perKg3to5 + extraAbove5 * perKgAbove5;
-      }
-
-      setShippingCost(charge);
-      setDeliveryEstimate(deliveryTimes[zone]);
+      const { shippingCost, deliveryEstimate } = calculateShippingCost(
+        deliveryPincode, 
+        totalWeight
+      );
+      
+      // Apply free shipping if subtotal > 499
+      const finalShippingCost = subtotal > 499 ? 0 : shippingCost;
+      
+      setShippingCost(finalShippingCost);
+      setDeliveryEstimate(deliveryEstimate);
       setFormErrors(prev => ({ ...prev, pincode: "" }));
-      toast.success(`Shipping to ${zone.replace(/([A-Z])/g, ' $1').trim()}`);
     } catch (err) {
       console.error("Shipping error:", err);
       toast.error("Error calculating shipping");
@@ -151,7 +117,10 @@ const CartPage = () => {
   const handleRemoveItem = (id) => {
     const updatedCart = cartItems.filter((item) => item.id !== id);
     setCartItems(updatedCart);
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    localStorage.setItem("cart", JSON.stringify(updatedCart.map(item => ({
+      id: item.id,
+      quantity: item.quantity
+    }))));
     toast.success("Item removed from cart");
   };
 
@@ -162,34 +131,37 @@ const CartPage = () => {
       item.id === id ? { ...item, quantity: newQuantity } : item
     );
     setCartItems(updatedCart);
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    localStorage.setItem("cart", JSON.stringify(updatedCart.map(item => ({
+      id: item.id,
+      quantity: item.quantity
+    }))));
   };
 
- const applyPromoCode = () => {
-  if (!promoCode) {
-    toast.info("Please enter a promo code");
-    return;
-  }
+  const applyPromoCode = () => {
+    if (!promoCode) {
+      toast.info("Please enter a promo code");
+      return;
+    }
 
-  const validCodes = {
-    "NOTEBOOK10": 0.1,
-    "NOTEBOOK20": 0.2,
-    "FREESHIP": shippingCost ? shippingCost : 0
+    const validCodes = {
+      "NOTEBOOK10": 0.1,
+      "NOTEBOOK20": 0.2,
+      "FREESHIP": shippingCost ? shippingCost : 0
+    };
+
+    const code = promoCode.toUpperCase();
+    if (validCodes[code]) {
+      const discountValue = code === "FREESHIP" 
+        ? validCodes[code] 
+        : subtotal * validCodes[code];
+      
+      setDiscount(discountValue);
+      toast.success(`Promo code applied! ${code === "FREESHIP" ? "Free shipping" : `${validCodes[code]*100}% discount`}`);
+    } else {
+      setDiscount(0);
+      toast.error("Invalid promo code");
+    }
   };
-
-  const code = promoCode.toUpperCase();
-  if (validCodes[code]) {
-    const discountValue = code === "FREESHIP" 
-      ? validCodes[code] 
-      : subtotal * validCodes[code];
-    
-    setDiscount(discountValue);
-    toast.success(`Promo code applied! ${code === "FREESHIP" ? "Free shipping" : `${validCodes[code]*100}% discount`}`);
-  } else {
-    setDiscount(0);
-    toast.error("Invalid promo code");
-  }
-};
 
   const handlePincodeChange = (e) => {
     const value = e.target.value.replace(/\D/g, '').slice(0, 6);
@@ -259,29 +231,29 @@ const CartPage = () => {
                 <div className="col-span-5 flex items-center">
                   <div className="relative w-20 h-20 mr-4">
                     <Image
-                      src={item.gridImage || "/placeholder-product.jpg"}
-                      alt={item.name}
+                      src={item.product?.gridImage || "/placeholder-product.jpg"}
+                      alt={item.product?.name || "Product"}
                       fill
                       className="object-cover rounded-lg"
                       sizes="(max-width: 80px) 100vw"
                     />
                   </div>
                   <div>
-                    <h2 className="font-medium">{item.name}</h2>
-                    {item.designation && (
+                    <h2 className="font-medium">{item.product?.name || "Unknown Product"}</h2>
+                    {item.product?.designation && (
                       <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                        {item.designation}
+                        {item.product.designation}
                       </span>
                     )}
                     <p className="text-xs text-gray-500 mt-1">
-                      Weight: {(item.weight || 0.5) * item.quantity} kg
+                      Weight: {(item.product?.weight || 0.5) * item.quantity} kg
                     </p>
                   </div>
                 </div>
 
                 <div className="col-span-2 text-center">
                   <span className="md:hidden text-sm text-gray-500 mr-2">Price:</span>
-                  ₹{item.price.toFixed(2)}
+                  ₹{(item.product?.price || 0).toFixed(2)}
                 </div>
 
                 <div className="col-span-3 flex items-center justify-center">
@@ -311,7 +283,7 @@ const CartPage = () => {
 
                 <div className="col-span-2 flex items-center justify-end gap-2">
                   <span className="md:hidden text-sm text-gray-500 mr-2">Total:</span>
-                  ₹{(item.price * item.quantity).toFixed(2)}
+                  ₹{((item.product?.price || 0) * item.quantity).toFixed(2)}
                   <button
                     onClick={() => handleRemoveItem(item.id)}
                     className="p-1 text-red-500 hover:bg-red-50 rounded ml-2"
@@ -378,6 +350,7 @@ const CartPage = () => {
                 <div className="mt-4 p-3 bg-blue-50 rounded-md">
                   <p className="font-medium">
                     Shipping to {deliveryPincode}: ₹{shippingCost.toFixed(2)}
+                    {subtotal > 499 && " (Free shipping applied)"}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
                     Estimated delivery: {deliveryEstimate}
@@ -423,14 +396,12 @@ const CartPage = () => {
                 <span>
                   {shippingCost === null ? (
                     <span className="text-red-500">Check availability</span>
+                  ) : subtotal > 499 ? (
+                    <span className="text-green-600">FREE</span>
                   ) : (
                     `₹${shippingCost.toFixed(2)}`
                   )}
                 </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tax (18%)</span>
-                <span>₹{tax.toFixed(2)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-green-600">
@@ -448,7 +419,7 @@ const CartPage = () => {
             </div>
 
             <Link
-              href={isLoggedIn ? "/checkout" : "/login"}
+              href={isLoggedIn ? "/checkout" : "/admin/login"}
               className={`block w-full text-center py-3 px-4 rounded-lg font-medium transition ${
                 shippingCost === null 
                   ? "bg-gray-400 cursor-not-allowed" 
@@ -468,10 +439,10 @@ const CartPage = () => {
             </Link>
 
             <p className="text-xs text-gray-500 mt-4 text-center">
-              {subtotal > 500 ? (
+              {subtotal > 499 ? (
                 <span className="text-green-600">Free shipping applied!</span>
               ) : (
-                `Add ₹${(500 - subtotal).toFixed(2)} more for free shipping`
+                `Add ₹${(499 - subtotal).toFixed(2)} more for free shipping`
               )}
             </p>
           </div>

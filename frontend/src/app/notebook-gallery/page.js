@@ -8,24 +8,26 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const useLocalStorage = (key, initialValue) => {
-  const [storedValue, setStoredValue] = useState(() => {
+  const [storedValue, setStoredValue] = useState(initialValue);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
     try {
-      if (typeof window !== 'undefined') {
-        const item = window.localStorage.getItem(key);
-        return item ? JSON.parse(item) : initialValue;
+      const item = window.localStorage.getItem(key);
+      if (item) {
+        setStoredValue(JSON.parse(item));
       }
-      return initialValue;
     } catch (error) {
       console.error(error);
-      return initialValue;
     }
-  });
+  }, [key]);
 
   const setValue = (value) => {
     try {
       const valueToStore = value instanceof Function ? value(storedValue) : value;
       setStoredValue(valueToStore);
-      if (typeof window !== 'undefined') {
+      if (isClient) {
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
       }
     } catch (error) {
@@ -43,6 +45,11 @@ const NotebookGallery = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("featured");
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const filterOptions = useMemo(() => [
     { value: "all", label: "All Products" },
@@ -64,17 +71,20 @@ const NotebookGallery = () => {
   ], []);
 
   const { notebooks, diaries, combinations, allProducts } = useMemo(() => {
-    const notebooks = Object.values(productData.notebooks || {}).map((item) => ({
+    const notebooks = Object.entries(productData.notebooks || {}).map(([key, item]) => ({
       ...item,
+      key: key,
       type: "notebook",
     }));
-    const diaries = Object.values(productData.diaries || {}).map((item) => ({
+    const diaries = Object.entries(productData.diaries || {}).map(([key, item]) => ({
       ...item,
+      key: key,
       type: "diary",
     }));
-    const combinations = Object.values(productData.combinations || {}).map(
-      (item) => ({
+    const combinations = Object.entries(productData.combinations || {}).map(
+      ([key, item]) => ({
         ...item,
+        key: key,
         type: "combination",
       })
     );
@@ -111,7 +121,6 @@ const NotebookGallery = () => {
         products = allProducts;
     }
 
-    // Apply search filter
     if (searchQuery) {
       products = products.filter(product =>
         product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -119,7 +128,6 @@ const NotebookGallery = () => {
       );
     }
 
-    // Apply sorting
     switch (sortOption) {
       case "price-low":
         products = [...products].sort((a, b) => {
@@ -155,7 +163,6 @@ const NotebookGallery = () => {
         );
         break;
       default:
-        // featured (default sorting)
         break;
     }
 
@@ -169,14 +176,20 @@ const NotebookGallery = () => {
   const addToCart = (product) => {
     try {
       const cart = JSON.parse(localStorage.getItem("cart")) || [];
+      
       const existingItemIndex = cart.findIndex(
-        (item) => item.id === product.id && item.type === product.type
+        (item) => item.key === product.key && item.type === product.type
       );
 
       if (existingItemIndex > -1) {
         cart[existingItemIndex].quantity += 1;
       } else {
-        cart.push({ ...product, quantity: 1 });
+        cart.push({ 
+          key: product.key,
+          id: product.id,
+          type: product.type,
+          quantity: 1 
+        });
       }
 
       localStorage.setItem("cart", JSON.stringify(cart));
@@ -189,14 +202,7 @@ const NotebookGallery = () => {
         draggable: true,
       });
     } catch (error) {
-      toast.error("Failed to add item to cart", {
-        position: "bottom-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      toast.error("Failed to add item to cart");
       console.error("Error adding to cart:", error);
     }
   };
@@ -226,6 +232,11 @@ const NotebookGallery = () => {
     }
   };
 
+  const isInWishlist = (product) => {
+    if (!isClient) return false;
+    return wishlist.includes(`${product.type}-${product.id}`);
+  };
+
   const openQuickView = (product) => {
     setQuickView(product);
     setCurrentImageIndex(0);
@@ -251,11 +262,14 @@ const NotebookGallery = () => {
     }
   };
 
+  if (!isClient) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen px-4 pb-16 bg-gradient-to-b from-white to-gray-50">
       <ToastContainer />
       
-      {/* Quick View Modal */}
       {quickView && (
         <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -328,11 +342,11 @@ const NotebookGallery = () => {
                     </span>
                   </div>
                   
-                  <p className="text-2xl font-bold text-indigo-600 mb-4">{quickView.price}</p>
+                  <p className="text-2xl font-bold text-indigo-600 mb-4">Rs. {quickView.price}</p>
                   
                   {quickView.discount && (
                     <p className="text-sm text-gray-500 mb-2">
-                      <span className="line-through mr-2">{quickView.originalPrice}</span>
+                      <span className="line-through mr-2">Rs. {quickView.originalPrice}</span>
                       <span className="bg-red-100 text-red-800 px-2 py-1 rounded">
                         {quickView.discount}% OFF
                       </span>
@@ -367,9 +381,9 @@ const NotebookGallery = () => {
                     <button
                       onClick={() => toggleWishlist(quickView)}
                       className="p-3 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
-                      aria-label={wishlist.includes(`${quickView.type}-${quickView.id}`) ? "Remove from wishlist" : "Add to wishlist"}
+                      aria-label={isInWishlist(quickView) ? "Remove from wishlist" : "Add to wishlist"}
                     >
-                      {wishlist.includes(`${quickView.type}-${quickView.id}`) ? (
+                      {isInWishlist(quickView) ? (
                         <FaHeart className="text-red-500" />
                       ) : (
                         <FaRegHeart />
@@ -437,119 +451,114 @@ const NotebookGallery = () => {
 
         {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((item, index) => {
-              const productKey = `${item.type}-${item.id}`;
-              const isInWishlist = wishlist.includes(productKey);
-              
-              return (
-                <div
-                  key={productKey}
-                  className="bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition duration-300 h-full flex flex-col group"
-                >
-                  <div className="relative flex-1 flex justify-center items-center">
-                    <Link
-                      href={getProductRoute(item.type, item.id)}
-                      className="w-full"
-                      aria-label={`View details for ${item.name}`}
-                    >
-                      <div className="relative w-full" style={{ paddingBottom: "141.4%" }}>
-                        <Image
-                          src={item.gridImage}
-                          alt={item.name}
-                          fill
-                          className="object-contain rounded-lg transition duration-300 group-hover:opacity-90"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                          priority={index < 4}
-                          loading={index > 3 ? "lazy" : "eager"}
-                        />
-                      </div>
-                    </Link>
-                    
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleWishlist(item);
-                      }}
-                      className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition"
-                      aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
-                    >
-                      {isInWishlist ? (
-                        <FaHeart className="text-red-500" />
-                      ) : (
-                        <FaRegHeart />
-                      )}
-                    </button>
-                    
-                    {item.type === "combination" && (
-                      <div className="absolute top-3 left-3 bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                        COMBO
-                      </div>
+            {filteredProducts.map((item, index) => (
+              <div
+                key={`${item.type}-${item.id}`}
+                className="bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition duration-300 h-full flex flex-col group"
+              >
+                <div className="relative flex-1 flex justify-center items-center">
+                  <Link
+                    href={getProductRoute(item.type, item.id)}
+                    className="w-full"
+                    aria-label={`View details for ${item.name}`}
+                  >
+                    <div className="relative w-full" style={{ paddingBottom: "141.4%" }}>
+                      <Image
+                        src={item.gridImage}
+                        alt={item.name}
+                        fill
+                        className="object-contain rounded-lg transition duration-300 group-hover:opacity-90"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        priority={index < 4}
+                        loading={index > 3 ? "lazy" : "eager"}
+                      />
+                    </div>
+                  </Link>
+                  
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleWishlist(item);
+                    }}
+                    className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition"
+                    aria-label={isInWishlist(item) ? "Remove from wishlist" : "Add to wishlist"}
+                  >
+                    {isInWishlist(item) ? (
+                      <FaHeart className="text-red-500" />
+                    ) : (
+                      <FaRegHeart />
                     )}
-                    
-                    {item.discount && (
-                      <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                        {item.discount}% OFF
-                      </div>
+                  </button>
+                  
+                  {item.type === "combination" && (
+                    <div className="absolute top-3 left-3 bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      COMBO
+                    </div>
+                  )}
+                  
+                  {item.discount && (
+                    <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {item.discount}% OFF
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-4">
+                  <h2 className="text-lg font-semibold text-gray-800 line-clamp-2">
+                    <Link href={getProductRoute(item.type, item.id)}>
+                      {item.name}
+                    </Link>
+                  </h2>
+                  
+                  <div className="flex items-center mt-1">
+                    <div className="flex text-yellow-400 text-sm">
+                      {[...Array(5)].map((_, i) => (
+                        <FaStar 
+                          key={i} 
+                          className={i < (item.rating || 4) ? "text-yellow-400" : "text-gray-300"} 
+                          aria-hidden="true"
+                        />
+                      ))}
+                    </div>
+                    <span className="text-gray-500 text-sm ml-1">
+                      ({item.reviews || 24})
+                    </span>
+                  </div>
+                  
+                  <div className="mt-2 flex items-center">
+                    <p className="text-lg font-bold text-indigo-600">
+                     Rs. {item.price}
+                    </p>
+                    {item.originalPrice && (
+                      <p className="text-sm text-gray-500 line-through ml-2">
+                       Rs. {item.originalPrice}
+                      </p>
                     )}
                   </div>
                   
-                  <div className="mt-4">
-                    <h2 className="text-lg font-semibold text-gray-800 line-clamp-2">
-                      <Link href={getProductRoute(item.type, item.id)}>
-                        {item.name}
-                      </Link>
-                    </h2>
-                    
-                    <div className="flex items-center mt-1">
-                      <div className="flex text-yellow-400 text-sm">
-                        {[...Array(5)].map((_, i) => (
-                          <FaStar 
-                            key={i} 
-                            className={i < (item.rating || 4) ? "text-yellow-400" : "text-gray-300"} 
-                            aria-hidden="true"
-                          />
-                        ))}
-                      </div>
-                      <span className="text-gray-500 text-sm ml-1">
-                        ({item.reviews || 24})
-                      </span>
-                    </div>
-                    
-                    <div className="mt-2 flex items-center">
-                      <p className="text-lg font-bold text-indigo-600">
-                        {item.price}
-                      </p>
-                      {item.originalPrice && (
-                        <p className="text-sm text-gray-500 line-through ml-2">
-                          {item.originalPrice}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          addToCart(item);
-                        }}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition text-sm"
-                      >
-                        <FaCartPlus /> Add to Cart
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          openQuickView(item);
-                        }}
-                        className="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-2 px-4 rounded-lg transition text-sm"
-                      >
-                        Quick View
-                      </button>
-                    </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        addToCart(item);
+                      }}
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition text-sm"
+                    >
+                      <FaCartPlus /> Add to Cart
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openQuickView(item);
+                      }}
+                      className="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-2 px-4 rounded-lg transition text-sm"
+                    >
+                      Quick View
+                    </button>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         ) : (
           <div className="max-w-7xl mx-auto text-center py-16">

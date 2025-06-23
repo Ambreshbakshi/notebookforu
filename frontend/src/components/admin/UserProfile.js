@@ -1,21 +1,70 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit2, FiCalendar } from 'react-icons/fi';
 import { toast } from 'react-toastify';
-import { doc, updateDoc, getFirestore } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 export default function UserProfile({ user }) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    address: user?.address || ''
+    name: '',
+    email: '',
+    phone: '',
+    address: ''
   });
+  const [loading, setLoading] = useState(true);
 
   const auth = getAuth();
   const db = getFirestore();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        if (auth.currentUser) {
+          const userRef = doc(db, 'users', auth.currentUser.uid);
+          const userSnap = await getDoc(userRef);
+          
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            setFormData({
+              name: userData.name || '',
+              email: userData.email || '',
+              phone: userData.phone || '',
+              address: userData.address || ''
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        toast.error('Failed to load user data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [auth.currentUser, db]);
+
+  const formatMemberSinceDate = () => {
+    try {
+      if (typeof user?.createdAt === 'string') {
+        return new Date(user.createdAt).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      }
+      return user?.createdAt?.toDate?.().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }) || 'Unknown date';
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Unknown date';
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -44,18 +93,26 @@ export default function UserProfile({ user }) {
     { icon: FiMapPin, label: 'Address', key: 'address' }
   ];
 
+  if (loading) {
+    return (
+      <div className="bg-white p-6 rounded-lg shadow-sm flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm">
       <div className="flex items-center mb-6">
         <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold">
-          {user?.name?.charAt(0)}
+          {formData.name?.charAt(0) || 'U'}
         </div>
         <div className="ml-4">
-          <h3 className="text-xl font-semibold">{user?.name}</h3>
-          <p className="text-gray-600">{user?.email}</p>
+          <h3 className="text-xl font-semibold">{formData.name}</h3>
+          <p className="text-gray-600">{formData.email}</p>
           <p className="text-sm text-gray-500 mt-1 flex items-center">
             <FiCalendar className="mr-1" size={14} />
-            Member since {new Date(user?.createdAt).toLocaleDateString()}
+            Member since {formatMemberSinceDate()}
           </p>
         </div>
       </div>

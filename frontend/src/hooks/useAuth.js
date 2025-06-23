@@ -67,7 +67,7 @@ export default function useAuth(required = false) {
       toast.success('Logged out successfully');
       // Clear any previous path to prevent redirect loops
       localStorage.removeItem('prevPath');
-      router.push('/login');
+      router.push('/admin/login');
     } catch (error) {
       toast.error('Error logging out');
       console.error('Logout error:', error);
