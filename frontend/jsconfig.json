@@ -1,3 +1,8 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:c41840859eb05384a59210e8a68f27f8ac68c4d1375f8cebd8f91faa83f590c8
-size 105
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
