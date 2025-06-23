@@ -29,7 +29,61 @@ export const calculateShippingCost = (pincode, totalWeight) => {
       "273212", "273213", "273306", "273307"
     ];
 
-    const UP3s = ["273", "226", "201", "247", "250", "284"]; // UP regions
+    const UP3s = [
+  "201", // Ghaziabad, Noida, Hapur, Dadri, Bulandshahr
+  "202", // Aligarh, Etah, Hathras, Kasganj
+  "203", // Bulandshahr (Some areas)
+  "204", // Mainpuri
+  "205", // Etawah, Auraiya
+  "206", // Auraiya
+  "207", // Farrukhabad
+  "208", // Kanpur city & surrounding
+  "209", // Unnao, parts of Kanpur rural
+  "210", // Banda, Hamirpur
+  "211", // Allahabad (Prayagraj), Kaushambi
+  "212", // Fatehpur
+  "213", // Some areas of nearby regions (not very commonly used)
+  "221", // Varanasi, Chandauli, Jaunpur, Mirzapur
+  "222", // Jaunpur
+  "223", // Azamgarh, Mau
+  "224", // Ambedkar Nagar
+  "225", // Barabanki
+  "226", // Lucknow
+  "227", // Amethi, Raebareli, Sultanpur
+  "228", // Pratapgarh
+  "229", // Raebareli (some areas)
+  "230", // Pratapgarh
+  "231", // Mirzapur
+  "232", // Sonbhadra
+  "233", // Ghazipur
+  "241", // Hardoi
+  "242", // Shahjahanpur
+  "243", // Bareilly, Budaun, Pilibhit
+  "244", // Moradabad, Rampur, Amroha, Sambhal
+  "245", // Bijnor
+  "246", // Pauri Garhwal (some parts fall under UP postal jurisdiction)
+  "247", // Saharanpur, Muzaffarnagar
+  "248", // Dehradun (technically Uttarakhand, but border confusion sometimes occurs)
+  "249", // Haridwar (technically Uttarakhand, often considered)
+  "250", // Meerut, Baghpat, Ghaziabad rural
+  "251", // Muzaffarnagar rural
+  "252", // Shamli
+  "261", // Sitapur
+  "262", // Lakhimpur Kheri
+  "263", // Some border areas (mostly Uttarakhand)
+  "271", // Bahraich, Balrampur, Gonda
+  "272", // Basti, Sant Kabir Nagar
+  "274", // Deoria, Kushinagar
+  "275", // Ballia
+  "276", // Mau
+  "277", // Ballia (some areas)
+  "281", // Mathura
+  "282", // Agra
+  "283", // Firozabad, Mainpuri
+  "284", // Jhansi, Lalitpur
+  "285", // Jhansi (some areas)
+  "286", // Lalitpur (some areas)
+]; // UP regions
     const ncr = ["110", "201", "122"]; // Delhi NCR
     const metro = ["400", "700", "560", "600"]; // Metro cities
 

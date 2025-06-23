@@ -21,7 +21,8 @@ import {
   FiGrid,
   FiStar,
   FiPercent,
-  FiLogOut
+  FiLogOut,
+  FiPackage
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import useAuth from '@/hooks/useAuth';
@@ -164,9 +165,13 @@ const UserSubmenu = ({ isMobile = false }) => {
         <FiUser className="mr-2" /> My Account
       </NavLink>
       <NavLink href="/admin/dashboard/orders" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50" isMobile={isMobile}>
-        <FiTruck className="mr-2" /> My Orders
+        <FiPackage className="mr-2" /> My Orders
       </NavLink>
       <div className="border-t my-1"></div>
+      <NavLink href="/track-order" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50" isMobile={isMobile}>
+  <FiTruck className="mr-2" /> Track Order
+</NavLink>
+
       <NavLink href="/wishlist" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50" isMobile={isMobile}>
         <FiStar className="mr-2" /> Wishlist
       </NavLink>
@@ -261,7 +266,7 @@ const Navbar = () => {
               <NavLink href="/blog" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
                 <FiFileText className="mr-2" /> Blog
               </NavLink>
-              <NavLink href="/contact" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+              <NavLink href="/contact-us" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
                 <FiMail className="mr-2" /> Contact
               </NavLink>
               <NavLink href="/faq" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">

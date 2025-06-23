@@ -26,8 +26,8 @@ export default function OrderList({ userId }) {
         const ordersRef = collection(db, 'orders');
         const q = query(
           ordersRef,
-          where('customer.userId', '==', userId), // Querying nested userId
-          orderBy('createdAt', 'desc') // Using createdAt for sorting
+          where('customer.userId', '==', userId),
+          orderBy('createdAt', 'desc')
         );
 
         const snapshot = await getDocs(q);
@@ -43,10 +43,17 @@ export default function OrderList({ userId }) {
         const ordersData = snapshot.docs.map(doc => {
           const data = doc.data();
           console.log('Order data:', data);
+          
+          // Calculate total amount from Razorpay amount (in paise) or items
+          const totalAmount = data.razorpay?.amount 
+            ? (data.razorpay.amount / 100) // Convert from paise to rupees
+            : data.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
+
           return {
             id: doc.id,
             ...data,
-            date: data.createdAt?.toDate?.() || new Date() // Using createdAt as date
+            totalAmount, // Add calculated total amount
+            date: data.createdAt?.toDate?.() || new Date()
           };
         });
 
@@ -56,7 +63,6 @@ export default function OrderList({ userId }) {
       } catch (err) {
         console.error('Error fetching orders:', err);
         
-        // Handle index creation link
         if (err.message.includes('index') && err.message.includes('http')) {
           const urlStart = err.message.indexOf('https://');
           const url = err.message.slice(urlStart);
@@ -207,7 +213,11 @@ export default function OrderList({ userId }) {
       ) : (
         <div className="space-y-4">
           {filteredOrders.map(order => (
-            <OrderCard key={order.id} order={order} />
+            <OrderCard 
+              key={order.id} 
+              order={order}
+              totalAmount={order.totalAmount}
+            />
           ))}
         </div>
       )}

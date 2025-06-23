@@ -59,7 +59,8 @@ const CheckoutPage = () => {
   // Calculate order totals
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalWeight = calculateTotalWeight(cartItems);
-  const amountWithShipping = subtotal + (shippingCost || 0);
+  const finalShippingCost = subtotal > 499 ? 0 : (shippingCost || 0);
+  const amountWithShipping = subtotal + finalShippingCost;
   const shippingAddress = `${customerDetails.address}, ${customerDetails.city}, ${customerDetails.state} - ${deliveryPincode}`;
 
   // Load cart and Razorpay script
@@ -185,7 +186,10 @@ const CheckoutPage = () => {
         throw new Error("Invalid shipping response");
       }
 
-      setShippingCost(shippingInfo.shippingCost);
+      // Apply free shipping if subtotal > 499
+      const finalShippingCost = subtotal > 499 ? 0 : shippingInfo.shippingCost;
+      
+      setShippingCost(finalShippingCost);
       setDeliveryEstimate(shippingInfo.deliveryEstimate || "4-7 business days");
       setShippingChecked(true);
       toast.success(`Shipping to ${deliveryPincode} available`);
@@ -230,9 +234,12 @@ const CheckoutPage = () => {
       const idToken = await user?.getIdToken();
       if (!idToken) throw new Error("Authentication required");
 
+      // Calculate final amount with free shipping if applicable
+      const finalAmount = subtotal > 499 ? subtotal : subtotal + (shippingCost || 0);
+
       // 2. Prepare order data
       const orderData = {
-        amount: Math.round(amountWithShipping * 100), // Convert to paise
+        amount: Math.round(finalAmount * 100), // Convert to paise
         currency: "INR",
         items: cartItems.map(item => ({
           id: item.id,
@@ -248,7 +255,7 @@ const CheckoutPage = () => {
           userId: user?.uid || "guest"
         },
         shipping: {
-          cost: shippingCost,
+          cost: subtotal > 499 ? 0 : shippingCost, // Store 0 if free shipping
           pincode: deliveryPincode,
           estimate: deliveryEstimate,
           address: sanitizeInput(shippingAddress)
@@ -260,7 +267,8 @@ const CheckoutPage = () => {
                .then(res => res.json())
                .then(data => data.ip)
                .catch(() => "unknown"),
-          device: window.innerWidth < 768 ? "mobile" : "desktop"
+          device: window.innerWidth < 768 ? "mobile" : "desktop",
+          freeShippingApplied: subtotal > 499
         }
       };
 
@@ -387,7 +395,8 @@ const CheckoutPage = () => {
         notes: {
           orderId,
           userId: user?.uid || "guest",
-          source: "web-checkout"
+          source: "web-checkout",
+          freeShipping: subtotal > 499
         }
       };
 
@@ -608,14 +617,21 @@ const CheckoutPage = () => {
                 )}
                 <div>
                   <p className="font-medium">
-                    {shippingCost === null ? "Shipping unavailable" : "Shipping available"}
+                    {shippingCost === null ? "Shipping unavailable" : 
+                     subtotal > 499 ? "Free shipping applied!" : "Shipping available"}
                   </p>
                   {shippingCost !== null && (
                     <p className="text-sm">Estimated delivery: {deliveryEstimate}</p>
                   )}
                 </div>
                 {shippingCost !== null && (
-                  <div className="ml-auto font-bold">₹{shippingCost.toFixed(2)}</div>
+                  <div className="ml-auto font-bold">
+                    {subtotal > 499 ? (
+                      <span className="text-green-600">FREE</span>
+                    ) : (
+                      `₹${shippingCost.toFixed(2)}`
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -683,6 +699,8 @@ const CheckoutPage = () => {
                 <span>
                   {shippingCost === null ? (
                     <span className="text-red-500">Not calculated</span>
+                  ) : subtotal > 499 ? (
+                    <span className="text-green-600">FREE</span>
                   ) : (
                     `₹${shippingCost.toFixed(2)}`
                   )}
@@ -693,7 +711,7 @@ const CheckoutPage = () => {
             <div className="border-t pt-4 mb-6">
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span>₹{amountWithShipping.toFixed(2)}</span>
+                <span>₹{(subtotal > 499 ? subtotal : amountWithShipping).toFixed(2)}</span>
               </div>
             </div>
             
@@ -710,13 +728,17 @@ const CheckoutPage = () => {
               ) : (
                 <>
                   <FiCreditCard />
-                  {!isRazorpayLoaded ? "Loading payment..." : `Pay ₹${amountWithShipping.toFixed(2)}`}
+                  {!isRazorpayLoaded ? "Loading payment..." : `Pay ₹${(subtotal > 499 ? subtotal : amountWithShipping).toFixed(2)}`}
                 </>
               )}
             </button>
             
             <p className="text-xs text-gray-500 mt-4 text-center">
-              Your personal data will be used to process your order securely.
+              {subtotal > 499 ? (
+                <span className="text-green-600">Free shipping applied!</span>
+              ) : (
+                `Add ₹${(499 - subtotal).toFixed(2)} more for free shipping`
+              )}
             </p>
           </div>
         </div>

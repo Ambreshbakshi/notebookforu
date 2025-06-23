@@ -1,19 +1,21 @@
 'use client';
-import { FiCalendar, FiTruck, FiCheckCircle, FiClock } from 'react-icons/fi';
+import { FiCalendar, FiTruck, FiCheckCircle, FiClock, FiCreditCard } from 'react-icons/fi';
 import { format, parseISO } from 'date-fns';
 
-export default function OrderCard({ order }) {
+export default function OrderCard({ order, totalAmount }) {
   const statusColors = {
     delivered: 'bg-green-100 text-green-800',
     shipped: 'bg-blue-100 text-blue-800',
     processing: 'bg-yellow-100 text-yellow-800',
-    cancelled: 'bg-red-100 text-red-800'
+    cancelled: 'bg-red-100 text-red-800',
+    paid: 'bg-purple-100 text-purple-800'
   };
 
   const statusIcons = {
     delivered: FiCheckCircle,
     shipped: FiTruck,
-    processing: FiClock
+    processing: FiClock,
+    paid: FiCreditCard
   };
 
   const StatusIcon = statusIcons[order.status] || FiClock;
@@ -46,7 +48,7 @@ export default function OrderCard({ order }) {
             {formatDate(order.createdAt || order.date)}
           </p>
         </div>
-        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center ${statusColors[order.status]}`}>
+        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center ${statusColors[order.status] || 'bg-gray-100 text-gray-800'}`}>
           <StatusIcon className="mr-1" size={14} />
           {order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
         </span>
@@ -88,16 +90,19 @@ export default function OrderCard({ order }) {
                   <span className="text-green-600">Paid with {order.payment?.paymentMethod || 'Razorpay'}</span>
                 )}
               </p>
-              {order.payment?.payment_id && (
-                <p className="text-sm text-gray-600 mt-1 flex items-center">
-                  <FiTruck className="mr-1" size={14} />
-                  Payment ID: {order.payment.payment_id}
+              {order.razorpay?.payment_id && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Payment ID: {order.razorpay.payment_id}
                 </p>
               )}
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-500">Total</p>
-              <p className="text-lg font-bold">₹{(order.payment?.amount || order.total)?.toFixed(2)}</p>
+              <p className="text-lg font-bold">
+                ₹{totalAmount?.toFixed(2) || 
+                  (order.razorpay?.amount ? (order.razorpay.amount / 100).toFixed(2) : 
+                  (order.total || 0).toFixed(2))}
+              </p>
             </div>
           </div>
 
@@ -109,6 +114,15 @@ export default function OrderCard({ order }) {
                 <p className="text-sm text-blue-600 mt-2 flex items-center">
                   <FiClock className="mr-1" size={14} />
                   Estimated delivery: {order.shipping.estimate}
+                </p>
+              )}
+              {order.shipping.cost !== undefined && (
+                <p className="text-sm mt-2">
+                  Shipping: {order.shipping.cost === 0 ? (
+                    <span className="text-green-600">FREE</span>
+                  ) : (
+                    `₹${order.shipping.cost?.toFixed(2)}`
+                  )}
                 </p>
               )}
             </div>
