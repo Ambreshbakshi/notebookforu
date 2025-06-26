@@ -285,7 +285,7 @@ const Footer = () => {
             <h3 className="text-xl font-semibold mb-4">Follow Us</h3>
             <div className="flex space-x-4">
               <a 
-                href="https://instagram.com/notebookforu" 
+                href="https://instagram.com/notebookforu.in" 
                 target="_blank" 
                 rel="noopener noreferrer nofollow"
                 aria-label="Instagram (opens in new tab)"
