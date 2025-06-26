@@ -264,7 +264,16 @@ const Footer = () => {
                   href={`tel:${process.env.NEXT_PUBLIC_CONTACT_PHONE}`} 
                   className="hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
                 >
-                  {process.env.NEXT_PUBLIC_CONTACT_PHONE || '+1 (234) 567-8900'}
+                  {process.env.NEXT_PUBLIC_CONTACT_PHONE || '+91 8303137090'}
+                </a>
+              </p>
+                <p>
+                Phone:{' '}
+                <a 
+                  href={`tel:${process.env.NEXT_PUBLIC_CONTACT_PHONE}`} 
+                  className="hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
+                >
+                  {process.env.NEXT_2PUBLIC_CONTACT_PHONE || '+91 7991252505'}
                 </a>
               </p>
               <p>Hours: Mon-Fri, 9AM-6PM</p>
@@ -294,7 +303,16 @@ const Footer = () => {
                 <FaFacebook className="text-2xl" aria-hidden="true" />
               </a>
               <a 
-                href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '1234567890'}`} 
+                href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '+917991252505'}`} 
+                target="_blank" 
+                rel="noopener noreferrer nofollow"
+                aria-label="WhatsApp (opens in new tab)"
+                className="text-gray-400 hover:text-green-500 transition focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-full p-1"
+              >
+                <FaWhatsapp className="text-2xl" aria-hidden="true" />
+              </a>
+                <a 
+                href={`https://wa.me/${process.env.NEXT_2PUBLIC_WHATSAPP_NUMBER || '+918303137090'}`} 
                 target="_blank" 
                 rel="noopener noreferrer nofollow"
                 aria-label="WhatsApp (opens in new tab)"
