@@ -172,7 +172,7 @@ const UserSubmenu = ({ isMobile = false }) => {
   <FiTruck className="mr-2" /> Track Order
 </NavLink>
 
-      <NavLink href="/wishlist" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50" isMobile={isMobile}>
+      <NavLink href="/admin/wishlist" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50" isMobile={isMobile}>
         <FiStar className="mr-2" /> Wishlist
       </NavLink>
       <button

@@ -45,15 +45,6 @@ export async function POST(request) {
   };
 
   try {
-    // 1. Validate request method
-    if (request.method !== 'POST') {
-      return NextResponse.json(
-        { success: false, error: 'Method not allowed' },
-        { status: 405, headers }
-      );
-    }
-
-    // 2. Parse and validate request data
     const requestData = await request.json();
     const {
       razorpay_order_id,
@@ -62,18 +53,17 @@ export async function POST(request) {
       orderId
     } = requestData;
 
-    // 3. Validate required fields
     const requiredFields = [
       'razorpay_order_id',
       'razorpay_payment_id',
       'razorpay_signature',
       'orderId'
     ];
-    
+
     const missingFields = requiredFields.filter(field => !requestData[field]);
     if (missingFields.length > 0) {
       return NextResponse.json(
-        { 
+        {
           success: false,
           error: ERROR_MESSAGES.MISSING_FIELDS,
           missingFields,
@@ -83,7 +73,6 @@ export async function POST(request) {
       );
     }
 
-    // 4. Verify Razorpay signature
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -104,16 +93,15 @@ export async function POST(request) {
       );
     }
 
-    // 5. Update order in Firestore using Admin SDK
     const orderRef = adminDb.collection('orders').doc(orderId);
-    
+
     try {
       await orderRef.update({
         'payment.id': razorpay_payment_id,
         'payment.order_id': razorpay_order_id,
         'payment.verified': true,
         'payment.verified_at': FieldValue.serverTimestamp(),
-        'status': 'paid',
+        'paymentStatus': 'paid',
         'updatedAt': FieldValue.serverTimestamp(),
         '_metadata.razorpay': {
           order_id: razorpay_order_id,
@@ -135,13 +123,13 @@ export async function POST(request) {
         code: dbError.code
       });
 
-      const statusCode = dbError.code === 'not-found' ? 
-        STATUS_CODES.NOT_FOUND : 
+      const statusCode = dbError.code === 'not-found' ?
+        STATUS_CODES.NOT_FOUND :
         STATUS_CODES.SERVER_ERROR;
 
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: ERROR_MESSAGES.ORDER_NOT_FOUND,
           ...(process.env.NODE_ENV !== 'production' && { details: dbError.message })
         },

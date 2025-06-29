@@ -2,24 +2,44 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 function SuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [orderId, setOrderId] = useState(null);
+  const [trackingId, setTrackingId] = useState(null);
 
   useEffect(() => {
-    // Get the order ID from search params
     const order = searchParams.get("order_id");
     if (order) {
       setOrderId(order);
+
+      // Fetch tracking ID from Firestore
+      const fetchTrackingId = async () => {
+        try {
+          const orderRef = doc(db, "orders", order);
+          const orderSnap = await getDoc(orderRef);
+
+          if (orderSnap.exists()) {
+            const orderData = orderSnap.data();
+            setTrackingId(orderData.trackingId || "Not available");
+          } else {
+            setTrackingId("Order not found");
+          }
+        } catch (error) {
+          console.error("Error fetching tracking ID:", error);
+          setTrackingId("Error fetching tracking info");
+        }
+      };
+
+      fetchTrackingId();
     }
 
-    // Clear cart from localStorage
     localStorage.removeItem("cart");
 
-    // Simulate loading state
     const timeout = setTimeout(() => setLoading(false), 1500);
     return () => clearTimeout(timeout);
   }, [searchParams]);
@@ -37,7 +57,14 @@ function SuccessContent() {
       <div className="text-4xl font-bold text-green-600 mb-4">✅ Payment Successful!</div>
       <p className="text-lg mb-4">Thank you for your purchase.</p>
       {orderId && (
-        <p className="text-sm text-gray-600 mb-6">Order ID: <span className="font-mono">{orderId}</span></p>
+        <p className="text-sm text-gray-600 mb-2">
+          Order ID: <span className="font-mono">{orderId}</span>
+        </p>
+      )}
+      {trackingId && (
+        <p className="text-sm text-gray-600 mb-6">
+          Tracking ID: <span className="font-mono">{trackingId}</span>
+        </p>
       )}
       <div className="space-x-4">
         <button
