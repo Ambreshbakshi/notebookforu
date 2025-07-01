@@ -6,7 +6,8 @@ import Link from "next/link";
 import { 
   FiMenu, FiX, FiShoppingCart, FiUser, FiSearch, FiBook, FiInfo, 
   FiMail, FiHelpCircle, FiTruck, FiFileText, FiChevronDown, 
-  FiChevronUp, FiHome, FiGrid, FiStar, FiPercent, FiLogOut, FiPackage 
+  FiChevronUp, FiHome, FiGrid, FiStar, FiPercent, FiLogOut, FiPackage, 
+  FiHeart
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import useAuth from '@/hooks/useAuth';
@@ -15,17 +16,14 @@ import { MobileBottomNav, MobileMenuDrawer, MobileLoginPanel, MobileTopNav } fro
 const NavLink = ({ href, pathname, children, className = "", icon }) => {
   const isActive = pathname === href;
   const isProductRoute = href === '/notebook-gallery' && 
-    (pathname.startsWith('/notebook') || 
-    pathname.startsWith('/diary') || 
-    pathname.startsWith('/combination') || 
-    pathname === '/notebook-gallery');
+    (pathname.startsWith('/notebook') || pathname.startsWith('/diary') || pathname.startsWith('/combination') || pathname === '/notebook-gallery');
 
   return (
     <Link href={href} passHref>
       <motion.div
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className={`relative px-3 py-2 text-sm font-medium transition-colors flex items-center ${
+        className={`relative px-3 py-2 text-sm font-medium flex items-center transition-colors ${
           isActive || isProductRoute ? "text-blue-600" : "text-gray-700 hover:text-blue-500"
         } ${className}`}
       >
@@ -64,9 +62,7 @@ const Submenu = ({ title, children, icon, className = "", isIconOnly = false }) 
   };
 
   const handleMouseLeave = () => {
-    const id = setTimeout(() => {
-      setIsOpen(false);
-    }, 200);
+    const id = setTimeout(() => setIsOpen(false), 200);
     setTimeoutId(id);
   };
 
@@ -117,9 +113,7 @@ const UserSubmenu = () => {
   const pathname = usePathname();
   const { user, loading, handleLogout } = useAuth();
 
-  if (loading) {
-    return <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>;
-  }
+  if (loading) return <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>;
 
   if (!user) {
     return (
@@ -142,7 +136,7 @@ const UserSubmenu = () => {
         <FiTruck className="mr-2" /> Track Order
       </NavLink>
       <NavLink href="/admin/wishlist" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
-        <FiStar className="mr-2" /> Wishlist
+        <FiHeart className="mr-2" /> Wishlist
       </NavLink>
       <button
         onClick={handleLogout}
@@ -166,9 +160,7 @@ const Navbar = () => {
   }, [pathname]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -178,11 +170,21 @@ const Navbar = () => {
     setCartItemsCount(cart.reduce((total, item) => total + item.quantity, 0));
   };
 
-  useEffect(() => {
-    updateCartCount();
-    window.addEventListener("storage", updateCartCount);
-    return () => window.removeEventListener("storage", updateCartCount);
-  }, []);
+useEffect(() => {
+  updateCartCount();
+
+  const handleStorage = () => updateCartCount();
+  const handleCartUpdate = () => updateCartCount();
+
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener("cartUpdated", handleCartUpdate);
+
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener("cartUpdated", handleCartUpdate);
+  };
+}, []);
+
 
   return (
     <>
@@ -196,19 +198,20 @@ const Navbar = () => {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className={`hidden md:flex fixed top-0 left-0 w-full ${
+        className={`hidden md:flex fixed top-0 left-0 w-full z-50 h-16 items-center ${
           scrolled ? "bg-white shadow-md" : "bg-white/95 backdrop-blur-sm"
-        } transition-all duration-300 h-16 items-center z-50 border-b border-gray-100`}
+        } border-b border-gray-100 transition-all duration-300`}
       >
         <div className="container mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8">
-          {/* Left - Logo */}
+          
+          {/* Logo */}
           <motion.div whileHover={{ scale: 1.05 }}>
             <Link href="/" className="flex items-center">
               <Image src="/logo.png" alt="Notebook Foru Logo" width={120} height={32} priority />
             </Link>
           </motion.div>
 
-          {/* Center & Right - Menu */}
+          {/* Menu */}
           <div className="flex items-center space-x-1">
             <NavLink href="/" pathname={pathname} icon={<FiHome className="md:hidden" />}>Home</NavLink>
 
@@ -258,7 +261,7 @@ const Navbar = () => {
                 </NavLink>
               </div>
 
-              <Submenu icon={<FiUser className="text-xl" />} isIconOnly={true} className="p-0">
+              <Submenu icon={<FiUser className="text-xl" />} isIconOnly>
                 <UserSubmenu />
               </Submenu>
             </div>
@@ -266,9 +269,10 @@ const Navbar = () => {
         </div>
       </motion.nav>
 
-      <div className="pt-16 md:pt-0"></div>
+      {/* Spacer below navbar */}
+      <div className="pt-16"></div>
 
-      {/* Mobile Side Drawer */}
+      {/* Mobile Menu Drawer */}
       <MobileMenuDrawer menuOpen={menuOpen} setMenuOpen={setMenuOpen} pathname={pathname} />
 
       {/* Mobile Bottom Nav */}

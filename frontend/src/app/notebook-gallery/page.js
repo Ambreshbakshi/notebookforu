@@ -173,39 +173,36 @@ const NotebookGallery = () => {
     return type === "combination" ? `/combination/${id}` : `/${type}/${id}`;
   };
 
-  const addToCart = (product) => {
-    try {
-      const cart = JSON.parse(localStorage.getItem("cart")) || [];
-      
-      const existingItemIndex = cart.findIndex(
-        (item) => item.key === product.key && item.type === product.type
-      );
+ const addToCart = (product) => {
+  try {
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
+    const existingItemIndex = cart.findIndex(
+      (item) => item.key === product.key && item.type === product.type
+    );
 
-      if (existingItemIndex > -1) {
-        cart[existingItemIndex].quantity += 1;
-      } else {
-        cart.push({ 
-          key: product.key,
-          id: product.id,
-          type: product.type,
-          quantity: 1 
-        });
-      }
-
-      localStorage.setItem("cart", JSON.stringify(cart));
-      toast.success(`${product.name} added to cart!`, {
-        position: "bottom-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
+    if (existingItemIndex > -1) {
+      cart[existingItemIndex].quantity += 1;
+    } else {
+      cart.push({
+        key: product.key,
+        id: product.id,
+        type: product.type,
+        quantity: 1,
       });
-    } catch (error) {
-      toast.error("Failed to add item to cart");
-      console.error("Error adding to cart:", error);
     }
-  };
+
+    localStorage.setItem("cart", JSON.stringify(cart));
+
+    // **Trigger Custom Event for Cart Update**
+    window.dispatchEvent(new Event("cartUpdated"));
+
+    toast.success(`${product.name} added to cart`);
+  } catch (error) {
+    toast.error("Failed to add item to cart");
+    console.error("Error adding to cart:", error);
+  }
+};
+
 
   const toggleWishlist = (product) => {
     const productKey = `${product.type}-${product.id}`;
@@ -399,167 +396,159 @@ const NotebookGallery = () => {
       
       <div className="max-w-7xl mx-auto py-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-          <div>
-            <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-              Our Collection
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Premium notebooks, diaries, and combination packs
-            </p>
-          </div>
+          {/* Heading & Description Centered */}
+    <div className="text-center md:text-left w-full md:w-auto">
+      <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+        Our Collection
+      </h1>
+      <p className="text-gray-600 mt-2">
+        Premium notebooks, diaries, and combination packs
+      </p>
+    </div>
           
-          <div className="w-full md:w-auto flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                placeholder="Search products..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label="Search products"
-              />
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            </div>
-            
-            <select
-              className="px-4 py-3 text-base border border-gray-300 rounded-xl shadow-sm bg-white focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition"
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              aria-label="Filter products by type"
-            >
-              {filterOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            
-            <select
-              className="px-4 py-3 text-base border border-gray-300 rounded-xl shadow-sm bg-white focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition"
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value)}
-              aria-label="Sort products"
-            >
-              {sortOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+       <div className="sticky top-0 z-40 bg-white shadow-sm py-3 mb-6">
+  <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-3">
+    
+    <div className="relative flex-1 w-full md:max-w-xs">
+      <input
+        type="text"
+        placeholder="Search products..."
+        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+      <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+    </div>
+
+    <div className="flex gap-2 w-full md:w-auto">
+      <select
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition text-sm"
+        value={selectedType}
+        onChange={(e) => setSelectedType(e.target.value)}
+      >
+        {filterOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition text-sm"
+        value={sortOption}
+        onChange={(e) => setSortOption(e.target.value)}
+      >
+        {sortOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+
+  </div>
+</div>
+
+
         </div>
 
         {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((item, index) => (
-              <div
-                key={`${item.type}-${item.id}`}
-                className="bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition duration-300 h-full flex flex-col group"
-              >
-                <div className="relative flex-1 flex justify-center items-center">
-                  <Link
-                    href={getProductRoute(item.type, item.id)}
-                    className="w-full"
-                    aria-label={`View details for ${item.name}`}
-                  >
-                    <div className="relative w-full" style={{ paddingBottom: "141.4%" }}>
-                      <Image
-                        src={item.gridImage}
-                        alt={item.name}
-                        fill
-                        className="object-contain rounded-lg transition duration-300 group-hover:opacity-90"
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                        priority={index < 4}
-                        loading={index > 3 ? "lazy" : "eager"}
-                      />
-                    </div>
-                  </Link>
-                  
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      toggleWishlist(item);
-                    }}
-                    className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition"
-                    aria-label={isInWishlist(item) ? "Remove from wishlist" : "Add to wishlist"}
-                  >
-                    {isInWishlist(item) ? (
-                      <FaHeart className="text-red-500" />
-                    ) : (
-                      <FaRegHeart />
-                    )}
-                  </button>
-                  
-                  {item.type === "combination" && (
-                    <div className="absolute top-3 left-3 bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                      COMBO
-                    </div>
-                  )}
-                  
-                  {item.discount && (
-                    <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {item.discount}% OFF
-                    </div>
-                  )}
-                </div>
-                
-                <div className="mt-4">
-                  <h2 className="text-lg font-semibold text-gray-800 line-clamp-2">
-                    <Link href={getProductRoute(item.type, item.id)}>
-                      {item.name}
-                    </Link>
-                  </h2>
-                  
-                  <div className="flex items-center mt-1">
-                    <div className="flex text-yellow-400 text-sm">
-                      {[...Array(5)].map((_, i) => (
-                        <FaStar 
-                          key={i} 
-                          className={i < (item.rating || 4) ? "text-yellow-400" : "text-gray-300"} 
-                          aria-hidden="true"
-                        />
-                      ))}
-                    </div>
-                    <span className="text-gray-500 text-sm ml-1">
-                      ({item.reviews || 24})
-                    </span>
-                  </div>
-                  
-                  <div className="mt-2 flex items-center">
-                    <p className="text-lg font-bold text-indigo-600">
-                     Rs. {item.price}
-                    </p>
-                    {item.originalPrice && (
-                      <p className="text-sm text-gray-500 line-through ml-2">
-                       Rs. {item.originalPrice}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        addToCart(item);
-                      }}
-                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition text-sm"
-                    >
-                      <FaCartPlus /> Add to Cart
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        openQuickView(item);
-                      }}
-                      className="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-2 px-4 rounded-lg transition text-sm"
-                    >
-                      Quick View
-                    </button>
-                  </div>
-                </div>
-              </div>
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+  {filteredProducts.map((item, index) => (
+    <div
+      key={`${item.type}-${item.id}`}
+      className="bg-white p-2 rounded-lg shadow-md hover:shadow-lg transition h-full flex flex-col group relative overflow-hidden border border-gray-100"
+    >
+      <div className="relative w-full" style={{ paddingBottom: "100%" }}>
+        <Link href={getProductRoute(item.type, item.id)} className="block w-full h-full">
+          <Image
+            src={item.gridImage || item.images?.[0] || "/placeholder.png"}
+            alt={item.name}
+            fill
+            className="object-contain rounded-lg transition group-hover:opacity-90"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 25vw"
+            priority={index < 4}
+            loading={index > 3 ? "lazy" : "eager"}
+          />
+        </Link>
+
+        {item.discount && (
+          <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded z-10">
+            -{item.discount}%
+          </div>
+        )}
+
+        {item.stockStatus === "soldout" && (
+          <div className="absolute top-2 left-2 mt-4 bg-yellow-400 text-black text-[10px] font-bold px-1.5 py-0.5 rounded z-10">
+            SOLD OUT
+          </div>
+        )}
+
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            toggleWishlist(item);
+          }}
+          className="absolute top-2 right-2 p-1 bg-white rounded-full shadow hover:bg-gray-100 transition z-10"
+          aria-label={isInWishlist(item) ? "Remove from wishlist" : "Add to wishlist"}
+        >
+          {isInWishlist(item) ? (
+            <FaHeart className="text-red-500 text-sm" />
+          ) : (
+            <FaRegHeart className="text-sm" />
+          )}
+        </button>
+      </div>
+
+      <div className="mt-2 flex flex-col flex-1">
+        <h2 className="text-xs font-semibold text-gray-800 line-clamp-2 mb-1">
+          {item.name}
+        </h2>
+
+        <div className="flex items-center mb-1">
+          <div className="flex text-yellow-400 text-xs">
+            {[...Array(5)].map((_, i) => (
+              <FaStar
+                key={i}
+                className={i < (item.rating || 4) ? "text-yellow-400" : "text-gray-300"}
+              />
             ))}
           </div>
+          <span className="text-gray-500 text-[10px] ml-1">({item.reviews || 24})</span>
+        </div>
+
+        <div className="flex items-center mb-1">
+          <p className="text-sm font-bold text-indigo-600">₹{item.price}</p>
+          {item.originalPrice && (
+            <p className="text-[10px] text-gray-500 line-through ml-1">₹{item.originalPrice}</p>
+          )}
+        </div>
+
+        <div className="mt-auto flex gap-1">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              addToCart(item);
+            }}
+            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-1 rounded flex items-center justify-center gap-1 text-xs"
+          >
+            <FaCartPlus /> Add to Cart
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              openQuickView(item);
+            }}
+            className="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-1 px-2 rounded transition text-xs"
+          >
+            View
+          </button>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+
         ) : (
           <div className="max-w-7xl mx-auto text-center py-16">
             <p className="text-xl text-gray-600">

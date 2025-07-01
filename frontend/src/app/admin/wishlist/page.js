@@ -56,109 +56,108 @@ const WishlistPage = () => {
   };
 
   const addToCart = (product) => {
-    try {
-      const cart = JSON.parse(localStorage.getItem("cart")) || [];
-      const existingItemIndex = cart.findIndex(
-        (item) => item.key === product.key && item.type === product.type
-      );
-
-      if (existingItemIndex > -1) {
-        cart[existingItemIndex].quantity += 1;
-      } else {
-        cart.push({
-          key: product.key,
-          id: product.id,
-          type: product.type,
-          quantity: 1,
-        });
-      }
-
-      localStorage.setItem("cart", JSON.stringify(cart));
-      toast.success(`${product.name} added to cart`);
-    } catch (error) {
-      toast.error("Failed to add item to cart");
-      console.error("Error adding to cart:", error);
-    }
-  };
+   try {
+     const cart = JSON.parse(localStorage.getItem("cart")) || [];
+     const existingItemIndex = cart.findIndex(
+       (item) => item.key === product.key && item.type === product.type
+     );
+ 
+     if (existingItemIndex > -1) {
+       cart[existingItemIndex].quantity += 1;
+     } else {
+       cart.push({
+         key: product.key,
+         id: product.id,
+         type: product.type,
+         quantity: 1,
+       });
+     }
+ 
+     localStorage.setItem("cart", JSON.stringify(cart));
+ 
+     // **Trigger Custom Event for Cart Update**
+     window.dispatchEvent(new Event("cartUpdated"));
+ 
+     toast.success(`${product.name} added to cart`);
+   } catch (error) {
+     toast.error("Failed to add item to cart");
+     console.error("Error adding to cart:", error);
+   }
+ };
 
   if (!isClient) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen px-4 pb-16 bg-gradient-to-b from-white to-gray-50">
-      <ToastContainer />
-      <div className="max-w-7xl mx-auto py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Your Wishlist</h1>
+    <div className="min-h-screen pt-14 px-4 pb-16 bg-gradient-to-b from-white to-gray-50">
+  <ToastContainer />
+  <div className="max-w-7xl mx-auto pt-2 pb-6">
+    <h1 className="text-2xl font-bold text-gray-900 mb-3">Your Wishlist</h1>
+
 
         {wishlistProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {wishlistProducts.map((product) => (
-              <div key={`${product.type}-${product.id}`} className="bg-white p-4 rounded-xl shadow-md flex flex-col group">
-                <div className="relative flex-1 flex justify-center items-center">
-                  <Link href={product.type === "combination" ? `/combination/${product.id}` : `/${product.type}/${product.id}`}>
-                    <div className="relative w-full" style={{ paddingBottom: "141.4%" }}>
-                      <Image
-                        src={product.gridImage || "/placeholder.png"} 
-                        alt={product.name}
-                        fill
-                        className="object-contain rounded-lg"
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      />
-                    </div>
+              <div key={`${product.type}-${product.id}`} className="bg-white p-2 rounded-lg shadow-md flex flex-col group relative overflow-hidden border border-gray-100">
+                
+                <div className="relative w-full" style={{ paddingBottom: "100%" }}>
+                  <Link href={product.type === "combination" ? `/combination/${product.id}` : `/${product.type}/${product.id}`} className="block w-full h-full">
+                    <Image
+                      src={product.gridImage || product.images?.[0] || "/placeholder.png"}
+                      alt={product.name}
+                      fill
+                      className="object-contain rounded-lg transition group-hover:opacity-90"
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 25vw"
+                    />
                   </Link>
 
                   <button
                     onClick={() => removeFromWishlist(product)}
-                    className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition"
+                    className="absolute top-2 right-2 p-1 bg-white rounded-full shadow hover:bg-gray-100 transition z-10"
                     aria-label="Remove from wishlist"
                   >
-                    <FaHeart className="text-red-500" />
+                    <FaHeart className="text-red-500 text-sm" />
                   </button>
                 </div>
 
-                <div className="mt-4">
-                  <h2 className="text-lg font-semibold text-gray-800 line-clamp-2">
-                    <Link href={product.type === "combination" ? `/combination/${product.id}` : `/${product.type}/${product.id}`}>
-                      {product.name}
-                    </Link>
+                <div className="mt-2 flex flex-col flex-1">
+                  <h2 className="text-xs font-semibold text-gray-800 line-clamp-2 mb-1">
+                    {product.name}
                   </h2>
 
-                  <div className="flex items-center mt-1">
-                    <div className="flex text-yellow-400 text-sm">
+                  <div className="flex items-center mb-1">
+                    <div className="flex text-yellow-400 text-xs">
                       {[...Array(5)].map((_, i) => (
                         <FaStar key={i} className={i < (product.rating || 4) ? "text-yellow-400" : "text-gray-300"} />
                       ))}
                     </div>
-                    <span className="text-gray-500 text-sm ml-1">({product.reviews || 24})</span>
+                    <span className="text-gray-500 text-[10px] ml-1">({product.reviews || 24})</span>
                   </div>
 
-                  <div className="mt-2 flex items-center">
-                    <p className="text-lg font-bold text-indigo-600">Rs. {product.price}</p>
+                  <div className="flex items-center mb-1">
+                    <p className="text-sm font-bold text-indigo-600">₹{product.price}</p>
                     {product.originalPrice && (
-                      <p className="text-sm text-gray-500 line-through ml-2">Rs. {product.originalPrice}</p>
+                      <p className="text-[10px] text-gray-500 line-through ml-1">₹{product.originalPrice}</p>
                     )}
                   </div>
 
-                  <button
-                    onClick={() => addToCart(product)}
-                    className="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition text-sm"
-                  >
-                    <FaCartPlus /> Add to Cart
-                  </button>
+                  <div className="mt-auto flex gap-1">
+                    <button
+                      onClick={() => addToCart(product)}
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-1 rounded flex items-center justify-center gap-1 text-xs"
+                    >
+                      <FaCartPlus /> Add to Cart
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
           <div className="text-center py-16 flex flex-col items-center justify-center">
-            <div className="w-48 h-48 relative mb-6">
-              <Image
-                src="/empty-wishlist.png"
-                alt="Empty Wishlist"
-                fill
-                className="object-contain"
-              />
+            <div className="text-red-500 mb-6">
+              <FaHeart className="text-7xl mx-auto" />
             </div>
             <p className="text-xl text-gray-600 mb-4">Your wishlist is empty.</p>
             <Link href="/">

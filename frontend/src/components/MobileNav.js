@@ -11,26 +11,51 @@ import useAuth from '@/hooks/useAuth';
 import Image from "next/image";
 import LoginSwipe from "@/components/LoginSwipe";
 
-const MobileNavLink = ({ href, pathname, children, className = "", icon }) => {
+/* ------------ Drawer ke liye Link ------------ */
+const MobileNavLinkDrawer = ({ href, pathname, children, icon }) => {
   const isActive = pathname === href;
   return (
-    <Link href={href}>
-      <motion.div whileTap={{ scale: 0.98 }} className={`flex items-center py-3 px-4 rounded-md ${isActive ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"} ${className}`}>
-        {icon && <span className="mr-3">{icon}</span>}
-        <span className="font-medium">{children}</span>
-      </motion.div>
+    <Link href={href} passHref legacyBehavior>
+      <motion.a 
+        whileTap={{ scale: 0.98 }} 
+        className={`flex items-center gap-3 w-full py-3 px-4 rounded-md ${
+          isActive ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
+        }`}
+      >
+        {icon && <span className="text-xl">{icon}</span>}
+        <span className="font-medium text-sm">{children}</span>
+      </motion.a>
     </Link>
   );
 };
 
-const MobileSubmenu = ({ title, children, icon, pathname }) => {
+/* ------------ Bottom Navbar ke liye Link ------------ */
+const MobileNavLinkBottom = ({ href, pathname, children, icon }) => {
+  const isActive = pathname === href;
+  return (
+    <Link href={href} passHref legacyBehavior>
+      <motion.a 
+        whileTap={{ scale: 0.98 }} 
+        className={`flex flex-col items-center py-3 px-4 rounded-md ${
+          isActive ? "text-blue-600" : "text-gray-700 hover:text-blue-500"
+        }`}
+      >
+        {icon && <span className="mb-1 text-xl">{icon}</span>}
+        <span className="font-medium text-xs">{children}</span>
+      </motion.a>
+    </Link>
+  );
+};
+
+/* ------------ Submenu Drawer ke liye ------------ */
+const MobileSubmenu = ({ title, children, icon }) => {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <div className="w-full">
       <button className={`flex items-center justify-between w-full px-4 py-3 text-left ${isOpen ? 'bg-gray-50 text-blue-600' : ''}`} onClick={() => setIsOpen(!isOpen)}>
-        <div className="flex items-center">
-          {icon && <span className="mr-3">{icon}</span>}
-          <span className="font-medium">{title}</span>
+        <div className="flex items-center gap-3">
+          {icon && <span className="text-xl">{icon}</span>}
+          <span className="font-medium text-sm">{title}</span>
         </div>
         {isOpen ? <FiChevronUp /> : <FiChevronDown />}
       </button>
@@ -45,40 +70,87 @@ const MobileSubmenu = ({ title, children, icon, pathname }) => {
   );
 };
 
+/* ------------ Drawer Smooth Slide ------------ */
 const MobileMenuDrawer = ({ menuOpen, setMenuOpen, pathname }) => (
   <AnimatePresence>
     {menuOpen && (
-      <>
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.5 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black z-40" onClick={() => setMenuOpen(false)} />
-        <motion.div initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} className="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50 overflow-y-auto">
+      <div className="fixed inset-0 z-50">
+        
+        {/* Dark Overlay */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.5 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="absolute inset-0 bg-black"
+          onClick={() => setMenuOpen(false)}
+        />
+
+        {/* Sliding Drawer */}
+        <motion.div
+          initial={{ x: "-100%" }}
+          animate={{ x: 0 }}
+          exit={{ x: "-100%" }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="absolute top-0 left-0 h-full w-72 bg-white shadow-lg overflow-y-auto"
+        >
           <div className="flex justify-between items-center p-4 border-b">
             <h2 className="text-lg font-semibold">Menu</h2>
-            <button onClick={() => setMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
+            <button
+              onClick={() => setMenuOpen(false)}
+              className="p-2 hover:bg-gray-100 rounded-full"
+            >
               <FiX className="text-xl" />
             </button>
           </div>
+
           <div className="p-4 space-y-2">
-            <MobileNavLink href="/" pathname={pathname} icon={<FiHome />}>Home</MobileNavLink>
-            <MobileSubmenu title="Shop" icon={<FiGrid />} pathname={pathname}>
-              <MobileNavLink href="/notebook-gallery" pathname={pathname}>All Products</MobileNavLink>
-              <MobileNavLink href="/categories" pathname={pathname}>Categories</MobileNavLink>
-              <MobileNavLink href="/new-arrivals" pathname={pathname}>New Arrivals</MobileNavLink>
-              <MobileNavLink href="/deals" pathname={pathname}>Special Offers</MobileNavLink>
+            <MobileNavLinkDrawer href="/" pathname={pathname} icon={<FiHome />}>
+              Home
+            </MobileNavLinkDrawer>
+
+            <MobileSubmenu title="Shop" icon={<FiGrid />}>
+              <MobileNavLinkDrawer href="/notebook-gallery" pathname={pathname}>
+                All Products
+              </MobileNavLinkDrawer>
+              <MobileNavLinkDrawer href="/categories" pathname={pathname}>
+                Categories
+              </MobileNavLinkDrawer>
+              <MobileNavLinkDrawer href="/new-arrivals" pathname={pathname}>
+                New Arrivals
+              </MobileNavLinkDrawer>
+              <MobileNavLinkDrawer href="/deals" pathname={pathname}>
+                Special Offers
+              </MobileNavLinkDrawer>
             </MobileSubmenu>
-            <MobileSubmenu title="Info" icon={<FiInfo />} pathname={pathname}>
-              <MobileNavLink href="/about-us" pathname={pathname}>About Us</MobileNavLink>
-              <MobileNavLink href="/blog" pathname={pathname}>Blog</MobileNavLink>
-              <MobileNavLink href="/contact-us" pathname={pathname}>Contact</MobileNavLink>
-              <MobileNavLink href="/faq" pathname={pathname}>FAQ</MobileNavLink>
+
+            <MobileSubmenu title="Info" icon={<FiInfo />}>
+              <MobileNavLinkDrawer href="/about-us" pathname={pathname}>
+                About Us
+              </MobileNavLinkDrawer>
+              <MobileNavLinkDrawer href="/blog" pathname={pathname}>
+                Blog
+              </MobileNavLinkDrawer>
+              <MobileNavLinkDrawer href="/contact-us" pathname={pathname}>
+                Contact
+              </MobileNavLinkDrawer>
+              <MobileNavLinkDrawer href="/faq" pathname={pathname}>
+                FAQ
+              </MobileNavLinkDrawer>
             </MobileSubmenu>
-            <MobileNavLink href="/track-order" pathname={pathname} icon={<FiTruck />}>Track Order</MobileNavLink>
+
+            <MobileNavLinkDrawer href="/track-order" pathname={pathname} icon={<FiTruck />}>
+              Track Order
+            </MobileNavLinkDrawer>
           </div>
         </motion.div>
-      </>
+      </div>
     )}
   </AnimatePresence>
 );
 
+
+/* ------------ Top Nav ------------ */
 const MobileTopNav = ({ setMenuOpen, setLoginOpen }) => {
   const [showNav, setShowNav] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -86,37 +158,24 @@ const MobileTopNav = ({ setMenuOpen, setLoginOpen }) => {
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY < 0) return;
-      if (window.scrollY > lastScrollY) {
-        setShowNav(false); // scrolling down, hide
-      } else {
-        setShowNav(true); // scrolling up, show
-      }
+      if (window.scrollY > lastScrollY) setShowNav(false);
+      else setShowNav(true);
       setLastScrollY(window.scrollY);
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
   return (
-    <div
-      className={`md:hidden fixed top-0 left-0 right-0 bg-white border-b shadow z-40 h-14 flex items-center justify-between px-4 transition-transform duration-300 ${
-        showNav ? "translate-y-0" : "-translate-y-full"
-      }`}
-    >
-      <button onClick={() => setMenuOpen(true)} className="p-2">
-        <FiMenu className="text-2xl" />
-      </button>
-      <Link href="/" className="flex justify-center items-center">
-        <Image src="/logo.png" alt="Logo" width={100} height={24} />
-      </Link>
-      <button onClick={() => setLoginOpen(true)} className="p-2">
-        <FiUser className="text-2xl" />
-      </button>
+    <div className={`md:hidden fixed top-0 left-0 right-0 bg-white border-b shadow z-40 h-14 flex items-center justify-between px-4 transition-transform duration-300 ${showNav ? "translate-y-0" : "-translate-y-full"}`}>
+      <button onClick={() => setMenuOpen(true)} className="p-2"><FiMenu className="text-2xl" /></button>
+      <Link href="/" className="flex justify-center items-center"><Image src="/logo.png" alt="Logo" width={100} height={24} /></Link>
+      <button onClick={() => setLoginOpen(true)} className="p-2"><FiUser className="text-2xl" /></button>
     </div>
   );
 };
 
+/* ------------ Bottom Nav ------------ */
 const MobileBottomNav = ({ pathname, cartItemsCount, setMenuOpen, setLoginOpen }) => {
   const { user } = useAuth();
   const router = useRouter();
@@ -128,24 +187,18 @@ const MobileBottomNav = ({ pathname, cartItemsCount, setMenuOpen, setLoginOpen }
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow z-40">
       <div className="flex justify-around items-center h-16">
-        <button onClick={() => setMenuOpen(true)} className="flex flex-col items-center">
-          <FiMenu className="text-xl" />
-          <span className="text-xs mt-1">Menu</span>
-        </button>
-        <MobileNavLink href="/wishlist" pathname={pathname} className="flex flex-col items-center">
-          <FiHeart className="text-xl" />
-          <span className="text-xs mt-1">Wishlist</span>
-        </MobileNavLink>
+        <MobileNavLinkBottom href="/" pathname={pathname} icon={<FiHome />}>Home</MobileNavLinkBottom>
+        <MobileNavLinkBottom href="/notebook-gallery" pathname={pathname} icon={<FiGrid />}>Our Products</MobileNavLinkBottom>
+        <MobileNavLinkBottom href="/admin/wishlist" pathname={pathname} icon={<FiHeart />}>Wishlist</MobileNavLinkBottom>
+        
         <div className="relative flex flex-col items-center">
-          <MobileNavLink href="/cart" pathname={pathname} className="flex flex-col items-center">
-            <FiShoppingCart className="text-xl" />
-            {cartItemsCount > 0 && (
-              <span className="absolute -top-1 right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{cartItemsCount}</span>
-            )}
-            <span className="text-xs mt-1">Cart</span>
-          </MobileNavLink>
+          <MobileNavLinkBottom href="/cart" pathname={pathname} icon={<FiShoppingCart />}>Cart</MobileNavLinkBottom>
+          {cartItemsCount > 0 && (
+            <span className="absolute -top-1 right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{cartItemsCount}</span>
+          )}
         </div>
-        <button onClick={handleAccountClick} className="flex flex-col items-center">
+
+        <button onClick={handleAccountClick} className="flex flex-col items-center focus:outline-none text-gray-700 hover:text-blue-500">
           <FiUser className="text-xl" />
           <span className="text-xs mt-1">My Account</span>
         </button>
@@ -155,8 +208,8 @@ const MobileBottomNav = ({ pathname, cartItemsCount, setMenuOpen, setLoginOpen }
 };
 
 export {
-  MobileBottomNav,
   MobileMenuDrawer,
-  LoginSwipe as MobileLoginPanel,
-  MobileTopNav
+  MobileTopNav,
+  MobileBottomNav,
+  LoginSwipe as MobileLoginPanel
 };
