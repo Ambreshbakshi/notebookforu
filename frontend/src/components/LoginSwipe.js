@@ -124,146 +124,159 @@ const LoginSwipe = ({ isOpen, onClose }) => {
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.5 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black z-40"
-            onClick={onClose}
-          />
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "tween", ease: "easeInOut" }}
-            className="fixed top-0 right-0 h-full w-80 bg-white shadow-lg z-50 flex flex-col"
-          >
-            <div className="flex justify-between items-center p-4 border-b">
-              <h2 className="text-lg font-semibold">Sign In</h2>
-              <button onClick={onClose}>
-                <FiX className="text-xl" />
+  <AnimatePresence>
+  {isOpen && (
+    <div className="fixed inset-0 z-50">
+      
+      {/* Full Black Blur Overlay */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.5 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className="absolute inset-0 bg-black backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Slide-in Login Box */}
+      <motion.div
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "tween", ease: "easeInOut" }}
+        className="absolute top-0 right-0 h-full w-80 bg-white shadow-lg flex flex-col"
+      >
+        <div className="flex justify-between items-center p-4 border-b">
+          <h2 className="text-lg font-semibold">Sign In</h2>
+          <button onClick={onClose}>
+            <FiX className="text-xl" />
+          </button>
+        </div>
+
+        <div className="p-4 flex-1 overflow-y-auto">
+          {user ? (
+            <div className="text-center mt-8">
+              <FiUser className="mx-auto text-4xl mb-2" />
+              <h3 className="font-semibold text-lg mb-1">
+                {profileName || user.displayName || "No Name"}
+              </h3>
+              <p className="text-gray-500 mb-4">{user.email}</p>
+
+              <button
+                onClick={handleLogout}
+                className="w-full py-2 text-white bg-red-500 hover:bg-red-600 rounded-lg flex justify-center items-center"
+              >
+                <FiLogOut className="mr-2" /> Log Out
               </button>
             </div>
-
-            <div className="p-4 flex-1 overflow-y-auto">
-              {user ? (
-                <div className="text-center mt-8">
-                  <FiUser className="mx-auto text-4xl mb-2" />
-                  <h3 className="font-semibold text-lg mb-1">{profileName || user.displayName || "No Name"}</h3>
-                  <p className="text-gray-500 mb-4">{user.email}</p>
-
-                  <button
-                    onClick={handleLogout}
-                    className="w-full py-2 text-white bg-red-500 hover:bg-red-600 rounded-lg flex justify-center items-center"
-                  >
-                    <FiLogOut className="mr-2" /> Log Out
-                  </button>
+          ) : (
+            <>
+              {error && (
+                <div className="mb-3 p-2 text-sm text-red-600 bg-red-50 rounded flex items-center">
+                  <FiAlertCircle className="mr-2" /> {error}
                 </div>
-              ) : (
-                <>
-                  {error && (
-                    <div className="mb-3 p-2 text-sm text-red-600 bg-red-50 rounded flex items-center">
-                      <FiAlertCircle className="mr-2" /> {error}
-                    </div>
-                  )}
-
-                  <form onSubmit={handleEmailLogin} className="space-y-4">
-                    <div>
-                      <label className="block text-sm mb-1">Email address</label>
-                      <div className="relative">
-                        <FiMail className="absolute left-3 top-2.5 text-gray-400" />
-                        <input
-                          type="email"
-                          name="email"
-                          value={credentials.email}
-                          onChange={handleChange}
-                          placeholder="you@example.com"
-                          className="pl-10 pr-3 py-2 border rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm mb-1">Password</label>
-                      <div className="relative">
-                        <FiLock className="absolute left-3 top-2.5 text-gray-400" />
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          name="password"
-                          value={credentials.password}
-                          onChange={handleChange}
-                          placeholder="••••••••"
-                          className="pl-10 pr-10 py-2 border rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          required
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-3 top-2.5 text-gray-400"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <FiEyeOff /> : <FiEye />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className={`w-full py-2 text-white rounded-lg ${
-                        loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
-                      }`}
-                    >
-                      {loading ? (
-                        <span className="flex justify-center items-center">
-                          <FiLoader className="animate-spin mr-2" /> Signing in...
-                        </span>
-                      ) : (
-                        "Log In"
-                      )}
-                    </button>
-                  </form>
-
-                  <p className="mt-4 text-center text-sm">
-                    Don't have an account?{" "}
-                    <button
-                      onClick={() => {
-                        onClose();
-                        window.location.href = "/admin/signup";
-                      }}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Create an account
-                    </button>
-                  </p>
-
-                  <div className="flex items-center my-4">
-                    <div className="flex-grow h-px bg-gray-200" />
-                    <span className="mx-2 text-sm text-gray-500">Or sign in with</span>
-                    <div className="flex-grow h-px bg-gray-200" />
-                  </div>
-
-                  <button
-                    onClick={handleGoogleLogin}
-                    disabled={googleLoading}
-                    className={`w-full flex justify-center items-center py-2 mb-4 border border-gray-300 rounded-lg ${
-                      googleLoading ? "bg-gray-100 cursor-not-allowed" : "bg-white hover:bg-gray-50"
-                    }`}
-                  >
-                    {googleLoading ? <FiLoader className="animate-spin mr-2" /> : <FcGoogle className="text-lg mr-2" />}
-                    Sign in with Google
-                  </button>
-                </>
               )}
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <div>
+                  <label className="block text-sm mb-1">Email address</label>
+                  <div className="relative">
+                    <FiMail className="absolute left-3 top-2.5 text-gray-400" />
+                    <input
+                      type="email"
+                      name="email"
+                      value={credentials.email}
+                      onChange={handleChange}
+                      placeholder="you@example.com"
+                      className="pl-10 pr-3 py-2 border rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1">Password</label>
+                  <div className="relative">
+                    <FiLock className="absolute left-3 top-2.5 text-gray-400" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={credentials.password}
+                      onChange={handleChange}
+                      placeholder="••••••••"
+                      className="pl-10 pr-10 py-2 border rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-2.5 text-gray-400"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <FiEyeOff /> : <FiEye />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`w-full py-2 text-white rounded-lg ${
+                    loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {loading ? (
+                    <span className="flex justify-center items-center">
+                      <FiLoader className="animate-spin mr-2" /> Signing in...
+                    </span>
+                  ) : (
+                    "Log In"
+                  )}
+                </button>
+              </form>
+
+              <p className="mt-4 text-center text-sm">
+                Don't have an account?{" "}
+                <button
+                  onClick={() => {
+                    onClose();
+                    window.location.href = "/admin/signup";
+                  }}
+                  className="text-blue-600 hover:underline"
+                >
+                  Create an account
+                </button>
+              </p>
+
+              <div className="flex items-center my-4">
+                <div className="flex-grow h-px bg-gray-200" />
+                <span className="mx-2 text-sm text-gray-500">Or sign in with</span>
+                <div className="flex-grow h-px bg-gray-200" />
+              </div>
+
+              <button
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                className={`w-full flex justify-center items-center py-2 mb-4 border border-gray-300 rounded-lg ${
+                  googleLoading ? "bg-gray-100 cursor-not-allowed" : "bg-white hover:bg-gray-50"
+                }`}
+              >
+                {googleLoading ? (
+                  <FiLoader className="animate-spin mr-2" />
+                ) : (
+                  <FcGoogle className="text-lg mr-2" />
+                )}
+                Sign in with Google
+              </button>
+            </>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
+
+
+
   );
 };
 
