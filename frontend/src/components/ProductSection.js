@@ -59,7 +59,8 @@ const ProductSection = () => {
     setIsAtStart(scrollLeft <= 10);
     setIsAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
 
-    const cardWidth = isMobile ? window.innerWidth * 0.8 : 320;
+    const cardWidth = isMobile ? window.innerWidth * 0.7 : 260;
+
     const centerPos = scrollLeft + clientWidth / 2;
     const newCenterIndex = Math.min(
       Math.max(0, Math.round(centerPos / (cardWidth + 16)) - 1),
@@ -168,69 +169,75 @@ const ProductSection = () => {
             onMouseUp={handleMouseUp}
             onMouseMove={handleMouseMove}
           >
-            {products.map((product, index) => {
-              const isCenter = index === centerIndex;
-              return (
-                <div
-                  key={`${product.type}-${product.id}`}
-                  className={`flex-shrink-0 transition-all duration-300 ${
-                    isMobile ? "w-[80vw] snap-center" : "w-[320px]"
-                  }`}
-                  style={{
-                    transform: isCenter ? "scale(1.05)" : "scale(0.95)",
-                    opacity: isCenter ? 1 : 0.85,
-                  }}
-                >
-                  <Link
-                    href={`/${product.type}/${product.id}`}
-                    className="block h-full"
-                    aria-label={`View ${product.name} details`}
-                  >
-                    <div className="border rounded-xl shadow-sm overflow-hidden bg-white h-full flex flex-col hover:shadow-md transition-shadow">
-                      <div className="relative" style={{ paddingBottom: "141.4%" }}>
-                        <Image
-                          src={product.gridImage}
-                          alt={product.name}
-                          fill
-                          sizes="(max-width: 768px) 80vw, 320px"
-                          className="object-contain"
-                          priority={index < 3}
-                        />
-                        {product.type === "combination" && (
-                          <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-3 py-1 rounded-md text-xs font-bold shadow-sm">
-                            COMBO OFFER
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-4 text-center flex-grow flex flex-col justify-center">
-                        <h3 className="text-base font-semibold line-clamp-1">
-                          {product.type === "combination" ? (
-                            <span className="text-blue-600">{product.name}</span>
-                          ) : (
-                            product.name
-                          )}
-                        </h3>
-                        <p
-                          className={`mt-2 ${
-                            product.type === "combination"
-                              ? "text-green-600 font-bold text-lg"
-                              : "text-gray-700 font-medium"
-                          }`}
-                        >
-                          {product.type === "combination"
-                            ? product.price
-                            : `Rs. ${product.price}`}
-                        </p>
-                        {product.type === "combination" && (
-                          <p className="text-xs text-gray-500 mt-1">Save up to 15%</p>
-                        )}
-                        
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              );
-            })}
+     {products.map((product, index) => {
+  const isCenter = index === centerIndex;
+  return (
+    <div
+      key={`${product.type}-${product.id}`}
+      className={`flex-shrink-0 transition-all duration-300 ${
+        isMobile ? "w-[70vw] snap-center" : "w-[260px]"
+      }`}
+      style={{
+        transform: isCenter ? "scale(1.05)" : "scale(0.95)",
+        opacity: isCenter ? 1 : 0.85,
+      }}
+    >
+      <Link
+        href={`/${product.type}/${product.id}`}
+        className="block h-full"
+        aria-label={`View ${product.name} details`}
+      >
+        <div className="border rounded-xl shadow-sm overflow-hidden bg-white h-full flex flex-col hover:shadow-md transition-shadow">
+          
+          {/* IMAGE HEIGHT aur bhi kam */}
+          <div className="relative" style={{ paddingBottom: "100%" }}>
+            <Image
+              src={product.gridImage}
+              alt={product.name}
+              fill
+              sizes="(max-width: 768px) 70vw, 260px"
+              className="object-contain"
+              priority={index < 3}
+            />
+            {product.type === "combination" && (
+              <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-2 py-0.5 rounded-md text-xs font-bold shadow-sm">
+                COMBO OFFER
+              </div>
+            )}
+          </div>
+
+          {/* TEXT AREA compact */}
+          <div className="p-2 text-center flex-grow flex flex-col justify-center">
+            <h3 className="text-sm font-semibold line-clamp-1">
+              {product.type === "combination" ? (
+                <span className="text-blue-600">{product.name}</span>
+              ) : (
+                product.name
+              )}
+            </h3>
+            <p
+              className={`mt-1 ${
+                product.type === "combination"
+                  ? "text-green-600 font-bold text-base"
+                  : "text-gray-700 font-medium text-sm"
+              }`}
+            >
+              {product.type === "combination"
+                ? product.price
+                : `Rs. ${product.price}`}
+            </p>
+            {product.type === "combination" && (
+              <p className="text-xs text-gray-500 mt-0.5">Save up to 15%</p>
+            )}
+          </div>
+        </div>
+      </Link>
+    </div>
+  );
+})}
+
+
+
           </div>
 
           {/* Arrow Buttons + Explore Button below slider */}
