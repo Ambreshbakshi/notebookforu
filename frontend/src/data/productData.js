@@ -336,7 +336,7 @@ const productData = {
       name: "Space Odyssey Pack of 4",
       price: 400,
       weight: 0.5,
-      gridImage: "/products/diary/diary1/diary1-cover.png",
+      gridImage: "/products/combination/combination1/combination1-detail1.jpg",
       detailImage1: "/products/combination/combination1/combination1-detail1.jpg",
       detailImage2: "/products/diary/diary1/diary1-detail2.jpg",
       detailImage3: "/products/diary/diary1/diary1-detail3.jpg",
