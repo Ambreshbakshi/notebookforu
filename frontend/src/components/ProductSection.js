@@ -1,27 +1,37 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import productData from "@/data/productData";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const ProductSection = () => {
   const containerRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
   const [isAtStart, setIsAtStart] = useState(true);
   const [isAtEnd, setIsAtEnd] = useState(false);
+  const [centerIndex, setCenterIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const scrollTimeoutRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = setTimeout(checkScrollPosition, 100);
     };
-    
+
     handleResize();
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
   }, []);
 
-  // Prepare all product types
   const notebooks = Object.values(productData.notebooks).map((item) => ({
     ...item,
     type: "notebook",
@@ -34,202 +44,223 @@ const ProductSection = () => {
     ...item,
     type: "combination",
   }));
-  
-  // Combine all products and sort by type for better display
+
   const products = [...notebooks, ...diaries, ...combinations].sort((a, b) => {
-    // Show combinations first, then notebooks, then diaries
-    if (a.type === 'combination') return -1;
-    if (b.type === 'combination') return 1;
-    if (a.type === 'notebook') return -1;
-    if (b.type === 'notebook') return 1;
+    if (a.type === "combination") return -1;
+    if (b.type === "combination") return 1;
+    if (a.type === "notebook") return -1;
+    if (b.type === "notebook") return 1;
     return 0;
   });
 
-  const checkScrollPosition = () => {
+  const checkScrollPosition = useCallback(() => {
     if (!containerRef.current) return;
-    
     const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
-    setIsAtStart(scrollLeft === 0);
+    setIsAtStart(scrollLeft <= 10);
     setIsAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
-  };
 
-  const scrollLeft = () => {
+    const cardWidth = isMobile ? window.innerWidth * 0.8 : 320;
+    const centerPos = scrollLeft + clientWidth / 2;
+    const newCenterIndex = Math.min(
+      Math.max(0, Math.round(centerPos / (cardWidth + 16)) - 1),
+      products.length - 1
+    );
+    setCenterIndex(newCenterIndex);
+  }, [isMobile, products.length]);
+
+  const handleScrollLeft = useCallback(() => {
     if (containerRef.current) {
+      const cardWidth = isMobile ? window.innerWidth * 0.8 : 320;
       containerRef.current.scrollBy({
-        left: -300,
+        left: -cardWidth - 16,
         behavior: "smooth",
       });
     }
-  };
+  }, [isMobile]);
 
-  const scrollRight = () => {
+  const handleScrollRight = useCallback(() => {
     if (containerRef.current) {
+      const cardWidth = isMobile ? window.innerWidth * 0.8 : 320;
       containerRef.current.scrollBy({
-        left: 300,
+        left: cardWidth + 16,
         behavior: "smooth",
       });
     }
+  }, [isMobile]);
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartX(e.pageX - containerRef.current.offsetLeft);
+    setScrollLeft(containerRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => setIsDragging(false);
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    checkScrollPosition();
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const x = e.pageX - containerRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    containerRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleTouchStart = (e) => {
+    setStartX(e.touches[0].clientX);
+    setScrollLeft(containerRef.current.scrollLeft);
+  };
+
+  const handleTouchMove = (e) => {
+    const x = e.touches[0].clientX;
+    const diff = startX - x;
+    containerRef.current.scrollLeft = scrollLeft + diff;
   };
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
-    let startX = 0;
-    let isScrolling = false;
-
-    const handleTouchStart = (e) => {
-      startX = e.touches[0].clientX;
-      isScrolling = true;
-      container.style.touchAction = 'pan-y';
-      container.style.overflowY = 'hidden';
-    };
-
-    const handleTouchMove = (e) => {
-      if (!isScrolling) return;
-      const x = e.touches[0].clientX;
-      const diff = startX - x;
-      
-      if (Math.abs(diff) > 10) {
-        container.scrollLeft += diff;
-        startX = x;
-      }
-    };
-
-    const handleTouchEnd = () => {
-      isScrolling = false;
-      checkScrollPosition();
-      container.style.touchAction = '';
-      container.style.overflowY = '';
-    };
-
-    const handleScroll = () => {
-      checkScrollPosition();
-    };
-
-    container.addEventListener("touchstart", handleTouchStart);
-    container.addEventListener("touchmove", handleTouchMove);
-    container.addEventListener("touchend", handleTouchEnd);
-    container.addEventListener("scroll", handleScroll);
+    container.addEventListener("scroll", checkScrollPosition);
+    container.addEventListener("touchstart", handleTouchStart, { passive: false });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", checkScrollPosition);
 
     return () => {
+      container.removeEventListener("scroll", checkScrollPosition);
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
-      container.removeEventListener("touchend", handleTouchEnd);
-      container.removeEventListener("scroll", handleScroll);
+      container.removeEventListener("touchend", checkScrollPosition);
     };
-  }, []);
+  }, [checkScrollPosition]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowLeft") handleScrollLeft();
+      if (e.key === "ArrowRight") handleScrollRight();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleScrollLeft, handleScrollRight]);
 
   return (
-   <section className="py-8 px-4 overflow-hidden"> 
-      <h1 className="text-center text-xl md:text-2xl font-bold mb-4 md:mb-6">Our Products</h1>
-      
-      <div 
-        className="relative flex items-center"
-        style={{
-          overflowY: 'hidden',
-          touchAction: isMobile ? 'pan-y' : 'auto'
-        }}
-      >
-        {!isAtStart && (
-          <button
-            className={`absolute left-0 z-10 ${
-              isMobile 
-                ? "text-xl bg-white/80 rounded-full p-2 shadow-lg" 
-                : "bg-gray-800 text-white p-2 rounded-full"
-            }`}
-            onClick={scrollLeft}
-            aria-label="Scroll left"
-          >
-            {isMobile ? "←" : "❮"}
-          </button>
-        )}
+    <section className="py-12 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gray-50">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-center text-2xl md:text-3xl font-bold mb-6 md:mb-8 text-gray-900">
+          Our Premium Collection
+        </h1>
 
-        <div
-          ref={containerRef}
-          className={`flex gap-4 w-full no-scrollbar ${
-            isMobile ? "overflow-x-auto snap-x px-2" : "overflow-hidden"
-          }`}
-          style={{ 
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            overflowY: 'hidden'
-          }}
-        >
-          {products.map((product) => (
-            <div
-              key={`${product.type}-${product.id}`}
-              className={`flex-shrink-0 ${
-                isMobile 
-                  ? "w-[60vw] snap-center" 
-                  : "w-[280px]"
-              }`}
-            >
-              <Link href={`/${product.type}/${product.id}`} className="block h-full">
-                <div className="border rounded-lg shadow-sm overflow-hidden bg-white h-full flex flex-col">
-                  {/* Product image with special badge for combinations */}
-                  <div className="relative" style={{ paddingBottom: '141.4%' }}>
-                    <Image 
-                      src={product.gridImage} 
-                      alt={product.name} 
-                      fill
-                      sizes="(max-width: 768px) 60vw, 280px"
-                      className="object-contain"
-                      priority={false}
-                    />
-                    {product.type === 'combination' && (
-                      <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-md text-xs font-bold">
-                        COMBO
+        <div>
+          <div
+            ref={containerRef}
+            className={`flex gap-6 w-full no-scrollbar ${
+              isMobile ? "overflow-x-auto snap-x px-4" : "overflow-hidden px-2"
+            }`}
+            style={{
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              cursor: isDragging ? "grabbing" : "grab",
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+          >
+            {products.map((product, index) => {
+              const isCenter = index === centerIndex;
+              return (
+                <div
+                  key={`${product.type}-${product.id}`}
+                  className={`flex-shrink-0 transition-all duration-300 ${
+                    isMobile ? "w-[80vw] snap-center" : "w-[320px]"
+                  }`}
+                  style={{
+                    transform: isCenter ? "scale(1.05)" : "scale(0.95)",
+                    opacity: isCenter ? 1 : 0.85,
+                  }}
+                >
+                  <Link
+                    href={`/${product.type}/${product.id}`}
+                    className="block h-full"
+                    aria-label={`View ${product.name} details`}
+                  >
+                    <div className="border rounded-xl shadow-sm overflow-hidden bg-white h-full flex flex-col hover:shadow-md transition-shadow">
+                      <div className="relative" style={{ paddingBottom: "141.4%" }}>
+                        <Image
+                          src={product.gridImage}
+                          alt={product.name}
+                          fill
+                          sizes="(max-width: 768px) 80vw, 320px"
+                          className="object-contain"
+                          priority={index < 3}
+                        />
+                        {product.type === "combination" && (
+                          <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-3 py-1 rounded-md text-xs font-bold shadow-sm">
+                            COMBO OFFER
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="p-3 text-center flex-grow flex flex-col justify-center">
-                    <h3 className="text-sm font-medium line-clamp-1">
-                      {product.type === 'combination' ? (
-                        <span className="text-blue-600">{product.name}</span>
-                      ) : (
-                        product.name
-                      )}
-                    </h3>
-                    <p className="text-gray-600 text-sm mt-1">
-                      {product.type === 'combination' ? (
-                        <span className="text-green-600 font-semibold">{product.price}</span>
-                      ) : (
-                        `Rs. ${product.price}`
-                      )}
-                    </p>
-                    {product.type === 'combination' && (
-                      <p className="text-xs text-gray-500 mt-1">Special value pack</p>
-                    )}
-                  </div>
+                      <div className="p-4 text-center flex-grow flex flex-col justify-center">
+                        <h3 className="text-base font-semibold line-clamp-1">
+                          {product.type === "combination" ? (
+                            <span className="text-blue-600">{product.name}</span>
+                          ) : (
+                            product.name
+                          )}
+                        </h3>
+                        <p
+                          className={`mt-2 ${
+                            product.type === "combination"
+                              ? "text-green-600 font-bold text-lg"
+                              : "text-gray-700 font-medium"
+                          }`}
+                        >
+                          {product.type === "combination"
+                            ? product.price
+                            : `Rs. ${product.price}`}
+                        </p>
+                        {product.type === "combination" && (
+                          <p className="text-xs text-gray-500 mt-1">Save up to 15%</p>
+                        )}
+                        
+                      </div>
+                    </div>
+                  </Link>
                 </div>
-              </Link>
-            </div>
-          ))}
+              );
+            })}
+          </div>
+
+          {/* Arrow Buttons + Explore Button below slider */}
+          <div className="flex justify-center items-center gap-4 mt-8 flex-wrap">
+            <button
+              className="bg-white text-gray-800 p-3 rounded-full shadow-md hover:bg-gray-100 transition-colors disabled:opacity-50"
+              onClick={handleScrollLeft}
+              aria-label="Scroll left"
+              disabled={isAtStart}
+            >
+              <ChevronLeft size={24} strokeWidth={2} />
+            </button>
+
+            <Link href="/notebook-gallery" passHref>
+              <button className="inline-flex items-center px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                Explore All Products
+                <ChevronRight size={18} className="ml-1" />
+              </button>
+            </Link>
+
+            <button
+              className="bg-white text-gray-800 p-3 rounded-full shadow-md hover:bg-gray-100 transition-colors disabled:opacity-50"
+              onClick={handleScrollRight}
+              aria-label="Scroll right"
+              disabled={isAtEnd}
+            >
+              <ChevronRight size={24} strokeWidth={2} />
+            </button>
+          </div>
         </div>
-
-        {!isAtEnd && (
-          <button
-            className={`absolute right-0 z-10 ${
-              isMobile 
-                ? "text-xl bg-white/80 rounded-full p-2 shadow-lg" 
-                : "bg-gray-800 text-white p-2 rounded-full"
-            }`}
-            onClick={scrollRight}
-            aria-label="Scroll right"
-          >
-            {isMobile ? "→" : "❯"}
-          </button>
-        )}
-      </div>
-
-      <div className="text-center mt-6">
-        <Link href="/notebook-gallery" className="inline-block">
-          <span className="text-blue-600 font-medium hover:underline text-sm md:text-base">
-            View All Products
-          </span>
-        </Link>
       </div>
     </section>
   );
