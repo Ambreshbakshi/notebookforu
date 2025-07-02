@@ -5,10 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
+  
 const images = [
   {
-    src: "/hero/hero1.jpg",
+    src: "/hero/hero7.jpg",
     alt: "Premium quality notebooks",
     caption: "Handcrafted with Care"
   },
