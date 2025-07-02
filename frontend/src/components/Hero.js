@@ -8,14 +8,14 @@ import { motion, AnimatePresence } from "framer-motion";
   
 const images = [
   {
-    src: "/hero/hero7.jpg",
-    alt: "Premium quality notebooks",
-    caption: "Handcrafted with Care"
-  },
-  {
     src: "/hero/hero11.jpeg",
     alt: "Customizable notebook designs",
     caption: "Make It Your Own"
+  },
+   {
+    src: "/hero/hero7.jpg",
+    alt: "Premium quality notebooks",
+    caption: "Handcrafted with Care"
   },
   {
     src: "/hero/hero13.jpg",
@@ -28,7 +28,7 @@ const images = [
     caption: "Endless Possibilities"
   },
   {
-    src: "/hero/hero9.jpeg",
+    src: "/hero/hero14.jpeg",
     alt: "Writing in our notebooks",
     caption: "Perfect for Every Story"
   },
