@@ -17,21 +17,23 @@ const images = [
     alt: "Premium quality notebooks",
     caption: "Handcrafted with Care"
   },
-  {
-    src: "/hero/hero13.jpg",
-    alt: "Eco-friendly materials",
-    caption: "Sustainable Choices"
+   {
+    src: "/hero/hero15.jpeg",
+    alt: "Writing in our notebooks",
+    caption: "Perfect for Every Story"
   },
   {
     src: "/hero/hero8.jpeg",
     alt: "Notebook collection display",
     caption: "Endless Possibilities"
   },
+ 
   {
-    src: "/hero/hero15.jpeg",
-    alt: "Writing in our notebooks",
-    caption: "Perfect for Every Story"
+    src: "/hero/hero13.jpg",
+    alt: "Eco-friendly materials",
+    caption: "Sustainable Choices"
   },
+  
   {
     src: "/hero/hero6.jpg",
     alt: "Notebook accessories",
@@ -124,31 +126,46 @@ const Hero = () => {
           exit="exit"
           className="absolute inset-0"
         >
-          <Image
-            src={images[currentIndex].src}
-            alt={images[currentIndex].alt}
-            fill
-            priority={currentIndex === 0}
-            className="object-cover object-center"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
-          />
-          
-          {/* Image Caption */}
-          <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-center px-4"
-            >
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white drop-shadow-lg mb-4">
-                {images[currentIndex].caption}
-              </h1>
-              <p className="text-lg sm:text-xl text-white drop-shadow-md mb-6 max-w-2xl mx-auto">
-                Discover our premium collection of handcrafted notebooks
-              </p>
-            </motion.div>
-          </div>
+     <div className="relative w-full h-full overflow-hidden">
+  
+  {/* Blurred Background */}
+  <Image
+    src={images[currentIndex].src}
+    alt="Background Blur"
+    fill
+    className="object-cover filter blur-md scale-110 z-0"
+    priority={currentIndex === 0}
+  />
+
+  {/* Main Contained Image */}
+  <Image
+    src={images[currentIndex].src}
+    alt={images[currentIndex].alt}
+    fill
+    priority={currentIndex === 0}
+    className="object-contain object-center z-0"
+    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
+  />
+
+  {/* Image Caption */}
+  <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center z-10">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="text-center px-4"
+    >
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white drop-shadow-lg mb-4">
+        {images[currentIndex].caption}
+      </h1>
+      <p className="text-lg sm:text-xl text-white drop-shadow-md mb-6 max-w-2xl mx-auto">
+        Discover our premium collection of handcrafted notebooks
+      </p>
+    </motion.div>
+  </div>
+  
+</div>
+
         </motion.div>
       </AnimatePresence>
 
