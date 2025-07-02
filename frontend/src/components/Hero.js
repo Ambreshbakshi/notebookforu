@@ -28,7 +28,7 @@ const images = [
     caption: "Endless Possibilities"
   },
   {
-    src: "/hero/hero14.jpeg",
+    src: "/hero/hero15.jpeg",
     alt: "Writing in our notebooks",
     caption: "Perfect for Every Story"
   },
