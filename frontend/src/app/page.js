@@ -37,7 +37,14 @@ export default function Home() {
         </motion.blockquote>
       </section>
 
-      
+      {/* Products Section */}
+      <Suspense fallback={<LoadingSpinner />}>
+        <ProductSection 
+          includeDiaries={true}
+          featuredOnly={false}
+          showViewAll={true}
+        />
+      </Suspense>
 
       {/* Customer Reviews */}
       <section className="py-12 bg-white/30">

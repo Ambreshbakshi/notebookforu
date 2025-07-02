@@ -17,6 +17,12 @@
   font-style: normal;
 }
 
+/* Global Layout Fix */
+html, body {
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
 /* Apply font globally */
 body {
   font-family: "Glacial Indifference", sans-serif;
@@ -38,9 +44,8 @@ h1, h2, h3, h4, h5, h6 {
 .nav-link {
   @apply text-lg font-medium hover:text-blue-600 transition;
 }
-html {
-  scroll-behavior: smooth;
-}
+
+/* Animation */
 @keyframes fadeInOut {
   0%, 100% { opacity: 0; }
   20%, 80% { opacity: 1; }
