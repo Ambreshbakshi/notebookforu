@@ -22,31 +22,58 @@ const ProductSection = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const products = [
-    ...Object.values(productData.combinations || {}).map((item) => ({ ...item, type: "combination" })),
-    ...Object.values(productData.notebooks).map((item) => ({ ...item, type: "notebook" })),
-    ...Object.values(productData.diaries).map((item) => ({ ...item, type: "diary" })),
-  ];
+  const notebooks = Object.values(productData.notebooks).map((item) => ({
+    ...item,
+    type: "notebook",
+  }));
+  const diaries = Object.values(productData.diaries).map((item) => ({
+    ...item,
+    type: "diary",
+  }));
+  const combinations = Object.values(productData.combinations || {}).map((item) => ({
+    ...item,
+    type: "combination",
+  }));
+
+  const products = [...notebooks, ...diaries, ...combinations].sort((a, b) => {
+    if (a.type === 'combination') return -1;
+    if (b.type === 'combination') return 1;
+    if (a.type === 'notebook') return -1;
+    if (b.type === 'notebook') return 1;
+    return 0;
+  });
 
   const checkScrollPosition = () => {
     if (!containerRef.current) return;
+
     const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
     setIsAtStart(scrollLeft <= 10);
     setIsAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
 
     const cardWidth = isMobile ? window.innerWidth * 0.6 : 280;
     const centerPos = scrollLeft + clientWidth / 2;
-    const newCenterIndex = Math.round(centerPos / (cardWidth + 16)) - 1;
+    const newCenterIndex = Math.round(centerPos / (cardWidth + 16)) - 1; 
     setCenterIndex(newCenterIndex);
   };
 
-  const scrollByAmount = (direction) => {
-    if (!containerRef.current) return;
-    const cardWidth = isMobile ? window.innerWidth * 0.6 : 280;
-    containerRef.current.scrollBy({
-      left: direction * (cardWidth + 16),
-      behavior: "smooth",
-    });
+  const scrollLeft = () => {
+    if (containerRef.current) {
+      const cardWidth = isMobile ? window.innerWidth * 0.6 : 280;
+      containerRef.current.scrollBy({
+        left: -cardWidth - 16,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const scrollRight = () => {
+    if (containerRef.current) {
+      const cardWidth = isMobile ? window.innerWidth * 0.6 : 280;
+      containerRef.current.scrollBy({
+        left: cardWidth + 16,
+        behavior: "smooth",
+      });
+    }
   };
 
   useEffect(() => {
@@ -54,32 +81,37 @@ const ProductSection = () => {
     if (!container) return;
 
     let startX = 0;
-    let isDragging = false;
+    let isScrolling = false;
 
     const handleTouchStart = (e) => {
       startX = e.touches[0].clientX;
-      isDragging = true;
+      isScrolling = true;
+      container.style.touchAction = 'pan-y';
     };
 
     const handleTouchMove = (e) => {
-      if (!isDragging) return;
+      if (!isScrolling) return;
       const x = e.touches[0].clientX;
       const diff = startX - x;
-      container.scrollLeft += diff;
-      startX = x;
+
+      if (Math.abs(diff) > 10) {
+        container.scrollLeft += diff;
+        startX = x;
+      }
     };
 
     const handleTouchEnd = () => {
-      isDragging = false;
+      isScrolling = false;
       checkScrollPosition();
+      container.style.touchAction = '';
     };
 
     const handleScroll = () => {
       checkScrollPosition();
     };
 
-    container.addEventListener("touchstart", handleTouchStart, { passive: true });
-    container.addEventListener("touchmove", handleTouchMove, { passive: true });
+    container.addEventListener("touchstart", handleTouchStart);
+    container.addEventListener("touchmove", handleTouchMove);
     container.addEventListener("touchend", handleTouchEnd);
     container.addEventListener("scroll", handleScroll);
 
@@ -105,7 +137,7 @@ const ProductSection = () => {
                 ? "text-xl bg-white/80 rounded-full p-2 shadow-lg"
                 : "bg-gray-800 text-white p-2 rounded-full"
             }`}
-            onClick={() => scrollByAmount(-1)}
+            onClick={scrollLeft}
             aria-label="Scroll left"
           >
             {isMobile ? "←" : "❮"}
@@ -186,7 +218,7 @@ const ProductSection = () => {
                 ? "text-xl bg-white/80 rounded-full p-2 shadow-lg"
                 : "bg-gray-800 text-white p-2 rounded-full"
             }`}
-            onClick={() => scrollByAmount(1)}
+            onClick={scrollRight}
             aria-label="Scroll right"
           >
             {isMobile ? "→" : "❯"}
