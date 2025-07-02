@@ -18,7 +18,7 @@ const images = [
     caption: "Make It Your Own"
   },
   {
-    src: "/hero/hero9.jpeg",
+    src: "/hero/hero13.jpg",
     alt: "Eco-friendly materials",
     caption: "Sustainable Choices"
   },
@@ -28,7 +28,7 @@ const images = [
     caption: "Endless Possibilities"
   },
   {
-    src: "/hero/hero5.jpg",
+    src: "/hero/hero9.jpeg",
     alt: "Writing in our notebooks",
     caption: "Perfect for Every Story"
   },
