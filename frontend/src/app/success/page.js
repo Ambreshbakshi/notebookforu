@@ -292,28 +292,36 @@ docPDF.text(`Payment Status: ${orderData.paymentStatus || 'N/A'}`, 14, 70);
           </div>
         )}
 
-        <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3 justify-center">
-          <button
-            onClick={() => router.push("/")}
-            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-          >
-            Continue Shopping
-          </button>
-          <button
-            onClick={() => router.push(`/track-order?order_id=${searchParams.get("order_id")}`)}
-            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-          >
-            Track Order
-          </button>
-          {orderData && (
-            <button
-              onClick={generateInvoice}
-              className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-            >
-              Download Invoice
-            </button>
-          )}
-        </div>
+       <div className="flex flex-col-reverse sm:flex-row gap-3 w-full sm:w-auto">
+  {/* Continue Shopping Button - Now full width on mobile */}
+  <button
+    onClick={() => router.push("/")}
+    className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-3 sm:py-2 border border-transparent text-base sm:text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+  >
+    Continue Shopping
+  </button>
+
+  {/* Button Group for primary actions */}
+  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+    {/* Track Order Button */}
+    <button
+      onClick={() => router.push(`/track-order?order_id=${searchParams.get("order_id")}`)}
+      className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-3 sm:py-2 border border-transparent text-base sm:text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+    >
+      Track Order
+    </button>
+
+    {/* Download Invoice Button - Secondary action */}
+    {orderData && (
+      <button
+        onClick={generateInvoice}
+        className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-3 sm:py-2 border border-gray-300 text-base sm:text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+      >
+        Download Invoice
+      </button>
+    )}
+  </div>
+</div>
       </div>
     </div>
   );
