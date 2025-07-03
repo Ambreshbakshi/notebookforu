@@ -42,6 +42,8 @@ const SignupPage = () => {
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
+  const [isResendDisabled, setIsResendDisabled] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
 
   useEffect(() => {
     getRedirectResult(auth)
@@ -207,14 +209,37 @@ const SignupPage = () => {
     if (user) {
       await sendEmailVerification(user);
       toast.info("Verification email resent. Please check your inbox.");
+      startResendTimer(60); // 60 seconds timer
     } else {
       toast.error("Unable to resend email. Please login again.");
-      router.push("/admin/login"); // Or wherever your login page is
+      router.push("/admin/login");
     }
   } catch (error) {
     console.error("Resend verification error:", error);
-    toast.error("Failed to resend verification email. Please try again.");
+
+    if (error.code === "auth/too-many-requests") {
+      toast.error("You've requested too many emails. Please try again later.");
+      startResendTimer(300); // 5 min block assumption
+    } else {
+      toast.error("Failed to resend verification email. Please try again.");
+    }
   }
+};
+
+const startResendTimer = (seconds) => {
+  setIsResendDisabled(true);
+  setResendTimer(seconds);
+
+  const interval = setInterval(() => {
+    setResendTimer((prev) => {
+      if (prev <= 1) {
+        clearInterval(interval);
+        setIsResendDisabled(false);
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
 };
 
 
@@ -256,11 +281,16 @@ const SignupPage = () => {
             <div className="bg-blue-50 p-4 rounded-lg mb-6 text-sm text-gray-700">
               Didn't receive the email? Check your spam folder or{" "}
               <button
-                onClick={resendVerificationEmail}
-                className="text-blue-600 hover:text-blue-800 font-medium"
-              >
-                click here to resend
-              </button>
+  onClick={resendVerificationEmail}
+  disabled={isResendDisabled}
+  className={`text-blue-600 hover:text-blue-800 font-medium ${
+    isResendDisabled ? "opacity-50 cursor-not-allowed" : ""
+  }`}
+>
+  {isResendDisabled ? `Resend in ${resendTimer}s` : "click here to resend"}
+</button>
+
+
             </div>
             <button
               onClick={() => router.push("/admin/login")}
