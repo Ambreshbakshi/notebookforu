@@ -1,8 +1,11 @@
 "use client";
-import { FiCalendar, FiTruck, FiCheckCircle, FiClock, FiCreditCard, FiPackage, FiXCircle, FiDollarSign, FiClipboard, FiExternalLink } from "react-icons/fi";
+import { FiCalendar, FiTruck,   FiDownload,FiCheckCircle, FiClock, FiCreditCard, FiPackage, FiXCircle, FiDollarSign, FiClipboard, FiExternalLink } from "react-icons/fi";
 import { format, parseISO } from "date-fns";
 import { useEffect, useState } from "react";
 import { getAuth } from "firebase/auth";
+import generateInvoice from "@/utils/invoiceGenerate";
+
+
 import toast from "react-hot-toast";
 
 // Custom hook to load Razorpay script
@@ -255,38 +258,102 @@ export default function OrderCard({ order }) {
           </div>
         )}
 
-        <div className="flex flex-wrap justify-end gap-2 pt-4 border-t">
-          {showTrack && order.trackingId && (
-            <>
-              <button onClick={() => setShowPopup(true)} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">Track Order</button>
-              {showPopup && (
-                <div className="mt-2 p-3 bg-white border rounded-lg shadow space-y-2">
-                  <p className="text-gray-700 text-sm">Tracking ID: <strong>{order.trackingId}</strong></p>
-                  <div className="flex gap-2">
-                    <button onClick={handleCopy} className="px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200 flex items-center"><FiClipboard size={14} className="mr-1" /> Copy</button>
-                    <button onClick={openIndiaPost} className="px-2 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 flex items-center"><FiExternalLink size={14} className="mr-1" /> India Post</button>
-                    <button onClick={() => setShowPopup(false)} className="ml-auto text-sm text-red-500 hover:underline">Close</button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {showPaymentGateway && (
-            <button onClick={handlePaymentGateway} disabled={!isRazorpayLoaded || isProcessingPayment} className={`px-4 py-1.5 text-sm text-white rounded-lg flex items-center justify-center ${!isRazorpayLoaded || isProcessingPayment ? "bg-gray-400 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600"}`}>
-              {isProcessingPayment ? "Processing..." : "Pay Now"}
+        <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-200">
+  
+  {showTrack && order.trackingId && (
+    <>
+      <button 
+        onClick={() => setShowPopup(true)} 
+        className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-1.5"
+      >
+        <FiTruck size={16} />
+        Track Order
+      </button>
+      
+      {showPopup && (
+        <div className="absolute mt-2 p-4 bg-white border border-gray-200 rounded-lg shadow-lg space-y-3 z-10">
+          <p className="text-gray-700 text-sm font-medium">
+            Tracking ID: <span className="font-semibold text-gray-900">{order.trackingId}</span>
+          </p>
+          <div className="flex gap-2">
+            <button 
+              onClick={handleCopy} 
+              className="px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-1.5"
+            >
+              <FiClipboard size={14} />
+              Copy
             </button>
-          )}
-
-          {canCancel && (
-            <button onClick={handleCancelOrder} disabled={isCancelling} className={`px-4 py-1.5 text-sm text-white rounded-lg ${isCancelling ? "bg-gray-500" : "bg-red-600 hover:bg-red-700"}`}>
-              {isCancelling ? "Cancelling..." : "Cancel Order"}
+            <button 
+              onClick={openIndiaPost} 
+              className="px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-1.5"
+            >
+              <FiExternalLink size={14} />
+              India Post
             </button>
-          )}
-
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-          {showSuccess && <p className="text-green-600 text-sm mt-2">Order cancelled successfully! Refund initiated. Refreshing...</p>}
+            <button 
+              onClick={() => setShowPopup(false)} 
+              className="ml-auto px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
+      )}
+    </>
+  )}
+
+  {showPaymentGateway && (
+    <button
+      onClick={handlePaymentGateway}
+      disabled={!isRazorpayLoaded || isProcessingPayment}
+      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center gap-1.5 ${
+        !isRazorpayLoaded || isProcessingPayment
+          ? "bg-indigo-400 text-white cursor-not-allowed"
+          : "bg-indigo-600 text-white hover:bg-indigo-700"
+      }`}
+    >
+      <FiCreditCard size={16} />
+      {isProcessingPayment ? "Processing..." : "Pay Now"}
+    </button>
+  )}
+
+  {canCancel && (
+    <button
+      onClick={handleCancelOrder}
+      disabled={isCancelling}
+      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center gap-1.5 ${
+        isCancelling
+          ? "bg-gray-400 text-white cursor-not-allowed"
+          : "bg-red-600 text-white hover:bg-red-700"
+      }`}
+    >
+      <FiXCircle size={16} />
+      {isCancelling ? "Cancelling..." : "Cancel Order"}
+    </button>
+  )}
+
+  {order && (
+    <button
+      onClick={() => generateInvoice(order)}
+      className="px-4 py-2 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm flex items-center gap-1.5"
+    >
+      <FiDownload size={16} />
+      Download Invoice
+    </button>
+  )}
+
+  {error && (
+    <div className="w-full mt-3 p-2 text-sm text-red-600 bg-red-50 rounded-md">
+      {error}
+    </div>
+  )}
+  
+  {showSuccess && (
+    <div className="w-full mt-3 p-2 text-sm text-green-700 bg-green-50 rounded-md">
+      Order cancelled successfully! Refund initiated. Refreshing...
+    </div>
+  )}
+</div>
       </div>
     </div>
   );
