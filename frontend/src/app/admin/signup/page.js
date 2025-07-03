@@ -201,16 +201,22 @@ const SignupPage = () => {
   };
 
   const resendVerificationEmail = async () => {
-    try {
-      const user = auth.currentUser;
-      if (user) {
-        await sendEmailVerification(user);
-        toast.info("Verification email resent. Please check your inbox.");
-      }
-    } catch (error) {
-      toast.error("Failed to resend verification email. Please try again.");
+  try {
+    const user = auth.currentUser;
+
+    if (user) {
+      await sendEmailVerification(user);
+      toast.info("Verification email resent. Please check your inbox.");
+    } else {
+      toast.error("Unable to resend email. Please login again.");
+      router.push("/admin/login"); // Or wherever your login page is
     }
-  };
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    toast.error("Failed to resend verification email. Please try again.");
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center p-4">

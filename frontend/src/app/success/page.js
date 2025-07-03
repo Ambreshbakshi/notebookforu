@@ -6,6 +6,8 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { FiCalendar, FiTruck,FiDownload,FiShoppingCart,FiCheckCircle, FiClock, FiCreditCard, FiPackage, FiXCircle, FiDollarSign, FiClipboard, FiExternalLink } from "react-icons/fi";
+
 import Head from 'next/head';
 
 function SuccessContent() {
@@ -298,6 +300,7 @@ docPDF.text(`Payment Status: ${orderData.paymentStatus || 'N/A'}`, 14, 70);
     onClick={() => router.push("/")}
     className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-3 sm:py-2 border border-transparent text-base sm:text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
   >
+    <FiShoppingCart size={16} />
     Continue Shopping
   </button>
 
@@ -308,6 +311,7 @@ docPDF.text(`Payment Status: ${orderData.paymentStatus || 'N/A'}`, 14, 70);
       onClick={() => router.push(`/track-order?order_id=${searchParams.get("order_id")}`)}
       className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-3 sm:py-2 border border-transparent text-base sm:text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
     >
+      <FiTruck size={16} />
       Track Order
     </button>
 
@@ -317,6 +321,7 @@ docPDF.text(`Payment Status: ${orderData.paymentStatus || 'N/A'}`, 14, 70);
         onClick={generateInvoice}
         className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-3 sm:py-2 border border-gray-300 text-base sm:text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
       >
+        <FiDownload size={16} />
         Download Invoice
       </button>
     )}
