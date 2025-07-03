@@ -20,7 +20,7 @@ url: 'https://notebookforu.in',
 siteName: 'NotebookForU',
 images: [
 {
-url: 'https://notebookforu.in/logo.jpg',
+url: 'https://notebookforu.in/logo.png',
 width: 1200,
 height: 630,
 alt: 'NotebookForU Custom Notebooks',
@@ -33,7 +33,7 @@ twitter: {
 card: 'summary_large_image',
 title: 'NotebookForU - Personalized Notebooks',
 description: 'Design your perfect notebook with our customization tools',
-images: ['https://notebookforu.in/logo.jpg'],
+images: ['https://notebookforu.in/logo.png'],
 },
 };
 
