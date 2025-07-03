@@ -40,14 +40,6 @@ images: ['https://notebookforu.in/logo.jpg'],
 export default function RootLayout({ children }) {
 return (
 <html lang="en" className="scroll-smooth">
-<head>
-<meta charSet="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="theme-color" content="#111827" />
-<link rel="icon" href="/favicon.ico" type="image/x-icon" />
-<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="manifest" href="/site.webmanifest" />
-</head>
 <body className="flex flex-col min-h-screen bg-gray-50 text-gray-900">
 <Navbar />
 <main className="flex-grow">
