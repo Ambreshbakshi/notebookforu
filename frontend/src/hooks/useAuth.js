@@ -31,7 +31,7 @@ export default function useAuth(required = false) {
         setUser(null);
         // If auth is required and no user, redirect to login
         if (required && typeof window !== 'undefined') {
-          const protectedRoutes = ['/dashboard', '/profile', '/orders'];
+          const protectedRoutes = ['/admin/dashboard/profile', '/profile', '/orders'];
           if (protectedRoutes.some(route => pathname.startsWith(route))) {
             localStorage.setItem('prevPath', pathname);
             router.push('/login');
@@ -47,17 +47,17 @@ export default function useAuth(required = false) {
   const handlePostLoginRedirect = () => {
     try {
       const prevPath = localStorage.getItem('prevPath');
-      const allowedPaths = ['/dashboard', '/profile', '/orders'];
+      const allowedPaths = ['/admin/dashboard/profile', '/profile', '/orders'];
       const isValidPath = prevPath && allowedPaths.some(path => prevPath.startsWith(path));
       
-      const redirectUrl = isValidPath ? prevPath : '/dashboard';
+      const redirectUrl = isValidPath ? prevPath : '/admin/dashboard/profile';
       
       localStorage.removeItem('prevPath');
       // Use window.location for full page reload to ensure auth state is updated
       window.location.href = redirectUrl;
     } catch (error) {
       console.error('Redirect error:', error);
-      router.push('/dashboard');
+      router.push('/admin/dashboard/profile');
     }
   };
 
