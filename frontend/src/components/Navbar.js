@@ -238,7 +238,7 @@ useEffect(() => {
                 <FiFileText className="mr-2" /> Blog
               </NavLink>
               <NavLink href="/contact-us" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
-                <FiMail className="mr-2" /> Contact
+                <FiMail className="mr-2" /> Contact Us
               </NavLink>
               <NavLink href="/faq" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
                 <FiHelpCircle className="mr-2" /> FAQ

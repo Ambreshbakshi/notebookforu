@@ -132,7 +132,7 @@ const MobileMenuDrawer = ({ menuOpen, setMenuOpen, pathname }) => (
                 Blog
               </MobileNavLinkDrawer>
               <MobileNavLinkDrawer href="/contact-us" pathname={pathname}>
-                Contact
+                Contact Us
               </MobileNavLinkDrawer>
               <MobileNavLinkDrawer href="/faq" pathname={pathname}>
                 FAQ
