@@ -14,7 +14,7 @@ import {
   connectFirestoreEmulator
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-
+ 
 // Firebase config from environment variables
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,

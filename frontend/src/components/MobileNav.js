@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   FiMenu, FiX, FiShoppingCart, FiUser, FiHeart, FiHome, FiGrid,
-  FiInfo, FiTruck, FiChevronDown, FiChevronUp
+  FiInfo, FiTruck, FiChevronDown, FiChevronUp,FiShoppingBag
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import useAuth from '@/hooks/useAuth';
@@ -169,6 +169,7 @@ const MobileTopNav = ({ setMenuOpen, setLoginOpen }) => {
   return (
     <div className={`md:hidden fixed top-0 left-0 right-0 bg-white border-b shadow z-40 h-14 flex items-center justify-between px-4 transition-transform duration-300 ${showNav ? "translate-y-0" : "-translate-y-full"}`}>
       <button onClick={() => setMenuOpen(true)} className="p-2"><FiMenu className="text-2xl" /></button>
+      
       <Link href="/" className="flex justify-center items-center"><Image src="/logo.png" alt="Logo" width={100} height={24} /></Link>
       <button onClick={() => setLoginOpen(true)} className="p-2"><FiUser className="text-2xl" /></button>
     </div>
@@ -187,14 +188,27 @@ const MobileBottomNav = ({ pathname, cartItemsCount, setMenuOpen, setLoginOpen }
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow z-40">
       <div className="flex justify-around items-center h-16">
-        <MobileNavLinkBottom href="/" pathname={pathname} icon={<FiHome />}>Home</MobileNavLinkBottom>
-        <MobileNavLinkBottom href="/notebook-gallery" pathname={pathname} icon={<FiGrid />}>Our Products</MobileNavLinkBottom>
-        <MobileNavLinkBottom href="/admin/wishlist" pathname={pathname} icon={<FiHeart />}>Wishlist</MobileNavLinkBottom>
         
+        <MobileNavLinkBottom href="/" pathname={pathname} icon={<FiHome />}>
+          Home
+        </MobileNavLinkBottom>
+
+        <MobileNavLinkBottom href="/notebook-gallery" pathname={pathname} icon={<FiGrid />}>
+          Our Products
+        </MobileNavLinkBottom>
+
+        <MobileNavLinkBottom href="/admin/wishlist" pathname={pathname} icon={<FiHeart />}>
+          Wishlist
+        </MobileNavLinkBottom>
+
         <div className="relative flex flex-col items-center">
-          <MobileNavLinkBottom href="/cart" pathname={pathname} icon={<FiShoppingCart />}>Cart</MobileNavLinkBottom>
+          <MobileNavLinkBottom href="/cart" pathname={pathname} icon={<FiShoppingCart />}>
+            Cart
+          </MobileNavLinkBottom>
           {cartItemsCount > 0 && (
-            <span className="absolute -top-1 right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{cartItemsCount}</span>
+            <span className="absolute -top-1 right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+              {cartItemsCount}
+            </span>
           )}
         </div>
 
@@ -202,10 +216,12 @@ const MobileBottomNav = ({ pathname, cartItemsCount, setMenuOpen, setLoginOpen }
           <FiUser className="text-xl" />
           <span className="text-xs mt-1">My Account</span>
         </button>
+        
       </div>
     </div>
   );
 };
+
 
 export {
   MobileMenuDrawer,

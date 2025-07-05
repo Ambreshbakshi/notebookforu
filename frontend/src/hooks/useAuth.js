@@ -24,7 +24,7 @@ export default function useAuth(required = false) {
         });
         
         // If coming from login, handle redirect
-        if (pathname === '/login') {
+        if (pathname === '/admin/login') {
           handlePostLoginRedirect();
         }
       } else {

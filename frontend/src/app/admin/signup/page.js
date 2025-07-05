@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FcGoogle } from "react-icons/fc";
 import {
   FiUser,
   FiMail,
@@ -505,6 +506,38 @@ const startResendTimer = (seconds) => {
                 )}
               </button>
             </form>
+             {/* Google Signup Button */}
+              <div className="my-4 flex items-center">
+                <div className="flex-grow h-px bg-gray-300"></div>
+                <span className="mx-2 text-gray-500 text-sm">OR</span>
+                <div className="flex-grow h-px bg-gray-300"></div>
+              </div>
+
+
+<button
+  onClick={handleGoogleSignup}
+  disabled={isGoogleLoading}
+  className={`w-full flex justify-center items-center py-2 px-4 mb-5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium ${
+    isGoogleLoading ? "bg-gray-100 cursor-not-allowed" : "bg-white hover:bg-gray-50"
+  }`}
+>
+  {isGoogleLoading ? (
+    <svg
+      className="animate-spin h-5 w-5 text-gray-600 mr-2"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    </svg>
+  ) : (
+    <>
+      <FcGoogle className="text-xl mr-2" />
+      <span className="text-gray-700 font-medium">Sign up with Google</span>
+    </>
+  )}
+</button>
           </div>
         )}
       </div>
