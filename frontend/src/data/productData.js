@@ -4,7 +4,7 @@ const productData = {
   12: {
     id: 12,
     name: "Notebook | Rustic Earth",
-    price: 85,
+    price: 1,
     weight: 0.5,
     gridImage: "/products/notebook/notebook12/notebook12-cover.png",
     detailImage1: "/products/notebook/notebook12/notebook12-detail1.jpeg",
