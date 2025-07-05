@@ -49,11 +49,7 @@ const ContactUs = () => {
   };
 
   const socialLinks = [
-    {
-      icon: <Facebook className="w-6 h-6" />,
-      href: "https://facebook.com/notebookforu",
-      label: "Facebook"
-    },
+   
     {
       icon: <Instagram className="w-6 h-6" />,
       href: "https://instagram.com/notebookforu",
@@ -61,12 +57,12 @@ const ContactUs = () => {
     },
     {
       icon: <FontAwesomeIcon icon={faWhatsapp} className="w-6 h-6" />,
-      href: `https://wa.me/${process.env.NEXT_PUBLIC_CONTACT_PHONE}`,
+      href: `https://wa.me/${process.env.NEXT_PUBLIC_CONTACT_PHONE || '+918303137090'}`,
       label: "WhatsApp"
     },
     {
       icon: <Mail className="w-6 h-6" />,
-      href: "mailto:contact@notebookforu.com",
+      href: "mailto:contact@notebookforu.in",
       label: "Email"
     }
   ];
@@ -190,10 +186,10 @@ const ContactUs = () => {
                   <div>
                     <h3 className="font-medium">Email</h3>
                     <a 
-                      href="mailto:contact@notebookforu.com" 
+                      href="mailto:contact@notebookforu.in" 
                       className="text-blue-600 hover:underline"
                     >
-                      contact@notebookforu.com
+                      contact@notebookforu.in
                     </a>
                   </div>
                 </div>
@@ -203,10 +199,10 @@ const ContactUs = () => {
                   <div>
                     <h3 className="font-medium">Phone</h3>
                     <a 
-                      href={`tel:${process.env.NEXT_PUBLIC_CONTACT_PHONE}`}
+                      href={`tel:${process.env.NEXT_PUBLIC_CONTACT_PHONE || '+91 8303137090'}`}
                       className="text-blue-600 hover:underline"
                     >
-                      {process.env.NEXT_PUBLIC_CONTACT_PHONE}
+                      {process.env.NEXT_PUBLIC_CONTACT_PHONE || '+91 8303137090'}
                     </a>
                   </div>
                 </div>

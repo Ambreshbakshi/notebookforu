@@ -252,10 +252,10 @@ const Footer = () => {
               <p>
                 Email:{' '}
                 <a 
-                  href="mailto:contact@notebookforu.com" 
+                  href="mailto:contact@notebookforu.in" 
                   className="hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
                 >
-                  contact@notebookforu.com
+                  contact@notebookforu.in
                 </a>
               </p>
               <p>
@@ -293,7 +293,7 @@ const Footer = () => {
               >
                 <FaInstagram className="text-2xl" aria-hidden="true" />
               </a>
-              <a 
+              {/* <a 
                 href="https://facebook.com/notebookforu" 
                 target="_blank" 
                 rel="noopener noreferrer nofollow"
@@ -301,7 +301,7 @@ const Footer = () => {
                 className="text-gray-400 hover:text-blue-500 transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-full p-1"
               >
                 <FaFacebook className="text-2xl" aria-hidden="true" />
-              </a>
+              </a> */}
               <a 
                 href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '+917991252505'}`} 
                 target="_blank" 
@@ -321,7 +321,7 @@ const Footer = () => {
                 <FaWhatsapp className="text-2xl" aria-hidden="true" />
               </a>
               <a 
-                href="mailto:contact@notebookforu.com"
+                href="mailto:contact@notebookforu.in"
                 aria-label="Send email"
                 className="text-gray-400 hover:text-red-500 transition focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-full p-1"
               >
