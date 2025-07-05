@@ -148,8 +148,9 @@ connectDB();
 // ======================
 
 const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE || 'gmail',
-  pool: true,
+  host: "smtp.zoho.in",
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
@@ -160,6 +161,7 @@ const transporter = nodemailer.createTransport({
   connectionTimeout: 10000,
   socketTimeout: 20000
 });
+
 
 // Verify email connection
 transporter.verify((error) => {
