@@ -160,7 +160,7 @@ export default function useAuth(required = false) {
           email: user.email,
           name: user.displayName || user.email?.split('@')[0],
           photoURL: user.photoURL,
-          joinedDate: new Date(user.metadata.creationTime).toISOString(),
+          createdAt: new Date(user.metadata.creationTime).toISOString(),
           lastLogin: new Date().toISOString(),
           emailVerified: user.emailVerified
         };
