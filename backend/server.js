@@ -292,7 +292,7 @@ const subscriberSchema = new mongoose.Schema({
 
 // Optimized indexes
 subscriberSchema.index({ unsubscribed: 1, email: 1 }); // For querying active subscribers
-subscriberSchema.index({ email: 1 }); // Already created by unique, but explicit
+
 
 
 const User = mongoose.model('User', userSchema);
