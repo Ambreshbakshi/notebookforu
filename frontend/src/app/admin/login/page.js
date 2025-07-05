@@ -25,22 +25,21 @@ const LoginPage = () => {
     setError("");
   };
 
-  const handleRedirect = () => {
-    try {
-      const prevPath = typeof window !== "undefined" ? localStorage.getItem("prevPath") : null;
-      const allowedPaths = ["/admin/dashboard/profile", "/profile", "/account"];
-      const isValidPath = prevPath && allowedPaths.some((path) => prevPath.startsWith(path));
-      const redirectUrl = isValidPath ? prevPath : "/admin/dashboard/profile";
-
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("prevPath");
-      }
-      router.push(redirectUrl);
-    } catch (error) {
-      console.error("Redirect error:", error);
-      router.push("/admin/dashboard/profile");
+const handleRedirect = () => {
+  try {
+    const prevPath = typeof window !== "undefined" ? localStorage.getItem("prevPath") : null;
+    const redirectUrl = prevPath || "/admin/dashboard/profile";
+    
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("prevPath");
     }
-  };
+    router.push(redirectUrl);
+  } catch (error) {
+    console.error("Redirect error:", error);
+    router.push("/admin/dashboard/profile");
+  }
+};
+
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();

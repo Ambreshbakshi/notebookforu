@@ -2,23 +2,25 @@
 import OrderList from '@/components/admin/OrderList';
 import { FiShoppingBag } from 'react-icons/fi';
 import useAuth from '@/hooks/useAuth';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function OrdersPage() {
   const { user, loading } = useAuth(true); // true = requires authentication
+  const router = useRouter();
 
-  if (loading) {
-    return <LoadingSpinner fullPage />;
-  }
-
-  if (!user) {
-    // Store current path before redirecting
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('prevPath', window.location.pathname);
+  useEffect(() => {
+    if (!loading && !user) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('prevPath', window.location.pathname);
+      }
+      router.push('/admin/login');
     }
-    redirect('/admin/login');
-    return null;
+  }, [loading, user, router]);
+
+  if (loading || !user) {
+    return <LoadingSpinner fullPage />;
   }
 
   return (

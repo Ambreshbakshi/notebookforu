@@ -1,12 +1,14 @@
 'use client';
 import { FiSettings, FiLock, FiCreditCard, FiBell, FiTrash2 } from 'react-icons/fi';
 import useAuth from '@/hooks/useAuth';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { toast } from 'react-toastify';
 
 export default function SettingsPage() {
   const { user, loading, handleLogout } = useAuth(true);
+  const router = useRouter();
 
   if (loading) {
     return <LoadingSpinner fullPage />;
@@ -16,7 +18,7 @@ export default function SettingsPage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('prevPath', window.location.pathname);
     }
-    redirect('/admin/login');
+    router.push('/admin/login');
     return null;
   }
 
@@ -42,13 +44,13 @@ export default function SettingsPage() {
   ];
 
   const handleDeleteAccount = async () => {
-    // Implement account deletion logic
     if (confirm('Are you sure you want to delete your account? This cannot be undone.')) {
       try {
-        // await deleteAccount(user.uid);
+        // await deleteAccount(user.uid); // Tumhara actual delete logic yaha lagega
         await handleLogout();
         toast.success('Account deleted successfully');
       } catch (error) {
+        console.error(error);
         toast.error('Failed to delete account');
       }
     }

@@ -31,10 +31,10 @@ export default function useAuth(required = false) {
         setUser(null);
         // If auth is required and no user, redirect to login
         if (required && typeof window !== 'undefined') {
-          const protectedRoutes = ['/admin/dashboard/profile', '/profile', '/orders'];
+          const protectedRoutes = ['/admin/dashboard/profile', '/cart', '/admin/dashboard/orders'];
           if (protectedRoutes.some(route => pathname.startsWith(route))) {
             localStorage.setItem('prevPath', pathname);
-            router.push('/login');
+            router.push('/admin/login');
           }
         }
       }
@@ -47,7 +47,7 @@ export default function useAuth(required = false) {
   const handlePostLoginRedirect = () => {
     try {
       const prevPath = localStorage.getItem('prevPath');
-      const allowedPaths = ['/admin/dashboard/profile', '/profile', '/orders'];
+      const allowedPaths = ['/admin/dashboard/profile', '/cart', '/admin/dashboard/orders'];
       const isValidPath = prevPath && allowedPaths.some(path => prevPath.startsWith(path));
       
       const redirectUrl = isValidPath ? prevPath : '/admin/dashboard/profile';
