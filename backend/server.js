@@ -49,7 +49,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:3001',
-  'https://notebookforu.railway.internal',
+  'https://notebookforu-production-4e70.up.railway.app',
   /\.vercel\.app$/
 ];
 
