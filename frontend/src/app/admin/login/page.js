@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signInWithRedirect } from "firebase/auth";
@@ -11,6 +10,24 @@ import { toast, ToastContainer } from 'react-toastify';
 import { createUserIfNotExists } from "@/lib/utils/createUserIfNotExists";
 import 'react-toastify/dist/ReactToastify.css';
 
+const AUTH_CONFIG = {
+  allowedRedirects: [
+    '/admin/dashboard/profile',
+    '/cart',
+    '/admin/dashboard/orders',
+    '/checkout',
+    '/'
+  ],
+  defaultRoute: '/admin/dashboard/profile',
+  loginPath: '/admin/login',
+  signupPath: '/admin/signup',
+  forgotPasswordPath: '/admin/login/forget-password',
+  storageKeys: {
+    user: 'firebase:auth:user',
+    prevPath: 'firebase:auth:prevPath'
+  }
+};
+
 const LoginPage = () => {
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
@@ -20,26 +37,120 @@ const LoginPage = () => {
   const router = useRouter();
   const provider = new GoogleAuthProvider();
 
+  // Enhanced storage with namespace and verification
+  const storage = {
+    get: (key) => {
+      try {
+        if (typeof window !== 'undefined') {
+          const item = localStorage.getItem(`${AUTH_CONFIG.storageKeys[key]}`);
+          return item ? JSON.parse(item) : null;
+        }
+      } catch (error) {
+        console.error('Storage get error:', error);
+      }
+      return null;
+    },
+    set: (key, value) => {
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`${AUTH_CONFIG.storageKeys[key]}`, JSON.stringify(value));
+          // Verify the write was successful
+          const storedValue = storage.get(key);
+          if (JSON.stringify(storedValue) !== JSON.stringify(value)) {
+            console.error('Storage verification failed for:', key);
+          }
+        }
+      } catch (error) {
+        console.error('Storage set error:', error);
+      }
+    },
+    remove: (key) => {
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(`${AUTH_CONFIG.storageKeys[key]}`);
+        }
+      } catch (error) {
+        console.error('Storage remove error:', error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Debug mounted state
+    console.log('Login page mounted, checking storage:', {
+      prevPath: storage.get('prevPath'),
+      user: storage.get('user')
+    });
+
+    return () => {
+      console.log('Login page unmounting');
+    };
+  }, []);
+
   const handleChange = (e) => {
-    setCredentials({ ...credentials, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setCredentials(prev => ({ ...prev, [name]: value }));
     setError("");
   };
 
-const handleRedirect = () => {
-  try {
-    const prevPath = typeof window !== "undefined" ? localStorage.getItem("prevPath") : null;
-    const redirectUrl = prevPath || "/admin/dashboard/profile";
-    
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("prevPath");
-    }
-    router.push(redirectUrl);
-  } catch (error) {
-    console.error("Redirect error:", error);
-    router.push("/admin/dashboard/profile");
-  }
-};
+  const handleRedirect = () => {
+    console.group('Redirect Process');
+    try {
+      setTimeout(() => {
+        const prevPath = storage.get('prevPath');
+        console.log('Retrieved prevPath:', prevPath);
 
+        if (!prevPath) {
+          console.warn('No previous path found in storage');
+          console.log('Current localStorage state:', { 
+            ...localStorage,
+            prevPath: undefined // Hide actual value for security
+          });
+          console.groupEnd();
+          window.location.href = AUTH_CONFIG.defaultRoute;
+          return;
+        }
+
+        // Validate path structure
+        if (typeof prevPath !== 'string' || !prevPath.startsWith('/')) {
+          console.error('Invalid path format:', prevPath);
+          console.groupEnd();
+          window.location.href = AUTH_CONFIG.defaultRoute;
+          return;
+        }
+
+        const isValidPath = AUTH_CONFIG.allowedRedirects.some(allowedPath => {
+          const isAllowed = prevPath === allowedPath || 
+                          (prevPath.startsWith(allowedPath) && 
+                          (prevPath === allowedPath || prevPath.charAt(allowedPath.length) === '/'));
+          console.log(`Checking ${prevPath} against ${allowedPath}:`, isAllowed);
+          return isAllowed;
+        });
+
+        const redirectUrl = isValidPath ? prevPath : AUTH_CONFIG.defaultRoute;
+        console.log('Final redirect destination:', redirectUrl);
+        
+        storage.remove('prevPath');
+        console.groupEnd();
+
+        if (window.location.pathname !== redirectUrl) {
+          window.location.href = redirectUrl;
+        } else {
+          console.log('Already on target page, skipping redirect');
+        }
+      }, 100); // Increased delay for more reliable state
+    } catch (error) {
+      console.error('Redirect processing failed:', error);
+      console.groupEnd();
+      storage.remove('prevPath');
+      window.location.href = AUTH_CONFIG.defaultRoute;
+    }
+  };
+
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -50,7 +161,7 @@ const handleRedirect = () => {
       return;
     }
 
-    if (!/^\S+@\S+\.\S+$/.test(credentials.email)) {
+    if (!validateEmail(credentials.email)) {
       setError("Please enter a valid email address");
       return;
     }
@@ -58,53 +169,40 @@ const handleRedirect = () => {
     setLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth, 
+        credentials.email, 
+        credentials.password
+      );
 
-if (!userCredential.user.emailVerified) {
-  toast.warn("Please verify your email address. Check your inbox.", {
-    icon: <FiAlertCircle className="text-yellow-500" />,
-    autoClose: 5000,
-  });
-  await auth.signOut();  // Important: logout immediately
-  setLoading(false);
-  return;
-}
-
-// Only if verified, proceed
-toast.success("Logged in successfully!", {
-  icon: <FiCheckCircle className="text-green-500" />,
-});
-
-localStorage.setItem(
-  "user",
-  JSON.stringify({
-    uid: userCredential.user.uid,
-    email: userCredential.user.email,
-    displayName: userCredential.user.displayName || credentials.email.split("@")[0],
-  })
-);
-
-handleRedirect();
-
-    } catch (err) {
-      console.error("Login error:", err);
-      let errorMessage = "Login failed. Please try again.";
-
-      switch (err.code) {
-        case "auth/user-not-found":
-          errorMessage = "No account found with this email.";
-          break;
-        case "auth/wrong-password":
-          errorMessage = "Incorrect password. Please try again.";
-          break;
-        case "auth/too-many-requests":
-          errorMessage = "Too many attempts. Account temporarily locked.";
-          break;
-        case "auth/user-disabled":
-          errorMessage = "This account has been disabled.";
-          break;
+      if (!userCredential.user.emailVerified) {
+        toast.warn("Please verify your email address. Check your inbox.", {
+          icon: <FiAlertCircle className="text-yellow-500" />,
+          autoClose: 5000,
+        });
+        await auth.signOut();
+        setLoading(false);
+        return;
       }
 
+      toast.success("Logged in successfully!", {
+        icon: <FiCheckCircle className="text-green-500" />,
+      });
+
+      const userData = {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: userCredential.user.displayName || credentials.email.split("@")[0],
+        photoURL: userCredential.user.photoURL,
+        emailVerified: userCredential.user.emailVerified,
+        lastLogin: new Date().toISOString()
+      };
+
+      storage.set('user', userData);
+      handleRedirect();
+    } catch (err) {
+      console.error("Login error:", err);
+      const errorMessage = getAuthErrorMessage(err.code);
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -112,19 +210,18 @@ handleRedirect();
     }
   };
 
-  const getFriendlyError = (error) => {
-    switch (error.code) {
-      case "auth/email-already-in-use":
-        return "This email is already registered. Try logging in.";
-      case "auth/weak-password":
-        return "Please choose a stronger password (min 8 characters)";
-      case "auth/network-request-failed":
-        return "Network error. Please check your connection";
-      case "auth/invalid-email":
-        return "Please enter a valid email address";
-      default:
-        return error.message || "An error occurred. Please try again.";
-    }
+  const getAuthErrorMessage = (errorCode) => {
+    const errorMap = {
+      "auth/user-not-found": "No account found with this email.",
+      "auth/wrong-password": "Incorrect password. Please try again.",
+      "auth/too-many-requests": "Too many attempts. Account temporarily locked.",
+      "auth/user-disabled": "This account has been disabled.",
+      "auth/invalid-email": "Please enter a valid email address",
+      "auth/network-request-failed": "Network error. Please check your connection",
+      "auth/popup-closed-by-user": "Google sign-in was cancelled",
+      default: "Login failed. Please try again."
+    };
+    return errorMap[errorCode] || errorMap.default;
   };
 
   const handleGoogleLogin = async () => {
@@ -134,14 +231,30 @@ handleRedirect();
     try {
       const result = await signInWithPopup(auth, provider);
       await createUserIfNotExists(result.user);
+      
+      const userData = {
+        uid: result.user.uid,
+        email: result.user.email,
+        displayName: result.user.displayName || result.user.email.split("@")[0],
+        photoURL: result.user.photoURL,
+        emailVerified: result.user.emailVerified,
+        lastLogin: new Date().toISOString()
+      };
+
+      storage.set('user', userData);
       toast.success("Google login successful!");
       handleRedirect();
     } catch (error) {
       if (error.code === "auth/popup-blocked") {
-        await signInWithRedirect(auth, provider);
+        try {
+          await signInWithRedirect(auth, provider);
+        } catch (redirectError) {
+          console.error("Redirect login error:", redirectError);
+          toast.error(getAuthErrorMessage(redirectError.code));
+        }
       } else {
         console.error("Google login error:", error);
-        toast.error(getFriendlyError(error));
+        toast.error(getAuthErrorMessage(error.code));
       }
     } finally {
       setGoogleLoading(false);
@@ -184,7 +297,11 @@ handleRedirect();
               googleLoading ? "bg-gray-100 cursor-not-allowed" : "bg-white hover:bg-gray-50"
             }`}
           >
-            {googleLoading ? <FiLoader className="animate-spin mr-2" /> : <FcGoogle className="text-lg mr-2" />}
+            {googleLoading ? (
+              <FiLoader className="animate-spin mr-2" />
+            ) : (
+              <FcGoogle className="text-lg mr-2" />
+            )}
             Sign in with Google
           </button>
 
@@ -215,6 +332,7 @@ handleRedirect();
                   onChange={handleChange}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   required
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -236,11 +354,13 @@ handleRedirect();
                   onChange={handleChange}
                   className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   required
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
                     <FiEyeOff className="text-gray-400 hover:text-gray-500" />
@@ -250,7 +370,7 @@ handleRedirect();
                 </button>
               </div>
               <div className="flex justify-end mt-1">
-                <Link href="/admin/login/forget-password" className="text-sm text-blue-600 hover:text-blue-800">
+                <Link href={AUTH_CONFIG.forgotPasswordPath} className="text-sm text-blue-600 hover:text-blue-800">
                   Forgot password?
                 </Link>
               </div>
@@ -276,7 +396,7 @@ handleRedirect();
 
           <div className="mt-6 text-center text-sm text-gray-600">
             Don't have an account?{" "}
-            <Link href="/admin/signup" className="font-medium text-blue-600 hover:text-blue-800">
+            <Link href={AUTH_CONFIG.signupPath} className="font-medium text-blue-600 hover:text-blue-800">
               Sign up
             </Link>
           </div>
