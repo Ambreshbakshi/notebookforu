@@ -60,28 +60,20 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Mobile Bottom Navbar - Amazon Style */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow z-50 flex justify-around items-center h-16 md:hidden">
+      {/* Floating Admin Navbar above main bottom navbar */}
+      <div className="fixed bottom-20 left-4 right-4 backdrop-blur-md bg-white/80 border border-gray-200 shadow-lg z-50 flex justify-around items-center h-14 md:hidden rounded-2xl px-2">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className={`flex flex-col items-center justify-center text-xs ${
-              pathname === item.href ? 'text-blue-600' : 'text-gray-500 hover:text-blue-500'
+              pathname === item.href ? 'text-blue-600' : 'text-gray-600 hover:text-blue-500'
             }`}
           >
-            <item.icon size={22} />
-            <span className="mt-1">{item.label}</span>
+            <item.icon size={20} />
+            <span className="mt-0.5">{item.label}</span>
           </Link>
         ))}
-
-        <button
-          onClick={handleLogout}
-          className="flex flex-col items-center justify-center text-xs text-gray-500 hover:text-red-600"
-        >
-          <FiLogOut size={22} />
-          <span className="mt-1">Logout</span>
-        </button>
       </div>
     </>
   );
