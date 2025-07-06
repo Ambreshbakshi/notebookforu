@@ -32,19 +32,9 @@ const ProductSection = () => {
     };
   }, []);
 
-  const notebooks = Object.values(productData.notebooks).map((item) => ({
-    ...item,
-    type: "notebook",
-  }));
-  const diaries = Object.values(productData.diaries).map((item) => ({
-    ...item,
-    type: "diary",
-  }));
-  const combinations = Object.values(productData.combinations || {}).map((item) => ({
-    ...item,
-    type: "combination",
-  }));
-
+  const notebooks = Object.values(productData.notebooks).map((item) => ({ ...item, type: "notebook" }));
+  const diaries = Object.values(productData.diaries).map((item) => ({ ...item, type: "diary" }));
+  const combinations = Object.values(productData.combinations || {}).map((item) => ({ ...item, type: "combination" }));
   const products = [...notebooks, ...diaries, ...combinations].sort((a, b) => {
     if (a.type === "combination") return -1;
     if (b.type === "combination") return 1;
@@ -60,32 +50,22 @@ const ProductSection = () => {
     setIsAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
 
     const cardWidth = isMobile ? window.innerWidth * 0.7 : 260;
-
     const centerPos = scrollLeft + clientWidth / 2;
-    const newCenterIndex = Math.min(
-      Math.max(0, Math.round(centerPos / (cardWidth + 16)) - 1),
-      products.length - 1
-    );
+    const newCenterIndex = Math.min(Math.max(0, Math.round(centerPos / (cardWidth + 16)) - 1), products.length - 1);
     setCenterIndex(newCenterIndex);
   }, [isMobile, products.length]);
 
   const handleScrollLeft = useCallback(() => {
     if (containerRef.current) {
       const cardWidth = isMobile ? window.innerWidth * 0.8 : 320;
-      containerRef.current.scrollBy({
-        left: -cardWidth - 16,
-        behavior: "smooth",
-      });
+      containerRef.current.scrollBy({ left: -cardWidth - 16, behavior: "smooth" });
     }
   }, [isMobile]);
 
   const handleScrollRight = useCallback(() => {
     if (containerRef.current) {
       const cardWidth = isMobile ? window.innerWidth * 0.8 : 320;
-      containerRef.current.scrollBy({
-        left: cardWidth + 16,
-        behavior: "smooth",
-      });
+      containerRef.current.scrollBy({ left: cardWidth + 16, behavior: "smooth" });
     }
   }, [isMobile]);
 
@@ -93,12 +73,6 @@ const ProductSection = () => {
     setIsDragging(true);
     setStartX(e.pageX - containerRef.current.offsetLeft);
     setScrollLeft(containerRef.current.scrollLeft);
-  };
-
-  const handleMouseLeave = () => setIsDragging(false);
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    checkScrollPosition();
   };
 
   const handleMouseMove = (e) => {
@@ -109,30 +83,47 @@ const ProductSection = () => {
     containerRef.current.scrollLeft = scrollLeft - walk;
   };
 
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    checkScrollPosition();
+  };
+
+  const handleMouseLeave = () => {
+    if (isDragging) handleMouseUp();
+  };
+
   const handleTouchStart = (e) => {
+    setIsDragging(true);
     setStartX(e.touches[0].clientX);
     setScrollLeft(containerRef.current.scrollLeft);
   };
 
   const handleTouchMove = (e) => {
+    if (!isDragging) return;
     const x = e.touches[0].clientX;
-    const diff = startX - x;
-    containerRef.current.scrollLeft = scrollLeft + diff;
+    const walk = startX - x;
+    containerRef.current.scrollLeft = scrollLeft + walk;
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    checkScrollPosition();
   };
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
     container.addEventListener("scroll", checkScrollPosition);
-    container.addEventListener("touchstart", handleTouchStart, { passive: false });
-    container.addEventListener("touchmove", handleTouchMove, { passive: false });
-    container.addEventListener("touchend", checkScrollPosition);
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd);
 
     return () => {
       container.removeEventListener("scroll", checkScrollPosition);
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
-      container.removeEventListener("touchend", checkScrollPosition);
+      container.removeEventListener("touchend", handleTouchEnd);
     };
   }, [checkScrollPosition]);
 
@@ -165,82 +156,68 @@ const ProductSection = () => {
               cursor: isDragging ? "grabbing" : "grab",
             }}
             onMouseDown={handleMouseDown}
-            onMouseLeave={handleMouseLeave}
-            onMouseUp={handleMouseUp}
             onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
           >
-     {products.map((product, index) => {
-  const isCenter = index === centerIndex;
-  return (
-    <div
-      key={`${product.type}-${product.id}`}
-      className={`flex-shrink-0 transition-all duration-300 ${
-        isMobile ? "w-[70vw] snap-center" : "w-[260px]"
-      }`}
-      style={{
-        transform: isCenter ? "scale(1.05)" : "scale(0.95)",
-        opacity: isCenter ? 1 : 0.85,
-      }}
-    >
-      <Link
-        href={`/${product.type}/${product.id}`}
-        className="block h-full"
-        aria-label={`View ${product.name} details`}
-      >
-        <div className="border rounded-xl shadow-sm overflow-hidden bg-white h-full flex flex-col hover:shadow-md transition-shadow">
-          
-          {/* IMAGE HEIGHT aur bhi kam */}
-          <div className="relative" style={{ paddingBottom: "100%" }}>
-            <Image
-              src={product.gridImage}
-              alt={product.name}
-              fill
-              sizes="(max-width: 768px) 70vw, 260px"
-              className="object-contain"
-              priority={index < 3}
-            />
-            {product.type === "combination" && (
-              <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-2 py-0.5 rounded-md text-xs font-bold shadow-sm">
-                COMBO OFFER
-              </div>
-            )}
+            {products.map((product, index) => {
+              const isCenter = index === centerIndex;
+              return (
+                <div
+                  key={`${product.type}-${product.id}`}
+                  className={`flex-shrink-0 transition-all duration-300 ${
+                    isMobile ? "w-[70vw] snap-center" : "w-[260px]"
+                  }`}
+                  style={{
+                    transform: isCenter ? "scale(1.05)" : "scale(0.95)",
+                    opacity: isCenter ? 1 : 0.85,
+                  }}
+                >
+                  <Link href={`/${product.type}/${product.id}`} className="block h-full">
+                    <div className="border rounded-xl shadow-sm overflow-hidden bg-white h-full flex flex-col hover:shadow-md transition-shadow">
+                      <div className="relative" style={{ paddingBottom: "100%" }}>
+                        <Image
+                          src={product.gridImage}
+                          alt={product.name}
+                          fill
+                          sizes="(max-width: 768px) 70vw, 260px"
+                          className="object-contain"
+                          priority={index < 3}
+                        />
+                        {product.type === "combination" && (
+                          <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-2 py-0.5 rounded-md text-xs font-bold shadow-sm">
+                            COMBO OFFER
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-2 text-center flex-grow flex flex-col justify-center">
+                        <h3 className="text-sm font-semibold line-clamp-1">
+                          {product.type === "combination" ? (
+                            <span className="text-blue-600">{product.name}</span>
+                          ) : (
+                            product.name
+                          )}
+                        </h3>
+                        <p
+                          className={`mt-1 ${
+                            product.type === "combination"
+                              ? "text-green-600 font-bold text-base"
+                              : "text-gray-700 font-medium text-sm"
+                          }`}
+                        >
+                          {product.type === "combination" ? product.price : `Rs. ${product.price}`}
+                        </p>
+                        {product.type === "combination" && (
+                          <p className="text-xs text-gray-500 mt-0.5">Save up to 15%</p>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              );
+            })}
           </div>
 
-          {/* TEXT AREA compact */}
-          <div className="p-2 text-center flex-grow flex flex-col justify-center">
-            <h3 className="text-sm font-semibold line-clamp-1">
-              {product.type === "combination" ? (
-                <span className="text-blue-600">{product.name}</span>
-              ) : (
-                product.name
-              )}
-            </h3>
-            <p
-              className={`mt-1 ${
-                product.type === "combination"
-                  ? "text-green-600 font-bold text-base"
-                  : "text-gray-700 font-medium text-sm"
-              }`}
-            >
-              {product.type === "combination"
-                ? product.price
-                : `Rs. ${product.price}`}
-            </p>
-            {product.type === "combination" && (
-              <p className="text-xs text-gray-500 mt-0.5">Save up to 15%</p>
-            )}
-          </div>
-        </div>
-      </Link>
-    </div>
-  );
-})}
-
-
-
-          </div>
-
-          {/* Arrow Buttons + Explore Button below slider */}
           <div className="flex justify-center items-center gap-4 mt-8 flex-wrap">
             <button
               className="bg-white text-gray-800 p-3 rounded-full shadow-md hover:bg-gray-100 transition-colors disabled:opacity-50"
