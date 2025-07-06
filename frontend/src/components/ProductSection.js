@@ -209,15 +209,17 @@ const ProductSection = () => {
                             product.name
                           )}
                         </h3>
-                        <p
-                          className={`mt-1 ${
-                            product.type === "combination"
-                              ? "text-green-600 font-bold text-base"
-                              : "text-gray-700 font-medium text-sm"
-                          }`}
-                        >
-                          {product.type === "combination" ? product.price : `Rs. ${product.price}`}
-                        </p>
+                 <p
+  className={`mt-1 ${
+    product.type === "combination"
+      ? "text-green-600 font-bold text-base"
+      : "text-gray-700 font-medium text-sm"
+  }`}
+>
+  Rs. {product.price}
+</p>
+
+
                         {product.type === "combination" && (
                           <p className="text-xs text-gray-500 mt-0.5">Save up to 15%</p>
                         )}
