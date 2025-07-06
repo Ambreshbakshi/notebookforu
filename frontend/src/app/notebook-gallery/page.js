@@ -518,7 +518,13 @@ const NotebookGallery = () => {
         </div>
 
         <div className="flex items-center mb-1">
-          <p className="text-sm font-bold text-indigo-600">₹{item.price}</p>
+          <p className="text-sm font-bold text-indigo-600">
+  {item.maxPrice && item.maxPrice > item.price && (
+    <span className="line-through text-gray-400 mr-1">₹{item.maxPrice}</span>
+  )}
+  ₹{item.price}
+</p>
+
           {item.originalPrice && (
             <p className="text-[10px] text-gray-500 line-through ml-1">₹{item.originalPrice}</p>
           )}

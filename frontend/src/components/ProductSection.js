@@ -5,6 +5,40 @@ import Image from "next/image";
 import Link from "next/link";
 import productData from "@/data/productData";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { FaHeart, FaRegHeart, FaStar, FaCartPlus, FaSearch } from "react-icons/fa";
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+const useLocalStorage = (key, initialValue) => {
+  const [storedValue, setStoredValue] = useState(initialValue);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    try {
+      const item = window.localStorage.getItem(key);
+      if (item) {
+        setStoredValue(JSON.parse(item));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [key]);
+
+  const setValue = (value) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      if (isClient) {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return [storedValue, setValue];
+};
 
 const ProductSection = () => {
   const containerRef = useRef(null);
@@ -17,8 +51,11 @@ const ProductSection = () => {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [autoPlayActive, setAutoPlayActive] = useState(true);
   const autoPlayRef = useRef(null);
+  const [wishlist, setWishlist] = useLocalStorage("wishlist", []);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
       checkScrollPosition();
@@ -46,32 +83,32 @@ const ProductSection = () => {
     setIsAtStart(scrollLeft <= 10);
     setIsAtEnd(scrollLeft + clientWidth >= scrollWidth - 10);
 
-    const cardWidth = isMobile ? window.innerWidth * 0.7 : 260;
+    const cardWidth = isMobile ? window.innerWidth * 0.8 : 280;
     const centerPos = scrollLeft + clientWidth / 2;
-    const newCenterIndex = Math.min(Math.max(0, Math.round(centerPos / (cardWidth + 16)) - 1), products.length - 1);
+    const newCenterIndex = Math.min(Math.max(0, Math.round(centerPos / (cardWidth + 20)) - 1, products.length - 1));
     setCenterIndex(newCenterIndex);
   }, [isMobile, products.length]);
 
-  const snapToCenter = () => {
+  const snapToCenter = useCallback(() => {
     if (!containerRef.current) return;
-    const cardWidth = isMobile ? window.innerWidth * 0.7 : 260;
-    const targetScroll = centerIndex * (cardWidth + 16) - (containerRef.current.clientWidth - cardWidth) / 2;
+    const cardWidth = isMobile ? window.innerWidth * 0.8 : 280;
+    const targetScroll = centerIndex * (cardWidth + 20) - (containerRef.current.clientWidth - cardWidth) / 2;
     containerRef.current.scrollTo({ left: targetScroll, behavior: "smooth" });
-  };
+  }, [centerIndex, isMobile]);
 
   const handleScrollLeft = useCallback(() => {
     setAutoPlayActive(false);
     if (containerRef.current) {
-      const cardWidth = isMobile ? window.innerWidth * 0.8 : 320;
-      containerRef.current.scrollBy({ left: -cardWidth - 16, behavior: "smooth" });
+      const cardWidth = isMobile ? window.innerWidth * 0.8 : 280;
+      containerRef.current.scrollBy({ left: -cardWidth - 20, behavior: "smooth" });
     }
   }, [isMobile]);
 
   const handleScrollRight = useCallback(() => {
     setAutoPlayActive(false);
     if (containerRef.current) {
-      const cardWidth = isMobile ? window.innerWidth * 0.8 : 320;
-      containerRef.current.scrollBy({ left: cardWidth + 16, behavior: "smooth" });
+      const cardWidth = isMobile ? window.innerWidth * 0.8 : 280;
+      containerRef.current.scrollBy({ left: cardWidth + 20, behavior: "smooth" });
     }
   }, [isMobile]);
 
@@ -137,7 +174,6 @@ const ProductSection = () => {
     };
   }, [checkScrollPosition]);
 
-  // Autoplay logic
   useEffect(() => {
     if (!autoPlayActive) return;
     autoPlayRef.current = setInterval(() => {
@@ -147,18 +183,99 @@ const ProductSection = () => {
     return () => clearInterval(autoPlayRef.current);
   }, [autoPlayActive, handleScrollRight]);
 
-  return (
-    <section className="py-12 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gray-50">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-center text-2xl md:text-3xl font-bold mb-6 md:mb-8 text-gray-900">
-          Our Premium Collection
-        </h1>
+  const toggleWishlist = (product) => {
+    const productKey = `${product.type}-${product.id}`;
+    if (wishlist.includes(productKey)) {
+      setWishlist(wishlist.filter(item => item !== productKey));
+      toast.info(`${product.name} removed from wishlist`);
+    } else {
+      setWishlist([...wishlist, productKey]);
+      toast.success(`${product.name} added to wishlist`);
+    }
+  };
 
-        <div>
+  const isInWishlist = (product) => {
+    if (!isClient) return false;
+    return wishlist.includes(`${product.type}-${product.id}`);
+  };
+
+  const addToCart = (product) => {
+  try {
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
+    const existingItemIndex = cart.findIndex(
+      (item) => item.id === product.id && item.type === product.type
+    );
+
+    if (existingItemIndex > -1) {
+      cart[existingItemIndex].quantity += 1;
+    } else {
+      cart.push({
+        id: product.id,
+        type: product.type,
+        name: product.name,
+        price: product.price,
+        gridImage: product.gridImage,
+        quantity: 1,
+      });
+    }
+
+    localStorage.setItem("cart", JSON.stringify(cart));
+    window.dispatchEvent(new Event("cartUpdated"));
+    toast.success(`${product.name} added to cart`);
+  } catch (error) {
+    toast.error("Failed to add item to cart");
+    console.error("Error adding to cart:", error);
+  }
+};
+
+
+
+  const getProductRoute = (type, id) => {
+    return type === "combination" ? `/combination/${id}` : `/${type}/${id}`;
+  };
+
+  return (
+    <section className="py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-10">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+            Our Premium Collection
+          </h1>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Discover our handcrafted notebooks and diaries, perfect for your creative journey
+          </p>
+        </div>
+
+        <div className="relative">
+          {!isMobile && (
+            <>
+              <button
+                onClick={handleScrollLeft}
+                disabled={isAtStart}
+                className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-lg hover:bg-gray-100 transition-all ${
+                  isAtStart ? "opacity-0 pointer-events-none" : "opacity-100"
+                }`}
+                aria-label="Previous"
+              >
+                <ChevronLeft size={28} className="text-gray-700" strokeWidth={2.5} />
+              </button>
+              <button
+                onClick={handleScrollRight}
+                disabled={isAtEnd}
+                className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-lg hover:bg-gray-100 transition-all ${
+                  isAtEnd ? "opacity-0 pointer-events-none" : "opacity-100"
+                }`}
+                aria-label="Next"
+              >
+                <ChevronRight size={28} className="text-gray-700" strokeWidth={2.5} />
+              </button>
+            </>
+          )}
+
           <div
             ref={containerRef}
-            className={`flex gap-6 w-full no-scrollbar ${
-              isMobile ? "overflow-x-auto snap-x px-4" : "overflow-hidden px-2"
+            className={`flex gap-5 w-full overflow-x-auto no-scrollbar ${
+              isMobile ? "snap-x snap-mandatory px-4" : "px-12"
             }`}
             style={{
               WebkitOverflowScrolling: "touch",
@@ -177,85 +294,118 @@ const ProductSection = () => {
                 <div
                   key={`${product.type}-${product.id}`}
                   className={`flex-shrink-0 transition-all duration-300 ${
-                    isMobile ? "w-[70vw] snap-center" : "w-[260px]"
+                    isMobile ? "w-[80vw] snap-center" : "w-[280px]"
                   }`}
                   style={{
-                    transform: isCenter ? "scale(1.05)" : "scale(0.95)",
-                    opacity: isCenter ? 1 : 0.85,
+                    transform: isCenter && !isMobile ? "scale(1.05)" : "scale(1)",
+                    opacity: isCenter && !isMobile ? 1 : 0.95,
+                    transition: "transform 0.3s ease, opacity 0.3s ease",
                   }}
                 >
-                  <Link href={`/${product.type}/${product.id}`} className="block h-full">
-                    <div className="border rounded-xl shadow-sm overflow-hidden bg-white h-full flex flex-col hover:shadow-md transition-shadow">
-                      <div className="relative" style={{ paddingBottom: "100%" }}>
+                  <div className="bg-white p-2 rounded-lg shadow-md hover:shadow-lg transition h-full flex flex-col group relative overflow-hidden border border-gray-100">
+                    <div className="relative w-full" style={{ paddingBottom: "100%" }}>
+                      <Link href={getProductRoute(product.type, product.id)} className="block w-full h-full">
                         <Image
-                          src={product.gridImage}
+                          src={product.gridImage || "/placeholder.png"}
                           alt={product.name}
                           fill
-                          sizes="(max-width: 768px) 70vw, 260px"
-                          className="object-contain"
-                          priority={index < 3}
+                          className="object-contain rounded-lg transition group-hover:opacity-90"
+                          sizes="(max-width: 640px) 80vw, 280px"
+                          priority={index < 4}
                         />
-                        {product.type === "combination" && (
-                          <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-2 py-0.5 rounded-md text-xs font-bold shadow-sm">
-                            COMBO OFFER
-                          </div>
+                      </Link>
+
+                      {product.discount && (
+                        <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded z-10">
+                          -{product.discount}%
+                        </div>
+                      )}
+
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          toggleWishlist(product);
+                        }}
+                        className="absolute top-2 right-2 p-1 bg-white rounded-full shadow hover:bg-gray-100 transition z-10"
+                        aria-label={isInWishlist(product) ? "Remove from wishlist" : "Add to wishlist"}
+                      >
+                        {isInWishlist(product) ? (
+                          <FaHeart className="text-red-500 text-sm" />
+                        ) : (
+                          <FaRegHeart className="text-sm" />
                         )}
+                      </button>
+                    </div>
+
+                    <div className="mt-2 flex flex-col flex-1">
+                      <h2 className="text-xs font-semibold text-gray-800 line-clamp-2 mb-1">
+                        {product.name}
+                      </h2>
+
+                      <div className="flex items-center mb-1">
+                        <div className="flex text-yellow-400 text-xs">
+                          {[...Array(5)].map((_, i) => (
+                            <FaStar
+                              key={i}
+                              className={i < (product.rating || 4) ? "text-yellow-400" : "text-gray-300"}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-gray-500 text-[10px] ml-1">({product.reviews || 24})</span>
                       </div>
-                      <div className="p-2 text-center flex-grow flex flex-col justify-center">
-                        <h3 className="text-sm font-semibold line-clamp-1">
-                          {product.type === "combination" ? (
-                            <span className="text-blue-600">{product.name}</span>
-                          ) : (
-                            product.name
+
+                      <div className="flex items-center mb-1">
+                        <p className="text-sm font-bold text-indigo-600">
+                          {product.maxPrice && product.maxPrice > product.price && (
+                            <span className="line-through text-gray-400 mr-1">₹{product.maxPrice}</span>
                           )}
-                        </h3>
-                 <p
-  className={`mt-1 ${
-    product.type === "combination"
-      ? "text-green-600 font-bold text-base"
-      : "text-gray-700 font-medium text-sm"
-  }`}
->
-  Rs. {product.price}
-</p>
+                          ₹{product.price}
+                        </p>
+                      </div>
 
-
-                        {product.type === "combination" && (
-                          <p className="text-xs text-gray-500 mt-0.5">Save up to 15%</p>
-                        )}
+                      <div className="mt-auto flex gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            addToCart(product);
+                          }}
+                          className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-1 rounded flex items-center justify-center gap-1 text-xs"
+                        >
+                          <FaCartPlus /> Add to Cart
+                        </button>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="flex justify-center items-center gap-4 mt-8 flex-wrap">
-            <button
-              className="bg-white text-gray-800 p-3 rounded-full shadow-md hover:bg-gray-100 transition-colors disabled:opacity-50"
-              onClick={handleScrollLeft}
-              aria-label="Scroll left"
-              disabled={isAtStart}
-            >
-              <ChevronLeft size={24} strokeWidth={2} />
-            </button>
+          {isMobile && products.length > 1 && (
+            <div className="flex justify-center gap-2 mt-6">
+              {products.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setCenterIndex(index);
+                    snapToCenter();
+                  }}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    index === centerIndex ? "bg-blue-600 w-4" : "bg-gray-300"
+                  }`}
+                  aria-label={`Go to item ${index + 1}`}
+                />
+              ))}
+            </div>
+          )}
 
+          <div className="text-center mt-10">
             <Link href="/notebook-gallery" passHref>
-              <button className="inline-flex items-center px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+              <button className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:-translate-y-0.5">
                 Explore All Products
-                <ChevronRight size={18} className="ml-1" />
+                <ChevronRight size={20} className="ml-2" strokeWidth={2.5} />
               </button>
             </Link>
-
-            <button
-              className="bg-white text-gray-800 p-3 rounded-full shadow-md hover:bg-gray-100 transition-colors disabled:opacity-50"
-              onClick={handleScrollRight}
-              aria-label="Scroll right"
-              disabled={isAtEnd}
-            >
-              <ChevronRight size={24} strokeWidth={2} />
-            </button>
           </div>
         </div>
       </div>

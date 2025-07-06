@@ -270,7 +270,13 @@ const NotebookDetail = () => {
             </div>
             
             <div className="flex items-baseline gap-3">
-              <p className="text-2xl text-indigo-600 font-semibold">₹{notebook.price}</p>
+             <p className="text-2xl text-indigo-600 font-semibold">
+  {notebook.maxPrice && notebook.maxPrice > notebook.price && (
+    <span className="line-through text-gray-400 mr-2 text-lg">₹{notebook.maxPrice}</span>
+  )}
+  ₹{notebook.price}
+</p>
+
               {notebook.originalPrice && (
                 <p className="text-lg text-gray-500 line-through">₹{notebook.originalPrice}</p>
               )}
@@ -321,7 +327,7 @@ const NotebookDetail = () => {
               </div>
             </div>
 
-          {/* Shipping Section */}
+          {/* Shipping Section
 <div className="space-y-2 mt-4">
   <div className="flex items-center justify-between">
     <label className="block font-medium">Shipping Address:</label>
@@ -340,7 +346,7 @@ const NotebookDetail = () => {
     placeholder={useCurrentLocation ? "Fetching your location..." : "Enter your full address"}
     className="w-full px-3 py-2 border rounded resize-none min-h-[80px]"
   />
-</div>
+</div> */}
 
 <div className="bg-gray-50 p-4 rounded-lg">
   <div className="flex justify-between py-1">

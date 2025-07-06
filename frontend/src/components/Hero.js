@@ -112,9 +112,10 @@ const Hero = () => {
                 <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold text-white drop-shadow-lg mb-2 sm:mb-4">
                   {images[currentIndex].caption}
                 </h1>
-                <p className="text-base sm:text-lg text-white drop-shadow-md mb-4 sm:mb-6 max-w-md sm:max-w-2xl mx-auto">
-                  Discover our premium collection of handcrafted notebooks
-                </p>
+               <p className="text-sm sm:text-lg text-white drop-shadow-md mb-3 sm:mb-6 max-w-[90%] sm:max-w-2xl mx-auto text-center px-4">
+  Discover our premium collection of handcrafted notebooks
+</p>
+
               </motion.div>
             </div>
           </div>
