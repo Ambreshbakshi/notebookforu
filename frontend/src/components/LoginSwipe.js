@@ -126,7 +126,7 @@ const LoginSwipe = ({ isOpen, onClose }) => {
   return (
   <AnimatePresence>
   {isOpen && (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[100]">
       
       {/* Full Black Blur Overlay */}
       <motion.div

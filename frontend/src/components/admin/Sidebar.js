@@ -62,20 +62,21 @@ export default function Sidebar() {
       </div>
 
       {/* Mobile Floating Navbar above main bottom navbar */}
-      <div className="fixed bottom-20 left-4 right-4 backdrop-blur-md bg-white/80 border border-gray-200 shadow-lg z-50 flex justify-around items-center h-14 md:hidden rounded-2xl px-2">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex flex-col items-center justify-center text-xs ${
-              pathname === item.href ? 'text-blue-600' : 'text-gray-600 hover:text-blue-500'
-            }`}
-          >
-            <item.icon size={20} />
-            <span className="mt-0.5">{item.label}</span>
-          </Link>
-        ))}
-      </div>
+      <div className="fixed bottom-16 left-4 right-4 backdrop-blur-md bg-white/80 border border-gray-200 shadow-lg z-40 flex justify-around items-center h-14 md:hidden rounded-t-2xl px-2">
+  {navItems.map((item) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      className={`flex flex-col items-center justify-center text-xs ${
+        pathname === item.href ? 'text-blue-600' : 'text-gray-600 hover:text-blue-500'
+      }`}
+    >
+      <item.icon size={20} />
+      <span className="mt-0.5">{item.label}</span>
+    </Link>
+  ))}
+</div>
+
     </>
   );
 }

@@ -74,7 +74,7 @@ const MobileSubmenu = ({ title, children, icon }) => {
 const MobileMenuDrawer = ({ menuOpen, setMenuOpen, pathname }) => (
   <AnimatePresence>
     {menuOpen && (
-      <div className="fixed inset-0 z-50">
+      <div className="fixed inset-0 z-[100]">
         
         {/* Dark Overlay */}
         <motion.div
@@ -169,7 +169,7 @@ const MobileTopNav = ({ setMenuOpen, setLoginOpen }) => {
   }, [lastScrollY]);
 
   return (
-    <div className={`md:hidden fixed top-0 left-0 right-0 bg-white border-b shadow z-40 h-14 flex items-center justify-between px-4 transition-transform duration-300 ${showNav ? "translate-y-0" : "-translate-y-full"}`}>
+    <div className={`md:hidden fixed top-0 left-0 right-0 bg-white border-b shadow z-50 h-14 flex items-center justify-between px-4 transition-transform duration-300 ${showNav ? "translate-y-0" : "-translate-y-full"}`}>
       <button onClick={() => setMenuOpen(true)} className="p-2"><FiMenu className="text-2xl" /></button>
       
       <Link href="/" className="flex justify-center items-center"><Image src="/logo.png" alt="Logo" width={100} height={24} /></Link>
@@ -188,7 +188,7 @@ const MobileBottomNav = ({ pathname, cartItemsCount, setMenuOpen, setLoginOpen }
   };
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow z-40">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow z-50">
       <div className="flex justify-around items-center h-16">
         
         <MobileNavLinkBottom href="/" pathname={pathname} icon={<FiHome />}>
@@ -203,16 +203,18 @@ const MobileBottomNav = ({ pathname, cartItemsCount, setMenuOpen, setLoginOpen }
           Wishlist
         </MobileNavLinkBottom>
 
-        <div className="relative flex flex-col items-center">
-          <MobileNavLinkBottom href="/cart" pathname={pathname} icon={<FiShoppingCart />}>
-            Cart
-          </MobileNavLinkBottom>
-          {cartItemsCount > 0 && (
-            <span className="absolute -top-1 right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-              {cartItemsCount}
-            </span>
-          )}
-        </div>
+       <div className="relative flex flex-col items-center">
+  <MobileNavLinkBottom href="/cart" pathname={pathname} icon={<FiShoppingCart />}>
+    Cart
+  </MobileNavLinkBottom>
+  
+  {cartItemsCount > 0 && (
+    <span className="absolute -top-0.6 right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+      {cartItemsCount}
+    </span>
+  )}
+</div>
+
 
         <button onClick={handleAccountClick} className="flex flex-col items-center focus:outline-none text-gray-700 hover:text-blue-500">
           <FiUser className="text-xl" />
