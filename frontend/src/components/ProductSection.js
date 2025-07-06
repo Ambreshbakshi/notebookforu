@@ -15,21 +15,18 @@ const ProductSection = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
-  const scrollTimeoutRef = useRef(null);
+  const [autoPlayActive, setAutoPlayActive] = useState(true);
+  const autoPlayRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
-      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-      scrollTimeoutRef.current = setTimeout(checkScrollPosition, 100);
+      checkScrollPosition();
     };
 
     handleResize();
     window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    };
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const notebooks = Object.values(productData.notebooks).map((item) => ({ ...item, type: "notebook" }));
@@ -55,7 +52,15 @@ const ProductSection = () => {
     setCenterIndex(newCenterIndex);
   }, [isMobile, products.length]);
 
+  const snapToCenter = () => {
+    if (!containerRef.current) return;
+    const cardWidth = isMobile ? window.innerWidth * 0.7 : 260;
+    const targetScroll = centerIndex * (cardWidth + 16) - (containerRef.current.clientWidth - cardWidth) / 2;
+    containerRef.current.scrollTo({ left: targetScroll, behavior: "smooth" });
+  };
+
   const handleScrollLeft = useCallback(() => {
+    setAutoPlayActive(false);
     if (containerRef.current) {
       const cardWidth = isMobile ? window.innerWidth * 0.8 : 320;
       containerRef.current.scrollBy({ left: -cardWidth - 16, behavior: "smooth" });
@@ -63,6 +68,7 @@ const ProductSection = () => {
   }, [isMobile]);
 
   const handleScrollRight = useCallback(() => {
+    setAutoPlayActive(false);
     if (containerRef.current) {
       const cardWidth = isMobile ? window.innerWidth * 0.8 : 320;
       containerRef.current.scrollBy({ left: cardWidth + 16, behavior: "smooth" });
@@ -70,6 +76,7 @@ const ProductSection = () => {
   }, [isMobile]);
 
   const handleMouseDown = (e) => {
+    setAutoPlayActive(false);
     setIsDragging(true);
     setStartX(e.pageX - containerRef.current.offsetLeft);
     setScrollLeft(containerRef.current.scrollLeft);
@@ -86,6 +93,7 @@ const ProductSection = () => {
   const handleMouseUp = () => {
     setIsDragging(false);
     checkScrollPosition();
+    setTimeout(snapToCenter, 100);
   };
 
   const handleMouseLeave = () => {
@@ -93,6 +101,7 @@ const ProductSection = () => {
   };
 
   const handleTouchStart = (e) => {
+    setAutoPlayActive(false);
     setIsDragging(true);
     setStartX(e.touches[0].clientX);
     setScrollLeft(containerRef.current.scrollLeft);
@@ -108,6 +117,7 @@ const ProductSection = () => {
   const handleTouchEnd = () => {
     setIsDragging(false);
     checkScrollPosition();
+    setTimeout(snapToCenter, 100);
   };
 
   useEffect(() => {
@@ -127,14 +137,15 @@ const ProductSection = () => {
     };
   }, [checkScrollPosition]);
 
+  // Autoplay logic
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "ArrowLeft") handleScrollLeft();
-      if (e.key === "ArrowRight") handleScrollRight();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleScrollLeft, handleScrollRight]);
+    if (!autoPlayActive) return;
+    autoPlayRef.current = setInterval(() => {
+      handleScrollRight();
+    }, 3000);
+
+    return () => clearInterval(autoPlayRef.current);
+  }, [autoPlayActive, handleScrollRight]);
 
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gray-50">

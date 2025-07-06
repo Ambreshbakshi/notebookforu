@@ -108,8 +108,10 @@ const MobileMenuDrawer = ({ menuOpen, setMenuOpen, pathname }) => (
             <MobileNavLinkDrawer href="/" pathname={pathname} icon={<FiHome />}>
               Home
             </MobileNavLinkDrawer>
-
-            <MobileSubmenu title="Shop" icon={<FiGrid />}>
+<MobileNavLinkDrawer href="/notebook-gallery" pathname={pathname} icon={<FiGrid />}>
+                All Products
+              </MobileNavLinkDrawer>
+            {/* <MobileSubmenu title="Shop" icon={<FiGrid />}>
               <MobileNavLinkDrawer href="/notebook-gallery" pathname={pathname}>
                 All Products
               </MobileNavLinkDrawer>
@@ -122,7 +124,7 @@ const MobileMenuDrawer = ({ menuOpen, setMenuOpen, pathname }) => (
               <MobileNavLinkDrawer href="/deals" pathname={pathname}>
                 Special Offers
               </MobileNavLinkDrawer>
-            </MobileSubmenu>
+            </MobileSubmenu> */}
 
             <MobileSubmenu title="Info" icon={<FiInfo />}>
               <MobileNavLinkDrawer href="/about-us" pathname={pathname}>

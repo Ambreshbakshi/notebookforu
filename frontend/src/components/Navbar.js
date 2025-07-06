@@ -214,8 +214,10 @@ useEffect(() => {
           {/* Menu */}
           <div className="flex items-center space-x-1">
             <NavLink href="/" pathname={pathname} icon={<FiHome className="md:hidden" />}>Home</NavLink>
-
-            <Submenu title="Shop" icon={<FiGrid className="md:hidden" />}>
+<NavLink href="/notebook-gallery" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
+                <FiGrid className="mr-2" /> All Products
+              </NavLink>
+            {/* <Submenu title="Shop" icon={<FiGrid className="md:hidden" />}>
               <NavLink href="/notebook-gallery" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
                 <FiBook className="mr-2" /> All Products
               </NavLink>
@@ -228,7 +230,7 @@ useEffect(() => {
               <NavLink href="/deals" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
                 <FiPercent className="mr-2" /> Special Offers
               </NavLink>
-            </Submenu>
+            </Submenu> */}
 
             <Submenu title="Info" icon={<FiInfo className="md:hidden" />}>
               <NavLink href="/about-us" pathname={pathname} className="flex items-center px-4 py-2 hover:bg-gray-50">
