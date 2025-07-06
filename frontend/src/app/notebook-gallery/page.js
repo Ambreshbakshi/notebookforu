@@ -558,7 +558,7 @@ const NotebookGallery = () => {
         )}
       </div>
 
-      <section className="py-16 px-6 max-w-7xl mx-auto">
+      {/* <section className="py-16 px-6 max-w-7xl mx-auto">
         <div className="bg-white p-8 md:p-10 rounded-2xl shadow-lg">
           <div className="text-center">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
@@ -616,7 +616,7 @@ const NotebookGallery = () => {
             </a>
           </div>
         </div>
-      </section>
+      </section> */}
       
       <section className="py-12 px-6 max-w-7xl mx-auto">
         <div className="bg-white p-8 rounded-2xl shadow-lg">
