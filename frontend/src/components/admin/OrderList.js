@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import OrderCard from './OrderCard';
-import { FiLoader, FiSearch, FiFilter, FiX, FiAlertCircle, FiExternalLink } from 'react-icons/fi';
+import { FiLoader, FiSearch, FiX, FiAlertCircle, FiExternalLink } from 'react-icons/fi';
 
 export default function OrderList({ userId }) {
   const [orders, setOrders] = useState([]);
@@ -21,8 +21,6 @@ export default function OrderList({ userId }) {
           throw new Error('No user ID provided');
         }
 
-        console.log('Fetching orders for user:', userId);
-        
         const ordersRef = collection(db, 'orders');
         const q = query(
           ordersRef,
@@ -31,10 +29,8 @@ export default function OrderList({ userId }) {
         );
 
         const snapshot = await getDocs(q);
-        console.log('Snapshot size:', snapshot.size);
         
         if (snapshot.empty) {
-          console.log('No orders found for user:', userId);
           setOrders([]);
           setFilteredOrders([]);
           return;
@@ -42,27 +38,21 @@ export default function OrderList({ userId }) {
 
         const ordersData = snapshot.docs.map(doc => {
           const data = doc.data();
-          console.log('Order data:', data);
-          
-          // Calculate total amount from Razorpay amount (in paise) or items
           const totalAmount = data.razorpay?.amount 
-            ? (data.razorpay.amount / 100) // Convert from paise to rupees
+            ? (data.razorpay.amount / 100) 
             : data.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
 
           return {
             id: doc.id,
             ...data,
-            totalAmount, // Add calculated total amount
+            totalAmount,
             date: data.createdAt?.toDate?.() || new Date()
           };
         });
 
-        console.log('Orders loaded:', ordersData);
         setOrders(ordersData);
         setFilteredOrders(ordersData);
       } catch (err) {
-        console.error('Error fetching orders:', err);
-        
         if (err.message.includes('index') && err.message.includes('http')) {
           const urlStart = err.message.indexOf('https://');
           const url = err.message.slice(urlStart);
@@ -81,25 +71,26 @@ export default function OrderList({ userId }) {
 
   useEffect(() => {
     let result = [...orders];
-    
-    // Apply search filter
+
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(order => 
         order.id.toLowerCase().includes(term) ||
         order.orderId?.toLowerCase().includes(term) ||
-        (order.items?.some(item => 
-          item.name?.toLowerCase().includes(term)
-        )) ||
-        order.shipping?.status?.toLowerCase().includes(term)
+        (order.items?.some(item => item.name?.toLowerCase().includes(term))) ||
+        order.shippingStatus?.toLowerCase().includes(term) ||
+        order.paymentStatus?.toLowerCase().includes(term)
       );
     }
-    
-    // Apply status filter
+
     if (statusFilter !== 'all') {
-      result = result.filter(order => order.shipping?.status === statusFilter);
+      result = result.filter(order => {
+        const shippingStatus = order.shippingStatus;
+        const paymentStatus = order.paymentStatus;
+        return shippingStatus === statusFilter || paymentStatus === statusFilter;
+      });
     }
-    
+
     setFilteredOrders(result);
   }, [searchTerm, statusFilter, orders]);
 
@@ -177,12 +168,18 @@ export default function OrderList({ userId }) {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="paid">Paid</option>
+            <optgroup label="Shipping Status">
+              <option value="not_dispatched">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </optgroup>
+            <optgroup label="Payment Status">
+              <option value="paid">Paid</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="refunded">Refunded</option>
+            </optgroup>
           </select>
           
           {(searchTerm || statusFilter !== 'all') && (

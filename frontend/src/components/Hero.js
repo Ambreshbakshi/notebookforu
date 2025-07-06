@@ -7,12 +7,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const images = [
-  { src: "/hero/hero11.jpeg", alt: "Customizable notebook designs", caption: "Make It Your Own" },
-  { src: "/hero/hero7.jpg", alt: "Premium quality notebooks", caption: "Handcrafted with Care" },
-  { src: "/hero/hero15.jpeg", alt: "Writing in our notebooks", caption: "Perfect for Every Story" },
-  { src: "/hero/hero8.jpeg", alt: "Notebook collection display", caption: "Endless Possibilities" },
-  { src: "/hero/hero13.jpg", alt: "Eco-friendly materials", caption: "Sustainable Choices" },
-  { src: "/hero/hero6.jpg", alt: "Notebook accessories", caption: "Complete Your Set" },
+  { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero11.jpeg", alt: "Customizable notebook designs", caption: "Make It Your Own" },
+  { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero7.jpg", alt: "Premium quality notebooks", caption: "Handcrafted with Care" },
+  { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero15.jpeg", alt: "Writing in our notebooks", caption: "Perfect for Every Story" },
+  { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero8.jpeg", alt: "Notebook collection display", caption: "Endless Possibilities" },
+  { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero13.jpg", alt: "Eco-friendly materials", caption: "Sustainable Choices" },
+  { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero6.jpg", alt: "Notebook accessories", caption: "Complete Your Set" },
 ];
 
 const Hero = () => {
