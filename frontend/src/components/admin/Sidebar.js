@@ -1,20 +1,21 @@
 'use client';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { FiUser, FiShoppingBag, FiSettings, FiLogOut, FiHome } from 'react-icons/fi';
 import useAuth from '@/hooks/useAuth';
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, handleLogout } = useAuth();
 
+  const isAdmin = user?.email === 'ambreshbakshi@gmail.com'; // Apne admin email check karo
+
   const navItems = [
-    { href: '/admin/dashboard', icon: FiHome, label: 'Home' },
+    isAdmin && { href: '/admin/dashboard', icon: FiHome, label: 'Dashboard' }, // Dashboard only for admin
     { href: '/admin/dashboard/orders', icon: FiShoppingBag, label: 'Orders' },
-    { href: '/admin/dashboard/profile', icon: FiUser, label: 'Account' },
+    { href: '/admin/dashboard/profile', icon: FiUser, label: 'Profile' },
     { href: '/admin/dashboard/settings', icon: FiSettings, label: 'Settings' }
-  ];
+  ].filter(Boolean); // Remove undefined if user is not admin
 
   return (
     <>
@@ -60,7 +61,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Floating Admin Navbar above main bottom navbar */}
+      {/* Mobile Floating Navbar above main bottom navbar */}
       <div className="fixed bottom-20 left-4 right-4 backdrop-blur-md bg-white/80 border border-gray-200 shadow-lg z-50 flex justify-around items-center h-14 md:hidden rounded-2xl px-2">
         {navItems.map((item) => (
           <Link
