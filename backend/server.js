@@ -562,7 +562,7 @@ app.post('/api/subscribe',
   existingSubscriber.resubscribeExpires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 2); // 2 days
   await existingSubscriber.save();
 
-  const confirmLink = `${process.env.FRONTEND_URL}/resubscribe/confirm?token=${token}`;
+  const confirmLink = `${process.env.FRONTEND_URL}/resubscribe-confirm?token=${token}`;
   await transporter.sendMail({
     from: `"NotebookForU" <contact@notebookforu.in>`,
     to: email,
