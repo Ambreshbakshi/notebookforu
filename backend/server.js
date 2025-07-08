@@ -460,6 +460,9 @@ app.post('/api/contact',
       const { name, email, message } = req.body;
       const newContact = await Contact.create({ name, email, message });
 
+  // Check if ADMIN_EMAIL is set, otherwise use a default
+      const adminEmail = process.env.ADMIN_EMAIL || 'contact@notebookforu.in';
+
    await transporter.sendMail({
   from: `"NotebookForU" <contact@notebookforu.in>`,
   to: process.env.ADMIN_EMAIL,
