@@ -558,6 +558,25 @@ app.post('/api/subscribe',
       // Check if already subscribed
       const existingSubscriber = await Subscriber.findOne({ email });
       
+    app.post('/api/subscribe', 
+  [
+    body('email').isEmail().withMessage('Invalid email').normalizeEmail()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
+    }
+
+    try {
+      const { email } = req.body;
+
+      // Check if already subscribed
+      const existingSubscriber = await Subscriber.findOne({ email });
+      
       if (existingSubscriber) {
         if (existingSubscriber.unsubscribed) {
           // Handle resubscribe case
@@ -593,18 +612,52 @@ If you didn't request this, you can ignore it.
             `
           });
 
-          return res.status(200).json({
+          return res.status(202).json({ // Changed to 202 Accepted
             success: true,
-            message: 'A confirmation link has been sent to your email.'
+            message: 'Welcome back! A confirmation link has been sent to your email to resubscribe.',
+            isResubscribe: true
           });
         } else {
           // User is already subscribed
           return res.status(200).json({ 
             success: true,
-            message: 'You are already subscribed!'
+            message: 'You are already subscribed to our newsletter!'
           });
         }
       }
+
+      // Create new subscriber
+      const newSubscriber = await Subscriber.create({ 
+        email,
+        unsubscribeToken: crypto.randomBytes(16).toString('hex')
+      });
+
+      // Send welcome email
+      await sendThankYouEmail(email, false);
+
+      res.status(201).json({ 
+        success: true,
+        message: 'Thank you for subscribing! Please check your email for confirmation.'
+      });
+
+    } catch (err) {
+      if (err.code === 11000) {
+        return res.status(200).json({ 
+          success: true,
+          message: 'You are already subscribed!'
+        });
+      }
+      
+      logger.error('Subscription error:', err);
+      res.status(500).json({ 
+        error: 'Subscription failed',
+        ...(process.env.NODE_ENV === 'development' && { 
+          details: err.message
+        })
+      });
+    }
+  }
+);
 
       // Create new subscriber
       const newSubscriber = await Subscriber.create({ 

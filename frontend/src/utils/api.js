@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
 /**
  * Handles email subscription with improved resubscribe flow
  * @param {string} email - User's email address
- * @returns {Promise<{success: boolean, message: string}>}
+ * @returns {Promise<{success: boolean, message: string, isResubscribe?: boolean}>}
  */
 export const subscribeEmail = async (email) => {
   try {
@@ -21,22 +21,32 @@ export const subscribeEmail = async (email) => {
 
     const data = await response.json();
 
-    // Handle all successful responses (200, 201, and resubscribe case)
-    if (response.ok || response.status === 200 || response.status === 201) {
-      // Transform backend message for better UX
-      if (data.message?.includes('confirmation link has been sent')) {
+    // Handle all successful responses
+    if (response.ok || [200, 201, 202].includes(response.status)) {
+      // Special handling for resubscribe flow
+      if (response.status === 202) {
         return {
           success: true,
-          message: 'Welcome back! Resubscribe email sent to your email'
+          message: 'Welcome back! Please check your email to confirm resubscription.',
+          isResubscribe: true
         };
       }
-      return data;
+      // Handle already subscribed case
+      if (data.message?.includes('already subscribed')) {
+        return {
+          success: true,
+          message: 'You are already subscribed to our newsletter!'
+        };
+      }
+      // Default success case for new subscriptions
+      return {
+        success: true,
+        message: 'Thank you for subscribing! Please check your email for confirmation.'
+      };
     }
 
     // Handle specific error cases
     switch (response.status) {
-      case 409:
-        throw new Error('You are already subscribed!');
       case 400:
         throw new Error(data.message || 'Invalid email address');
       case 404:
@@ -58,7 +68,7 @@ export const subscribeEmail = async (email) => {
 /**
  * Handles unsubscription using token
  * @param {string} token - Unsubscription token
- * @returns {Promise<{success: boolean, message: string}>}
+ * @returns {Promise<{success: boolean, message: string, resubscribeLink?: string}>}
  */
 export const unsubscribeEmail = async (token) => {
   try {
@@ -76,15 +86,19 @@ export const unsubscribeEmail = async (token) => {
     if (!response.ok && response.status !== 200) {
       switch (response.status) {
         case 404:
-          throw new Error('Oops! Not found - Invalid or expired link');
+          throw new Error('Invalid or expired unsubscribe link');
         case 400:
-          throw new Error('Invalid request');
+          throw new Error(data.message || 'Invalid request');
         default:
-          throw new Error(data.error || data.message || 'Failed to unsubscribe');
+          throw new Error(data.error || 'Failed to unsubscribe');
       }
     }
 
-    return data;
+    return {
+      success: true,
+      message: 'You have been successfully unsubscribed.',
+      ...(data.resubscribeLink && { resubscribeLink: data.resubscribeLink })
+    };
   } catch (error) {
     console.error('Unsubscribe Error:', error);
     throw new Error(
@@ -116,15 +130,18 @@ export const confirmResubscribe = async (token) => {
     if (!response.ok && response.status !== 200) {
       switch (response.status) {
         case 404:
-          throw new Error('Oops! Not found - Invalid or expired link');
+          throw new Error('Invalid or expired resubscription link');
         case 400:
-          throw new Error('Invalid token');
+          throw new Error(data.message || 'Invalid token');
         default:
-          throw new Error(data.error || data.message || 'Failed to confirm resubscription');
+          throw new Error(data.error || 'Failed to confirm resubscription');
       }
     }
 
-    return data;
+    return {
+      success: true,
+      message: 'You have been successfully resubscribed!'
+    };
   } catch (error) {
     console.error('Resubscribe Error:', error);
     throw new Error(
@@ -157,7 +174,10 @@ export const sendContactForm = async (formData) => {
       throw new Error(data.message || data.error || 'Message failed to send');
     }
 
-    return data;
+    return {
+      success: true,
+      message: 'Thank you for your message! We will get back to you soon.'
+    };
   } catch (error) {
     console.error('Contact Form Error:', error);
     throw new Error(
@@ -170,6 +190,7 @@ export const sendContactForm = async (formData) => {
 
 /**
  * Helper function to make API calls with consistent error handling
+ * @private
  */
 const makeApiCall = async (endpoint, method, body) => {
   try {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { FiCheckCircle, FiAlertCircle, FiLoader, FiHome } from 'react-icons/fi';
+import { FiCheckCircle, FiAlertCircle, FiLoader, FiHome, FiMail } from 'react-icons/fi';
 import { confirmResubscribe } from '@/utils/api';
 
 export default function ConfirmResubscribePage() {
@@ -13,19 +13,26 @@ export default function ConfirmResubscribePage() {
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
   const [countdown, setCountdown] = useState(5);
+  const [email, setEmail] = useState('');
 
   useEffect(() => {
     const confirmResub = async () => {
       if (!token) {
         setStatus('error');
-        setMessage('Invalid or missing token');
+        setMessage('Invalid or missing confirmation link');
         return;
       }
 
       try {
+        setStatus('loading');
+        setMessage('Confirming your resubscription...');
+        
         const data = await confirmResubscribe(token);
         
         if (data.success) {
+          // Extract email from response if available
+          if (data.email) setEmail(data.email);
+          
           setStatus('success');
           setMessage(data.message || 'You have been successfully resubscribed! 🎉');
           
@@ -47,12 +54,16 @@ export default function ConfirmResubscribePage() {
         }
       } catch (err) {
         setStatus('error');
-        let errorMessage = 'Something went wrong';
+        let errorMessage = 'Something went wrong while processing your request';
         
+        // Enhanced error mapping
         if (err.message.includes('Not found') || err.message.includes('Invalid')) {
-          errorMessage = 'Invalid or expired link. Please try unsubscribing and subscribing again.';
+          errorMessage = 'This confirmation link is invalid or has expired.';
         } else if (err.message.includes('CORS') || err.message.includes('Failed to fetch')) {
-          errorMessage = 'Connection error. Please try again.';
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (err.message.includes('already subscribed')) {
+          errorMessage = 'You are already subscribed to our newsletter!';
+          setStatus('info');
         } else {
           errorMessage = err.message || errorMessage;
         }
@@ -61,7 +72,9 @@ export default function ConfirmResubscribePage() {
       }
     };
 
-    confirmResub();
+    // Add a small delay for better UX
+    const timer = setTimeout(confirmResub, 500);
+    return () => clearTimeout(timer);
   }, [token, router]);
 
   const getStatusIcon = () => {
@@ -70,6 +83,8 @@ export default function ConfirmResubscribePage() {
         return <FiLoader className="animate-spin text-blue-500" size={32} />;
       case 'success':
         return <FiCheckCircle className="text-green-500" size={32} />;
+      case 'info':
+        return <FiMail className="text-blue-400" size={32} />;
       default:
         return <FiAlertCircle className="text-red-500" size={32} />;
     }
@@ -78,11 +93,13 @@ export default function ConfirmResubscribePage() {
   const getStatusTitle = () => {
     switch (status) {
       case 'loading':
-        return 'Confirming...';
+        return 'Processing...';
       case 'success':
-        return 'Resubscribed!';
+        return 'Successfully Resubscribed!';
+      case 'info':
+        return 'Already Subscribed';
       default:
-        return 'Oops!';
+        return 'Something Went Wrong';
     }
   };
 
@@ -93,11 +110,18 @@ export default function ConfirmResubscribePage() {
         <h1 className="text-2xl font-bold mb-2">
           {getStatusTitle()}
         </h1>
+        
+        {email && (
+          <p className="text-blue-300 mb-2">
+            <span className="font-semibold">{email}</span>
+          </p>
+        )}
+        
         <p className="text-gray-300 mb-4">{message}</p>
 
         {status === 'success' && (
           <p className="text-sm text-gray-400 mb-6">
-            Redirecting to homepage in {countdown} seconds...
+            Redirecting in {countdown} seconds...
           </p>
         )}
 
@@ -105,9 +129,19 @@ export default function ConfirmResubscribePage() {
           <button
             onClick={() => router.push('/')}
             className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white transition flex items-center justify-center gap-2 w-full"
+            aria-label="Go to homepage"
           >
             <FiHome />
             Go to Homepage
+          </button>
+        )}
+
+        {status === 'error' && (
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white transition flex items-center justify-center gap-2 w-full"
+          >
+            Try Again
           </button>
         )}
       </div>
