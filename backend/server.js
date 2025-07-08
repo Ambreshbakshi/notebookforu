@@ -309,7 +309,7 @@ async function sendThankYouEmail(email, isResubscribe) {
   const unsubscribeLink = `${process.env.FRONTEND_URL}/unsubscribe?token=${subscriber.unsubscribeToken}`;
 
   const mailOptions = {
-    from: `"NotebookForU" <contact@notebookforu.in}>`,
+    from: `"NotebookForU" <contact@notebookforu.in>`,
     to: email,
     subject: 'Welcome to NotebookForU!',
     html: `
@@ -441,7 +441,7 @@ app.post('/api/contact',
       const newContact = await Contact.create({ name, email, message });
 
       transporter.sendMail({
-        from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
+        from: `"NotebookForU" <contact@notebookforu.in>`,
         to: process.env.ADMIN_EMAIL,
         subject: `New Contact: ${name}`,
         html: `
@@ -662,7 +662,7 @@ app.post('/api/unsubscribe',
 // Email sending helper function
 async function sendUnsubscribeConfirmation(email, resubscribeLink) {
   await transporter.sendMail({
-    from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
+    from: `"NotebookForU" <contact@notebookforu.in>`,
     to: email,
     subject: 'Unsubscription confirmed',
     html: `
