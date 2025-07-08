@@ -309,7 +309,7 @@ async function sendThankYouEmail(email, isResubscribe) {
   const unsubscribeLink = `${process.env.FRONTEND_URL}/unsubscribe?token=${subscriber.unsubscribeToken}`;
 
   const mailOptions = {
-    from: `"NotebookForU" <${process.env.EMAIL_USER}>`,
+    from: `"NotebookForU" <contact@notebookforu.in}>`,
     to: email,
     subject: 'Welcome to NotebookForU!',
     html: `
