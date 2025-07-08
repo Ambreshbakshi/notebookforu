@@ -132,7 +132,7 @@ const Footer = () => {
                 role="alert"
               >
                 <FiCheck aria-hidden="true" /> 
-                <span>Welcome back! You have been resubscribed.</span>
+                <span>Welcome back! Please check your email to confirm resubscription.</span>
               </div>
             ) : status.alreadySubscribed ? (
               <div 

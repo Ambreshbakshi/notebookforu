@@ -165,7 +165,7 @@ function UnsubscribeContent() {
         loading: false,
         success: true,
         error: null,
-        message: data.message || 'Please check your email to confirm resubscription.',
+        message: data.message || 'You have been successfully resubscribed!',
         isResubscribable: false
       });
     } catch (error) {
