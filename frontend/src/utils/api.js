@@ -1,6 +1,5 @@
-// src/utils/api.js
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
-  (process.env.NODE_ENV === 'production' 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'production'
     ? 'https://backend.notebookforu.in'
     : 'http://localhost:5000');
 
@@ -13,7 +12,7 @@ export const subscribeEmail = async (email) => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/subscribe`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Origin': window.location.origin
       },
@@ -21,7 +20,7 @@ export const subscribeEmail = async (email) => {
     });
 
     const data = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(data.message || 'Subscription failed');
     }
@@ -30,8 +29,8 @@ export const subscribeEmail = async (email) => {
   } catch (error) {
     console.error('Subscription Error:', error);
     throw new Error(
-      error.message.includes('CORS') 
-        ? 'Connection error. Please try again.' 
+      error.message.includes('CORS')
+        ? 'Connection error. Please try again.'
         : error.message
     );
   }
@@ -54,7 +53,7 @@ export const sendContactForm = async (formData) => {
     });
 
     const data = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(data.message || 'Message failed to send');
     }
@@ -62,6 +61,39 @@ export const sendContactForm = async (formData) => {
     return data;
   } catch (error) {
     console.error('Contact Form Error:', error);
+    throw new Error(
+      error.message.includes('CORS')
+        ? 'Connection error. Please try again.'
+        : error.message
+    );
+  }
+};
+
+/**
+ * Confirms a resubscription using a secure token
+ * @param {string} token - Resubscription token sent via email
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+export const confirmResubscribe = async (token) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/confirm-resubscribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': window.location.origin
+      },
+      body: JSON.stringify({ token })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to confirm resubscription');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Resubscribe Error:', error);
     throw new Error(
       error.message.includes('CORS')
         ? 'Connection error. Please try again.'

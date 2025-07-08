@@ -555,25 +555,46 @@ app.post('/api/subscribe',
       // Check if already subscribed
       const existingSubscriber = await Subscriber.findOne({ email });
       if (existingSubscriber) {
-        if (existingSubscriber.unsubscribed) {
-          // Resubscribe if previously unsubscribed
-          existingSubscriber.unsubscribed = false;
-          existingSubscriber.unsubscribedAt = undefined;
-          existingSubscriber.resubscribeToken = undefined;
-          existingSubscriber.resubscribeExpires = undefined;
-          await existingSubscriber.save();
-          
-          await sendThankYouEmail(email, true);
-          
-          return res.status(200).json({ 
-            success: true,
-            message: 'Welcome back! You have been resubscribed.'
-          });
-        }
-        return res.status(200).json({ 
-          success: true,
-          message: 'You are already subscribed!'
-        });
+       if (existingSubscriber.unsubscribed) {
+  // Send resubscribe confirmation email instead of directly resubscribing
+  const token = crypto.randomBytes(16).toString('hex');
+  existingSubscriber.resubscribeToken = token;
+  existingSubscriber.resubscribeExpires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 2); // 2 days
+  await existingSubscriber.save();
+
+  const confirmLink = `${process.env.FRONTEND_URL}/resubscribe/confirm?token=${token}`;
+  await transporter.sendMail({
+    from: `"NotebookForU" <contact@notebookforu.in>`,
+    to: email,
+    subject: 'Confirm your resubscription to NotebookForU',
+    html: `
+      <p>Hi there,</p>
+      <p>We received a request to resubscribe you to our newsletter.</p>
+      <p>If you want to confirm, click the button below:</p>
+      <p><a href="${confirmLink}" style="background:#4f46e5;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Confirm Resubscription</a></p>
+      <p>This link will expire in 2 days.</p>
+      <p>If you didn’t request this, you can safely ignore it.</p>
+    `,
+    text: `
+Hi there,
+
+We received a request to resubscribe you to our newsletter.
+
+To confirm, open this link:
+${confirmLink}
+
+This link expires in 2 days.
+
+If you didn’t request this, you can ignore it.
+    `
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: 'A confirmation link has been sent to your email.'
+  });
+}
+
       }
 
       // Create new subscriber
@@ -665,7 +686,8 @@ app.post('/api/unsubscribe',
         return res.status(400).json({
           error: 'Already unsubscribed',
           suggestion: 'This link has already been used',
-          resubscribeLink: `${process.env.FRONTEND_URL}/resubscribe?token=${subscriber.resubscribeToken}`,
+          resubscribeLink: `${process.env.FRONTEND_URL}/resubscribe-confirm?token=${resubscribeToken}`
+,
           timestamp: new Date().toISOString()
         });
       }
@@ -692,10 +714,11 @@ app.post('/api/unsubscribe',
 
       // Send unsubscribe confirmation email
       try {
-        await sendUnsubscribeConfirmation(
-          updatedSubscriber.email,
-          `${process.env.FRONTEND_URL}/resubscribe?token=${resubscribeToken}`
-        );
+       await sendUnsubscribeConfirmation(
+  updatedSubscriber.email,
+  `${process.env.FRONTEND_URL}/resubscribe-confirm?token=${resubscribeToken}`
+);
+
         logger.info(`Unsubscribe confirmation sent to ${updatedSubscriber.email}`);
       } catch (emailError) {
         logger.error('Failed to send unsubscribe confirmation:', emailError);
@@ -707,7 +730,7 @@ app.post('/api/unsubscribe',
         success: true,
         message: 'Unsubscribed successfully',
         email: updatedSubscriber.email,
-        resubscribeLink: `${process.env.FRONTEND_URL}/resubscribe?token=${resubscribeToken}`,
+        resubscribeLink: `${process.env.FRONTEND_URL}/resubscribe-confirm?token=${resubscribeToken}`,
         timestamp: new Date().toISOString()
       });
 
@@ -716,6 +739,40 @@ app.post('/api/unsubscribe',
     }
   }
 );
+app.post('/api/confirm-resubscribe', [
+  body('token').notEmpty().withMessage('Token is required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: 'Invalid request', details: errors.array() });
+  }
+
+  try {
+    const { token } = req.body;
+    const subscriber = await Subscriber.findOne({
+      resubscribeToken: token,
+      resubscribeExpires: { $gt: Date.now() },
+      unsubscribed: true
+    });
+
+    if (!subscriber) {
+      return res.status(404).json({ error: 'Invalid or expired token' });
+    }
+
+    subscriber.unsubscribed = false;
+    subscriber.unsubscribedAt = undefined;
+    subscriber.resubscribeToken = undefined;
+    subscriber.resubscribeExpires = undefined;
+    await subscriber.save();
+
+    await sendThankYouEmail(subscriber.email, true);
+    return res.status(200).json({ success: true, message: 'Resubscription confirmed!' });
+  } catch (err) {
+    logger.error('Resubscribe confirmation failed:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Email sending helper function
 async function sendUnsubscribeConfirmation(email, resubscribeLink) {
   const mailOptions = {
