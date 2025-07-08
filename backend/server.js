@@ -793,7 +793,23 @@ app.post('/api/resubscribe-confirm',
   }
 );
 
-
+function buildResubscribeEmailTemplate(confirmLink) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #4f46e5;">Welcome Back to NotebookForU!</h2>
+      <p>We received a request to resubscribe you to our newsletter.</p>
+      <p style="margin: 25px 0;">
+        <a href="${confirmLink}" 
+           style="background: #4f46e5; color: white; padding: 12px 24px; 
+                  text-decoration: none; border-radius: 6px; display: inline-block;">
+          Confirm Resubscription
+        </a>
+      </p>
+      <p><small>This link expires in 48 hours.</small></p>
+      <p>If you didn't request this, please ignore this email.</p>
+    </div>
+  `;
+}
 // Email sending helper function
 async function sendUnsubscribeConfirmation(email, resubscribeLink) {
   const mailOptions = {
