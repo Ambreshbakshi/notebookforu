@@ -160,7 +160,10 @@ const transporter = nodemailer.createTransport({
     rejectUnauthorized: process.env.NODE_ENV === 'production'
   },
   connectionTimeout: 10000,
-  socketTimeout: 20000
+  socketTimeout: 20000,
+   name: 'notebookforu.in',
+  sender: process.env.EMAIL_FROM
+
 });
 
 
@@ -309,12 +312,12 @@ async function sendThankYouEmail(email, isResubscribe) {
   const unsubscribeLink = `${process.env.FRONTEND_URL}/unsubscribe?token=${subscriber.unsubscribeToken}`;
 
  const mailOptions = {
-  from: `"NotebookForU" <contact@notebookforu.in>`,
+  from: `"NotebookForU" <${process.env.EMAIL_FROM}>`,
   to: email,
   subject: 'Welcome to NotebookForU!',
   replyTo: 'support@notebookforu.in', // optional but recommended
   envelope: {
-    from: 'contact@notebookforu.in',
+    from: `"NotebookForU" <${process.env.EMAIL_FROM}>`,
     to: email
   },
    headers: {
@@ -464,11 +467,11 @@ app.post('/api/contact',
       const adminEmail = process.env.ADMIN_EMAIL || 'contact@notebookforu.in';
 
    await transporter.sendMail({
-  from: `"NotebookForU" <contact@notebookforu.in>`,
+  from: `"NotebookForU" <${process.env.EMAIL_FROM}>`,
   to: process.env.ADMIN_EMAIL,
   replyTo: email, // Let admin reply directly to sender
   envelope: {
-    from: 'contact@notebookforu.in',
+    from: `"NotebookForU" <${process.env.EMAIL_FROM}>`,
     to: process.env.ADMIN_EMAIL
   },
   subject: `📩 New Contact Submission: ${name}`,
@@ -813,12 +816,12 @@ function buildResubscribeEmailTemplate(confirmLink) {
 // Email sending helper function
 async function sendUnsubscribeConfirmation(email, resubscribeLink) {
   const mailOptions = {
-    from: `"NotebookForU" <contact@notebookforu.in>`,
+    from: `"NotebookForU" <${process.env.EMAIL_FROM}>`,
     to: email,
     subject: 'You have been unsubscribed',
     replyTo: 'support@notebookforu.in',
     envelope: {
-      from: 'contact@notebookforu.in',
+      from: `"NotebookForU" <${process.env.EMAIL_FROM}>`,
       to: email
     },
     headers: {
