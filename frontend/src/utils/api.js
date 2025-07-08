@@ -21,51 +21,66 @@ export const subscribeEmail = async (email) => {
 
     const data = await response.json();
 
-    // Accept both 200 and 201 as success (e.g., already subscribed or just subscribed)
-    if (!response.ok && response.status !== 200) {
-      throw new Error(data.message || 'Subscription failed');
+    // Consider both 200 (OK) and 201 (Created) as successful responses
+    if (!response.ok && response.status !== 200 && response.status !== 201) {
+      // Custom message for already subscribed users
+      if (response.status === 409) {
+        throw new Error('You are already subscribed!');
+      }
+      throw new Error(data.message || data.error || 'Subscription failed');
+    }
+
+    // Special case for resubscribe flow
+    if (data.message && data.message.includes('confirmation link has been sent')) {
+      return {
+        success: true,
+        message: 'Welcome back! Resubscribe email sent to your email'
+      };
     }
 
     return data;
   } catch (error) {
     console.error('Subscription Error:', error);
     throw new Error(
-      error.message.includes('CORS')
+      error.message.includes('CORS') || error.message.includes('Failed to fetch')
         ? 'Connection error. Please try again.'
-        : error.message
+        : error.message || 'Subscription failed. Please try again.'
     );
   }
 };
 
 /**
- * Handles contact form submission
- * @param {Object} formData - {name: string, email: string, message: string}
+ * Handles unsubscription using token
+ * @param {string} token - Unsubscription token
  * @returns {Promise<{success: boolean, message: string}>}
  */
-export const sendContactForm = async (formData) => {
+export const unsubscribeEmail = async (token) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/contact`, {
+    const response = await fetch(`${API_BASE_URL}/api/unsubscribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Origin': window.location.origin
       },
-      body: JSON.stringify(formData)
+      body: JSON.stringify({ token })
     });
 
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Message failed to send');
+    if (!response.ok && response.status !== 200) {
+      if (response.status === 404) {
+        throw new Error('Oops! Not found - Invalid or expired link');
+      }
+      throw new Error(data.error || data.message || 'Failed to unsubscribe');
     }
 
     return data;
   } catch (error) {
-    console.error('Contact Form Error:', error);
+    console.error('Unsubscribe Error:', error);
     throw new Error(
-      error.message.includes('CORS')
+      error.message.includes('CORS') || error.message.includes('Failed to fetch')
         ? 'Connection error. Please try again.'
-        : error.message
+        : error.message || 'Failed to unsubscribe. Please try again.'
     );
   }
 };
@@ -88,17 +103,53 @@ export const confirmResubscribe = async (token) => {
 
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to confirm resubscription');
+    if (!response.ok && response.status !== 200) {
+      if (response.status === 404) {
+        throw new Error('Oops! Not found - Invalid or expired link');
+      }
+      throw new Error(data.error || data.message || 'Failed to confirm resubscription');
     }
 
     return data;
   } catch (error) {
     console.error('Resubscribe Error:', error);
     throw new Error(
-      error.message.includes('CORS')
+      error.message.includes('CORS') || error.message.includes('Failed to fetch')
         ? 'Connection error. Please try again.'
-        : error.message
+        : error.message || 'Failed to confirm resubscription. Please try again.'
+    );
+  }
+};
+
+/**
+ * Handles contact form submission
+ * @param {Object} formData - {name: string, email: string, message: string}
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+export const sendContactForm = async (formData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/contact`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': window.location.origin
+      },
+      body: JSON.stringify(formData)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok && response.status !== 200 && response.status !== 201) {
+      throw new Error(data.message || data.error || 'Message failed to send');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Contact Form Error:', error);
+    throw new Error(
+      error.message.includes('CORS') || error.message.includes('Failed to fetch')
+        ? 'Connection error. Please try again.'
+        : error.message || 'Failed to send message. Please try again.'
     );
   }
 };
