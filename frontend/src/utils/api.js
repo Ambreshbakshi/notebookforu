@@ -4,7 +4,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
     : 'http://localhost:5000');
 
 /**
- * Handles email subscription
+ * Handles email subscription with improved resubscribe flow
  * @param {string} email - User's email address
  * @returns {Promise<{success: boolean, message: string}>}
  */
@@ -21,31 +21,37 @@ export const subscribeEmail = async (email) => {
 
     const data = await response.json();
 
-    // Consider both 200 (OK) and 201 (Created) as successful responses
-    if (!response.ok && response.status !== 200 && response.status !== 201) {
-      // Custom message for already subscribed users
-      if (response.status === 409) {
-        throw new Error('You are already subscribed!');
+    // Handle all successful responses (200, 201, and resubscribe case)
+    if (response.ok || response.status === 200 || response.status === 201) {
+      // Transform backend message for better UX
+      if (data.message?.includes('confirmation link has been sent')) {
+        return {
+          success: true,
+          message: 'Welcome back! Resubscribe email sent to your email'
+        };
       }
-      throw new Error(data.message || data.error || 'Subscription failed');
+      return data;
     }
 
-    // Special case for resubscribe flow
-    if (data.message && data.message.includes('confirmation link has been sent')) {
-      return {
-        success: true,
-        message: 'Welcome back! Resubscribe email sent to your email'
-      };
+    // Handle specific error cases
+    switch (response.status) {
+      case 409:
+        throw new Error('You are already subscribed!');
+      case 400:
+        throw new Error(data.message || 'Invalid email address');
+      case 404:
+        throw new Error('Service not available');
+      default:
+        throw new Error(data.message || data.error || 'Subscription failed');
     }
-
-    return data;
   } catch (error) {
     console.error('Subscription Error:', error);
-    throw new Error(
-      error.message.includes('CORS') || error.message.includes('Failed to fetch')
-        ? 'Connection error. Please try again.'
-        : error.message || 'Subscription failed. Please try again.'
-    );
+    const userMessage = error.message.includes('CORS') || 
+                       error.message.includes('Failed to fetch')
+      ? 'Connection error. Please try again.'
+      : error.message || 'Subscription failed. Please try again.';
+    
+    throw new Error(userMessage);
   }
 };
 
@@ -68,10 +74,14 @@ export const unsubscribeEmail = async (token) => {
     const data = await response.json();
 
     if (!response.ok && response.status !== 200) {
-      if (response.status === 404) {
-        throw new Error('Oops! Not found - Invalid or expired link');
+      switch (response.status) {
+        case 404:
+          throw new Error('Oops! Not found - Invalid or expired link');
+        case 400:
+          throw new Error('Invalid request');
+        default:
+          throw new Error(data.error || data.message || 'Failed to unsubscribe');
       }
-      throw new Error(data.error || data.message || 'Failed to unsubscribe');
     }
 
     return data;
@@ -104,10 +114,14 @@ export const confirmResubscribe = async (token) => {
     const data = await response.json();
 
     if (!response.ok && response.status !== 200) {
-      if (response.status === 404) {
-        throw new Error('Oops! Not found - Invalid or expired link');
+      switch (response.status) {
+        case 404:
+          throw new Error('Oops! Not found - Invalid or expired link');
+        case 400:
+          throw new Error('Invalid token');
+        default:
+          throw new Error(data.error || data.message || 'Failed to confirm resubscription');
       }
-      throw new Error(data.error || data.message || 'Failed to confirm resubscription');
     }
 
     return data;
@@ -151,5 +165,32 @@ export const sendContactForm = async (formData) => {
         ? 'Connection error. Please try again.'
         : error.message || 'Failed to send message. Please try again.'
     );
+  }
+};
+
+/**
+ * Helper function to make API calls with consistent error handling
+ */
+const makeApiCall = async (endpoint, method, body) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': window.location.origin
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || 'Request failed');
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`API Error (${endpoint}):`, error);
+    throw error;
   }
 };
