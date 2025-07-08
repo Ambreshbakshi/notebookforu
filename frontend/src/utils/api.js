@@ -76,7 +76,7 @@ export const sendContactForm = async (formData) => {
  */
 export const confirmResubscribe = async (token) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/confirm-resubscribe`, {
+    const response = await fetch(`${API_BASE_URL}/api/resubscribe-confirm`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -739,7 +739,7 @@ app.post('/api/unsubscribe',
     }
   }
 );
-app.post('/api/confirm-resubscribe', [
+app.post('/api/resubscribe-confirm', [
   body('token').notEmpty().withMessage('Token is required')
 ], async (req, res) => {
   const errors = validationResult(req);
