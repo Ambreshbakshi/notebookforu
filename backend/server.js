@@ -308,41 +308,58 @@ async function sendThankYouEmail(email, isResubscribe) {
   const subscriber = await Subscriber.findOne({ email });
   const unsubscribeLink = `${process.env.FRONTEND_URL}/unsubscribe?token=${subscriber.unsubscribeToken}`;
 
-  const mailOptions = {
-    from: `"NotebookForU" <contact@notebookforu.in>`,
-    to: email,
-    subject: 'Welcome to NotebookForU!',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
-        <h2 style="color: #4f46e5; text-align: center;">Welcome to NotebookForU!</h2>
-        
-        <p style="font-size: 16px; line-height: 1.6;">
-          Thank you for ${isResubscribe ? 're' : ''}subscribing to our newsletter.
+ const mailOptions = {
+  from: `"NotebookForU" <contact@notebookforu.in>`,
+  to: email,
+  subject: 'Welcome to NotebookForU!',
+  replyTo: 'support@notebookforu.in', // optional but recommended
+  envelope: {
+    from: 'contact@notebookforu.in',
+    to: email
+  },
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+      <h2 style="color: #4f46e5; text-align: center;">Welcome to NotebookForU!</h2>
+      
+      <p style="font-size: 16px; line-height: 1.6;">
+        Thank you for ${isResubscribe ? 're' : ''}subscribing to our newsletter.
+      </p>
+
+      <p style="font-size: 16px; line-height: 1.6;">
+        You'll be the first to know about:
+      </p>
+
+      <ul style="font-size: 16px; line-height: 1.6; padding-left: 20px;">
+        <li>New notebook designs</li>
+        <li>Exclusive offers</li>
+        <li>Special promotions</li>
+      </ul>
+
+      <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin-top: 20px;">
+        <a href="${unsubscribeLink}" style="color: #4f46e5;">Unsubscribe</a> anytime by clicking this link.
+      </p>
+
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+        <p style="font-size: 12px; color: #9ca3af;">
+          © ${new Date().getFullYear()} NotebookForU. All rights reserved.
         </p>
-
-        <p style="font-size: 16px; line-height: 1.6;">
-          You'll be the first to know about:
-        </p>
-
-        <ul style="font-size: 16px; line-height: 1.6; padding-left: 20px;">
-          <li>New notebook designs</li>
-          <li>Exclusive offers</li>
-          <li>Special promotions</li>
-        </ul>
-
-        <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin-top: 20px;">
-          <a href="${unsubscribeLink}" style="color: #4f46e5;">Unsubscribe</a> anytime by clicking this link.
-        </p>
-
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
-          <p style="font-size: 12px; color: #9ca3af;">
-            © ${new Date().getFullYear()} NotebookForU. All rights reserved.
-          </p>
-        </div>
       </div>
-    `,
-    text: `Welcome to NotebookForU!\n\nThank you for ${isResubscribe ? 're' : ''}subscribing to our newsletter.\n\nYou'll be the first to know about:\n- New notebook designs\n- Exclusive offers\n- Special promotions\n\nUnsubscribe: ${unsubscribeLink}\n\n© ${new Date().getFullYear()} NotebookForU. All rights reserved.`
-  };
+    </div>
+  `,
+  text: `Welcome to NotebookForU!
+
+Thank you for ${isResubscribe ? 're' : ''}subscribing to our newsletter.
+
+You'll be the first to know about:
+- New notebook designs
+- Exclusive offers
+- Special promotions
+
+Unsubscribe: ${unsubscribeLink}
+
+© ${new Date().getFullYear()} NotebookForU. All rights reserved.`
+};
+
 
   try {
     await transporter.sendMail(mailOptions);
@@ -440,25 +457,62 @@ app.post('/api/contact',
       const { name, email, message } = req.body;
       const newContact = await Contact.create({ name, email, message });
 
-      transporter.sendMail({
-        from: `"NotebookForU" <contact@notebookforu.in>`,
-        to: process.env.ADMIN_EMAIL,
-        subject: `New Contact: ${name}`,
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h2 style="color: #4f46e5;">New Contact Submission</h2>
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
-            <p><strong>Message:</strong></p>
-            <div style="background: #f3f4f6; padding: 1rem; border-radius: 0.5rem;">
-              ${message.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}
-            </div>
-            <p style="margin-top: 1rem;"><small>Received at: ${newContact.createdAt.toLocaleString()}</small></p>
-          </div>
-        `
-      }).catch(emailError => {
-        logger.error('Email sending failed:', emailError);
-      });
+   await transporter.sendMail({
+  from: `"NotebookForU" <contact@notebookforu.in>`,
+  to: process.env.ADMIN_EMAIL,
+  replyTo: email, // Let admin reply directly to sender
+  envelope: {
+    from: 'contact@notebookforu.in',
+    to: process.env.ADMIN_EMAIL
+  },
+  subject: `📩 New Contact Submission: ${name}`,
+  headers: {
+    'X-Priority': '3',
+    'X-Mailer': 'NotebookForU-Mailer',
+    'List-ID': 'Contact Form <contact.notebookforu.in>'
+  },
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+      <h2 style="color: #4f46e5; text-align: center;">📨 New Contact Form Submission</h2>
+      
+      <p style="font-size: 16px;"><strong>Name:</strong> ${name}</p>
+      <p style="font-size: 16px;"><strong>Email:</strong> 
+        <a href="mailto:${email}" style="color: #4f46e5;">${email}</a>
+      </p>
+      
+      <p style="font-size: 16px;"><strong>Message:</strong></p>
+      <div style="background-color: #f3f4f6; padding: 1rem; border-radius: 8px; font-size: 15px;">
+        ${message.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}
+      </div>
+
+      <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
+        <strong>Submitted on:</strong> ${newContact.createdAt.toLocaleString()}
+      </p>
+
+      <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+      <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+        This message was sent from the NotebookForU website contact form.
+      </p>
+    </div>
+  `,
+  text: `
+New Contact Form Submission
+
+Name: ${name}
+Email: ${email}
+
+Message:
+${message}
+
+Submitted on: ${newContact.createdAt.toLocaleString()}
+
+—
+NotebookForU
+https://notebookforu.in
+  `
+});
+
+
 
       res.status(201).json({ 
         success: true,
@@ -661,35 +715,61 @@ app.post('/api/unsubscribe',
 );
 // Email sending helper function
 async function sendUnsubscribeConfirmation(email, resubscribeLink) {
-  await transporter.sendMail({
+  const mailOptions = {
     from: `"NotebookForU" <contact@notebookforu.in>`,
     to: email,
-    subject: 'Unsubscription confirmed',
+    subject: 'You have been unsubscribed',
+    replyTo: 'support@notebookforu.in',
+    envelope: {
+      from: 'contact@notebookforu.in',
+      to: email
+    },
+    headers: {
+      'List-Unsubscribe': `<${resubscribeLink}>`
+    },
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #4f46e5;">You're unsubscribed</h2>
-        <p>We've removed ${email} from our mailing list.</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #4f46e5;">You're Unsubscribed</h2>
+        <p style="font-size: 16px;">We've removed <strong>${email}</strong> from our mailing list.</p>
         <p style="margin: 20px 0;">
+          Want to come back? Click below to resubscribe:
+        </p>
+        <p>
           <a href="${resubscribeLink}" 
              style="background: #4f46e5; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">
             Resubscribe
           </a>
         </p>
-        <p style="color: #6b7280; font-size: 0.9em;">
-          This link expires in 30 days.
+        <p style="color: #6b7280; font-size: 0.9em; margin-top: 20px;">
+          This link will expire in 30 days.
         </p>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-        <p style="color: #9ca3af; font-size: 0.8em;">
-          NotebookForU Team
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+        <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+          Sent by NotebookForU, Gorakhpur, Uttar Pradesh, India.<br>
+          © ${new Date().getFullYear()} NotebookForU. All rights reserved.
         </p>
       </div>
     `,
-    text: `You've been unsubscribed (${email}).\n\n`
-        + `Resubscribe: ${resubscribeLink}\n\n`
-        + `This link expires in 30 days.\n\n`
-        + `NotebookForU Team`
-  });
+    text: `You've been unsubscribed (${email}).
+
+Want to come back? Resubscribe using the link below:
+${resubscribeLink}
+
+This link will expire in 30 days.
+
+Sent by NotebookForU, Gorakhpur, Uttar Pradesh, India.
+© ${new Date().getFullYear()} NotebookForU. All rights reserved.`
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    logger.info(`Unsubscribe confirmation sent to ${email}`);
+  } catch (error) {
+    logger.error('Error sending unsubscribe confirmation:', error);
+    throw new Error('Email sending failed');
+  }
 }
+
 
 // ======================
 // ENHANCED ERROR HANDLING
