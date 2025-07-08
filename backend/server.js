@@ -554,28 +554,29 @@ app.post('/api/subscribe',
 
       // Check if already subscribed
       const existingSubscriber = await Subscriber.findOne({ email });
+      
       if (existingSubscriber) {
-       if (existingSubscriber.unsubscribed) {
-  // Send resubscribe confirmation email instead of directly resubscribing
-  const token = crypto.randomBytes(16).toString('hex');
-  existingSubscriber.resubscribeToken = token;
-  existingSubscriber.resubscribeExpires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 2); // 2 days
-  await existingSubscriber.save();
+        if (existingSubscriber.unsubscribed) {
+          // Handle resubscribe case
+          const token = crypto.randomBytes(16).toString('hex');
+          existingSubscriber.resubscribeToken = token;
+          existingSubscriber.resubscribeExpires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 2); // 2 days
+          await existingSubscriber.save();
 
-  const confirmLink = `${process.env.FRONTEND_URL}/resubscribe-confirm?token=${token}`;
-  await transporter.sendMail({
-    from: `"NotebookForU" <contact@notebookforu.in>`,
-    to: email,
-    subject: 'Confirm your resubscription to NotebookForU',
-    html: `
-      <p>Hi there,</p>
-      <p>We received a request to resubscribe you to our newsletter.</p>
-      <p>If you want to confirm, click the button below:</p>
-      <p><a href="${confirmLink}" style="background:#4f46e5;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Confirm Resubscription</a></p>
-      <p>This link will expire in 2 days.</p>
-      <p>If you didn’t request this, you can safely ignore it.</p>
-    `,
-    text: `
+          const confirmLink = `${process.env.FRONTEND_URL}/resubscribe-confirm?token=${token}`;
+          await transporter.sendMail({
+            from: `"NotebookForU" <contact@notebookforu.in>`,
+            to: email,
+            subject: 'Confirm your resubscription to NotebookForU',
+            html: `
+              <p>Hi there,</p>
+              <p>We received a request to resubscribe you to our newsletter.</p>
+              <p>If you want to confirm, click the button below:</p>
+              <p><a href="${confirmLink}" style="background:#4f46e5;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Confirm Resubscription</a></p>
+              <p>This link will expire in 2 days.</p>
+              <p>If you didn't request this, you can safely ignore it.</p>
+            `,
+            text: `
 Hi there,
 
 We received a request to resubscribe you to our newsletter.
@@ -585,16 +586,21 @@ ${confirmLink}
 
 This link expires in 2 days.
 
-If you didn’t request this, you can ignore it.
-    `
-  });
+If you didn't request this, you can ignore it.
+            `
+          });
 
-  return res.status(200).json({
-    success: true,
-    message: 'A confirmation link has been sent to your email.'
-  });
-}
-
+          return res.status(200).json({
+            success: true,
+            message: 'A confirmation link has been sent to your email.'
+          });
+        } else {
+          // User is already subscribed
+          return res.status(200).json({ 
+            success: true,
+            message: 'You are already subscribed!'
+          });
+        }
       }
 
       // Create new subscriber

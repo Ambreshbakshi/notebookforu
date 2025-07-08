@@ -21,7 +21,8 @@ export const subscribeEmail = async (email) => {
 
     const data = await response.json();
 
-    if (!response.ok) {
+    // Accept both 200 and 201 as success (e.g., already subscribed or just subscribed)
+    if (!response.ok && response.status !== 200) {
       throw new Error(data.message || 'Subscription failed');
     }
 
