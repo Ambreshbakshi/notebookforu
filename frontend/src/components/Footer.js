@@ -2,7 +2,7 @@
 import { FaInstagram, FaEnvelope, FaWhatsapp, FaFacebook } from 'react-icons/fa';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { FiCheck, FiMail } from 'react-icons/fi';
+import { FiCheck, FiMail, FiClock } from 'react-icons/fi';
 
 const Footer = () => {
   const [email, setEmail] = useState('');
@@ -12,9 +12,11 @@ const Footer = () => {
     resubscribed: false,
     alreadySubscribed: false,
     error: null,
-    validationError: null
+    validationError: null,
+    cooldown: 0
   });
 
+  // Clear success messages after 5 seconds
   useEffect(() => {
     if (status.success || status.resubscribed || status.alreadySubscribed) {
       const timer = setTimeout(() => {
@@ -29,6 +31,20 @@ const Footer = () => {
     }
   }, [status.success, status.resubscribed, status.alreadySubscribed]);
 
+  // Handle cooldown timer
+  useEffect(() => {
+    let interval;
+    if (status.cooldown > 0) {
+      interval = setInterval(() => {
+        setStatus(prev => ({
+          ...prev,
+          cooldown: prev.cooldown - 1
+        }));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [status.cooldown]);
+
   const validateEmail = (email) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
@@ -39,10 +55,11 @@ const Footer = () => {
     
     // Client-side validation
     if (!email || !validateEmail(email)) {
-      setStatus({
+      setStatus(prev => ({
+        ...prev,
         loading: false,
         validationError: 'Please enter a valid email address'
-      });
+      }));
       return;
     }
 
@@ -52,7 +69,8 @@ const Footer = () => {
       resubscribed: false,
       alreadySubscribed: false,
       error: null,
-      validationError: null
+      validationError: null,
+      cooldown: 0 
     });
 
     try {
@@ -72,6 +90,14 @@ const Footer = () => {
           const firstError = data.details?.[0]?.msg || 'Invalid email format';
           throw new Error(firstError);
         }
+        if (response.status === 429) {
+          setStatus(prev => ({
+            ...prev,
+            loading: false,
+            cooldown: 120 // 2 minutes cooldown
+          }));
+          return;
+        }
         throw new Error(data.error || 'Subscription failed');
       }
 
@@ -83,10 +109,11 @@ const Footer = () => {
           error: null
         });
         setEmail('');
-      } else if (data.message?.includes('Welcome back')) {
+      } else if (data.isResubscribe) {
         setStatus({ 
           loading: false, 
           resubscribed: true,
+          cooldown: 120, // Start 2-minute cooldown
           error: null
         });
       } else if (data.message?.includes('already subscribed')) {
@@ -97,11 +124,12 @@ const Footer = () => {
         });
       }
     } catch (err) {
-      setStatus({ 
+      setStatus(prev => ({ 
+        ...prev,
         loading: false, 
         error: err.message || 'Subscription failed. Please try again.',
         validationError: err.message.includes('email') ? err.message : null
-      });
+      }));
     }
   };
 
@@ -117,31 +145,24 @@ const Footer = () => {
             </p>
             
             {status.success ? (
-              <div 
-                className="flex items-center gap-2 text-green-400" 
-                aria-live="polite"
-                role="alert"
-              >
+              <div className="flex items-center gap-2 text-green-400" aria-live="polite" role="alert">
                 <FiCheck aria-hidden="true" /> 
                 <span>Thank you for subscribing! Please check your email.</span>
               </div>
             ) : status.resubscribed ? (
-              <div 
-                className="flex items-center gap-2 text-blue-400" 
-                aria-live="polite"
-                role="alert"
-              >
+              <div className="flex items-center gap-2 text-blue-400" aria-live="polite" role="alert">
                 <FiCheck aria-hidden="true" /> 
                 <span>Welcome back! Please check your email to confirm resubscription.</span>
               </div>
             ) : status.alreadySubscribed ? (
-              <div 
-                className="flex items-center gap-2 text-yellow-400" 
-                aria-live="polite"
-                role="alert"
-              >
+              <div className="flex items-center gap-2 text-yellow-400" aria-live="polite" role="alert">
                 <FiCheck aria-hidden="true" /> 
                 <span>You are already subscribed!</span>
+              </div>
+            ) : status.cooldown ? (
+              <div className="flex items-center gap-2 text-blue-400" aria-live="polite">
+                <FiClock aria-hidden="true" />
+                <span>Please wait {status.cooldown}s before requesting another email</span>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-2" noValidate>
@@ -153,15 +174,12 @@ const Footer = () => {
                     onChange={(e) => {
                       setEmail(e.target.value);
                       if (status.validationError) {
-                        setStatus(prev => ({
-                          ...prev,
-                          validationError: null
-                        }));
+                        setStatus(prev => ({ ...prev, validationError: null }));
                       }
                     }}
                     placeholder="Your email"
                     className="w-full pl-10 pr-4 py-2 bg-gray-800 rounded border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                    disabled={status.loading}
+                    disabled={status.loading || status.cooldown > 0}
                     required
                     aria-required="true"
                     aria-invalid={!!status.validationError}
@@ -170,31 +188,22 @@ const Footer = () => {
                 </div>
                 
                 {status.validationError && (
-                  <p 
-                    id="email-error"
-                    className="text-red-400 text-sm" 
-                    aria-live="assertive"
-                    role="alert"
-                  >
+                  <p id="email-error" className="text-red-400 text-sm" aria-live="assertive" role="alert">
                     {status.validationError}
                   </p>
                 )}
                 
                 {status.error && !status.validationError && (
-                  <p 
-                    className="text-red-400 text-sm" 
-                    aria-live="assertive"
-                    role="alert"
-                  >
+                  <p className="text-red-400 text-sm" aria-live="assertive" role="alert">
                     {status.error}
                   </p>
                 )}
                 
                 <button
                   type="submit"
-                  disabled={status.loading}
+                  disabled={status.loading || status.cooldown > 0}
                   className={`w-full py-2 px-4 rounded font-medium transition-colors ${
-                    status.loading 
+                    status.loading || status.cooldown > 0
                       ? 'bg-blue-700 cursor-not-allowed' 
                       : 'bg-blue-600 hover:bg-blue-700'
                   } flex items-center justify-center`}
@@ -208,7 +217,7 @@ const Footer = () => {
                       </svg>
                       Subscribing...
                     </>
-                  ) : 'Subscribe'}
+                  ) : status.cooldown > 0 ? `Wait ${status.cooldown}s` : 'Subscribe'}
                 </button>
               </form>
             )}
@@ -261,19 +270,19 @@ const Footer = () => {
               <p>
                 Phone:{' '}
                 <a 
-                  href={`tel:${process.env.NEXT_PUBLIC_CONTACT_PHONE}`} 
+                  href="tel:+918303157090" 
                   className="hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
                 >
-                  {process.env.NEXT_PUBLIC_CONTACT_PHONE || '+91 8303137090'}
+                  +91 8303157090
                 </a>
               </p>
-                <p>
+              <p>
                 Phone:{' '}
                 <a 
-                  href={`tel:${process.env.NEXT_PUBLIC_CONTACT_PHONE}`} 
+                  href="tel:+917991252505" 
                   className="hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
                 >
-                  {process.env.NEXT_2PUBLIC_CONTACT_PHONE || '+91 7991252505'}
+                  +91 7991252505
                 </a>
               </p>
               <p>Hours: Mon-Fri, 9AM-6PM</p>
@@ -293,17 +302,8 @@ const Footer = () => {
               >
                 <FaInstagram className="text-2xl" aria-hidden="true" />
               </a>
-              {/* <a 
-                href="https://facebook.com/notebookforu" 
-                target="_blank" 
-                rel="noopener noreferrer nofollow"
-                aria-label="Facebook (opens in new tab)"
-                className="text-gray-400 hover:text-blue-500 transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-full p-1"
-              >
-                <FaFacebook className="text-2xl" aria-hidden="true" />
-              </a> */}
               <a 
-                href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '+917991252505'}`} 
+                href="https://wa.me/918303157090" 
                 target="_blank" 
                 rel="noopener noreferrer nofollow"
                 aria-label="WhatsApp (opens in new tab)"
@@ -311,8 +311,8 @@ const Footer = () => {
               >
                 <FaWhatsapp className="text-2xl" aria-hidden="true" />
               </a>
-                <a 
-                href={`https://wa.me/${process.env.NEXT_2PUBLIC_WHATSAPP_NUMBER || '+918303137090'}`} 
+              <a 
+                href="https://wa.me/917991252505" 
                 target="_blank" 
                 rel="noopener noreferrer nofollow"
                 aria-label="WhatsApp (opens in new tab)"

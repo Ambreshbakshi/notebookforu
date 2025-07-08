@@ -285,6 +285,10 @@ const subscriberSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+ lastResubscribeEmailSent: {
+  type: Date,
+  default: null
+},
   source: {
     type: String,
     enum: ['website', 'landing-page', 'api', 'manual'],
@@ -568,8 +572,9 @@ app.post('/api/subscribe',
 
     try {
       const { email } = req.body;
+      const now = new Date();
 
-      // Check for existing subscriber (regardless of subscription status)
+      // Check for existing subscriber
       const existingSubscriber = await Subscriber.findOne({ email });
       
       if (existingSubscriber) {
@@ -581,18 +586,29 @@ app.post('/api/subscribe',
           });
         }
         
-        // Case 2: Previously unsubscribed - resubscribe flow
+        // Case 2: Resubscribe flow with rate limiting
+        const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+        
+        // Check if resubscribe email was sent recently
+        if (existingSubscriber.lastResubscribeEmailSent > twoMinutesAgo) {
+          return res.status(429).json({
+            success: false,
+            error: 'Please wait 2 minutes before requesting another resubscribe email.'
+          });
+        }
+
+        // Generate new token and update timestamps
         const resubscribeToken = crypto.randomBytes(16).toString('hex');
         
         await Subscriber.findByIdAndUpdate(existingSubscriber._id, {
           resubscribeToken,
-          resubscribeExpires: new Date(Date.now() + 48 * 60 * 60 * 1000), // 2 days
-          lastActionAt: new Date()
+          resubscribeExpires: new Date(now.getTime() + 48 * 60 * 60 * 1000), // 2 days
+          lastResubscribeEmailSent: now,
+          lastActionAt: now
         });
 
+        // Send confirmation email
         const confirmLink = `${process.env.FRONTEND_URL}/resubscribe-confirm?token=${resubscribeToken}`;
-        
-        // Send resubscription confirmation email
         await transporter.sendMail({
           from: `"NotebookForU" <${process.env.EMAIL_FROM}>`,
           to: email,
@@ -625,7 +641,7 @@ app.post('/api/subscribe',
     } catch (err) {
       logger.error('Subscription error:', err);
       
-      // Handle duplicate key error (shouldn't happen with proper checks)
+      // Handle duplicate key error
       if (err.code === 11000) {
         return res.status(200).json({
           success: true,
