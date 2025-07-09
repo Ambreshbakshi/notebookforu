@@ -12,7 +12,7 @@ const images = [
   { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero15.jpeg", alt: "Writing in our notebooks", caption: "Perfect for Every Story" },
   { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero8.jpeg", alt: "Notebook collection display", caption: "Endless Possibilities" },
   { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero13.jpg", alt: "Eco-friendly materials", caption: "Sustainable Choices" },
-  { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero6.jpg", alt: "Notebook accessories", caption: "Complete Your Set" },
+  { src: "https://ik.imagekit.io/h5by6dwco/public/hero/hero16.jpeg", alt: "Notebook accessories", caption: "Complete Your Set" },
 ];
 
 const Hero = () => {

@@ -4,23 +4,22 @@ const customerData = {
     customers: [
       {
         id: 1,
-        name: "John Doe",
-        email: "john@example.com",
-        phone: "+1234567890",
+        name: "Anmol Tripathi",
+        email: "anmol_tripathi@9889@gmail.com",
+        phone: "+91-9336705903",
         address: {
-          street: "123 Main St",
-          city: "Cityville",
-          state: "CA",
-          zip: "90210",
-          country: "USA"
+          street: "Nahar Road",
+          city: "Gorakhpur",
+          state: "UP",
+          zip: "273016",
+          country: "India"
         },
         orders: [
           {
             orderId: "NB1001",
             date: "2023-05-15",
             items: [
-              { productId: "NB-A5-100", name: "A5 Notebook", quantity: 2, price: 12.99 },
-              { productId: "PEN-SET1", name: "Premium Pen Set", quantity: 1, price: 9.99 }
+              { productId: "NB-A5-100", name: "A4 Notebook", quantity: 2, price: 12.99 },
             ],
             subtotal: 35.97,
             tax: 2.88,
@@ -33,27 +32,28 @@ const customerData = {
           {
             reviewId: "REV1001",
             productId: "NB-A5-100",
-            productName: "A5 Notebook",
+            productName: "A4 Spiral Notebook",
             rating: 5,
             comment: "Great quality notebooks! The paper is thick and perfect for all my writing needs.",
             date: "2023-05-20",
-            images: ["/reviews/notebook-review1.jpg"]
+            images: ["/public/Anmol.jpeg"]
           }
         ],
         wishlist: ["NB-A4-200", "PEN-SET2"]
       },
       {
         id: 2,
-        name: "Emily Smith",
-        email: "emily@example.com",
-        phone: "+1987654321",
+        name: "Animesh Bakshi",
+        email: "animeshbakshi123@gmail.com.com",
+        phone: "+91-9264942415",
         address: {
-          street: "456 Oak Ave",
-          city: "Townsville",
-          state: "NY",
-          zip: "10001",
-          country: "USA"
+              street: "Nahar Road",
+          city: "Gorakhpur",
+          state: "UP",
+          zip: "273016",
+          country: "India"
         },
+        
         orders: [
           {
             orderId: "NB1002",
@@ -73,7 +73,7 @@ const customerData = {
           {
             reviewId: "REV1002",
             productId: "NB-B5-150",
-            productName: "B5 Notebook",
+            productName: "A4 Spiral Notebook",
             rating: 4,
             comment: "Loved the customization options! Being able to add my name made it extra special.",
             date: "2023-06-15",
@@ -180,7 +180,7 @@ const customerData = {
           ...review,
           customerId: customer.id,
           customerName: customer.name,
-          customerImage: `/customers/customer${customer.id}.png`
+          customerImage: `/customers/customer${customer.id}.jpeg`
         }))
       );
     },

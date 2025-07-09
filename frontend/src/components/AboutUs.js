@@ -39,14 +39,17 @@ const AboutUs = () => {
               viewport={{ once: true }}
               className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl"
             >
-              <Image
-                src="/about/about-us.jpg"
-                alt="NotebookForU design team at work"
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                priority
-              />
+           <div className="relative w-full h-[500px]"> {/* adjust height as needed */}
+  <Image
+    src="https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook9/notebook9-detail5.jpeg"
+    alt="NotebookForU design team at work"
+    fill
+    className="object-cover object-left-bottom"
+    sizes="(max-width: 1024px) 100vw, 50vw"
+    priority
+  />
+</div>
+
             </motion.div>
 
             {/* Modern Link with Counter */}
@@ -88,7 +91,7 @@ const AboutUs = () => {
             </h2>
             
             <p className="text-lg text-gray-700 leading-relaxed">
-              Founded in 2015, NotebookForU began as a small passion project between two stationery enthusiasts. 
+              Founded in 2022, NotebookForU began as a small passion project between two stationery enthusiasts. 
               Today, we're a team of designers dedicated to creating premium notebooks that 
               blend functionality with artistic expression.
             </p>
