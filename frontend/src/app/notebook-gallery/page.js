@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import productData from "@/data/productData";
 import Image from "next/image";
-import { useRouter } from 'next/navigation';
+
 import { FaHeart, FaRegHeart, FaStar, FaCartPlus, FaSearch, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';

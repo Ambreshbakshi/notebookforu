@@ -4,120 +4,131 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged, auth } from '@/lib/firebase';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { FiLoader } from 'react-icons/fi';
+import { FiLoader, FiCheck, FiAlertCircle } from 'react-icons/fi';
 
 export default function NotebookCheckout() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Get product details from URL or localStorage
-  const getProductDetails = () => {
-    try {
-      // First try to get from URL params
-      const id = window.location.pathname.split('/')[2];
-      const quantity = searchParams.get('quantity') || 1;
-      const pageType = searchParams.get('pageType') || 'Ruled';
-
-      // Then check for pending checkout in localStorage
-      const pendingCheckout = localStorage.getItem('pendingDirectCheckout');
-      if (pendingCheckout) {
-        const parsed = JSON.parse(pendingCheckout);
-        return {
-          id: parsed.id || id,
-          quantity: parsed.quantity || quantity,
-          pageType: parsed.pageType || pageType,
-          name: parsed.name,
-          price: parsed.price,
-          image: parsed.image
-        };
-      }
-
-      return { id, quantity, pageType };
-    } catch (err) {
-      console.error('Error getting product details:', err);
-      return null;
-    }
-  };
+  const [statusMessage, setStatusMessage] = useState('Preparing your checkout...');
 
   useEffect(() => {
-    const productDetails = getProductDetails();
-    if (!productDetails?.id) {
-      setError('Invalid product details');
-      setIsLoading(false);
-      return;
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const handleCheckoutFlow = async () => {
       try {
-        if (!user) {
-          // Store the current checkout attempt for after login
-          localStorage.setItem('pendingDirectCheckout', JSON.stringify(productDetails));
-          
-          // Redirect to login with return URL
-          const loginUrl = `/admin/login?redirect=${encodeURIComponent(window.location.pathname)}&quantity=${productDetails.quantity}&pageType=${productDetails.pageType}`;
-          router.push(loginUrl);
-          return;
-        }
-
-        // User is authenticated - prepare checkout data
-        const directItem = {
-          id: productDetails.id,
-          name: productDetails.name || `Notebook ${productDetails.id}`,
-          price: productDetails.price || 0, // You should get actual price from your DB
-          quantity: Number(productDetails.quantity),
-          pageType: productDetails.pageType,
-          image: productDetails.image || '/default-notebook.jpg'
+        // 1. Get product details from URL or session storage
+        const productDetails = {
+          id: window.location.pathname.split('/')[2],
+          quantity: searchParams.get('quantity') || 1,
+          pageType: searchParams.get('pageType') || 'Ruled',
+          ...(JSON.parse(sessionStorage.getItem('pendingDirectCheckout') || '{}'))
         };
 
-        // Clear any existing cart for direct checkout
-        localStorage.setItem('cart', JSON.stringify([]));
-        
-        // Clear pending checkout if it exists
-        localStorage.removeItem('pendingDirectCheckout');
+        if (!productDetails.id) {
+          throw new Error('Invalid product details');
+        }
 
-        // Redirect to checkout page with product details
-        router.push(`/checkout?directItem=${encodeURIComponent(JSON.stringify(directItem))}`);
+        // 2. Handle authentication state
+        return new Promise((resolve) => {
+          const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+              setStatusMessage('Redirecting to login...');
+              
+              // Store for after login
+              sessionStorage.setItem('pendingDirectCheckout', JSON.stringify({
+                id: productDetails.id,
+                quantity: productDetails.quantity,
+                pageType: productDetails.pageType
+              }));
+
+              // In the handleCheckoutFlow function, update the login redirect:
+router.push(`/admin/login?redirect=/checkout&checkoutType=notebook`);
+              return resolve();
+            }
+
+            // User is authenticated - prepare checkout
+            setStatusMessage('Finalizing your order...');
+            
+            // Prepare cart data
+            const cartItem = {
+              id: productDetails.id,
+              name: `Notebook | Sunny Sky - ${productDetails.pageType}`,
+              price: 115, // Should fetch actual price from your database
+              quantity: Number(productDetails.quantity),
+              pageType: productDetails.pageType,
+              image: 'https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook2/notebook2-cover.png'
+            };
+
+            // Set cart and special checkout flag
+            localStorage.setItem('cart', JSON.stringify([cartItem]));
+            sessionStorage.setItem('isDirectCheckout', 'true');
+            sessionStorage.removeItem('pendingDirectCheckout');
+
+            // Final redirect to checkout
+            router.push('/checkout');
+            resolve();
+          });
+
+          // Cleanup
+          return () => unsubscribe();
+        });
       } catch (err) {
-        console.error('Checkout preparation error:', err);
-        setError('Failed to prepare checkout');
-        toast.error('Failed to process your checkout');
+        console.error('Checkout error:', err);
+        setError(err.message || 'Failed to process checkout');
+        toast.error('Checkout processing failed');
       } finally {
         setIsLoading(false);
       }
-    });
-
-    return () => {
-      unsubscribe();
     };
+
+    handleCheckoutFlow();
   }, [router, searchParams]);
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white p-6 rounded-lg shadow-md text-center">
-          <h2 className="text-xl font-bold text-red-600 mb-2">Checkout Error</h2>
-          <p className="text-gray-700 mb-4">{error}</p>
-          <button
-            onClick={() => window.history.back()}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Go Back
-          </button>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="bg-white p-6 rounded-lg shadow-md text-center max-w-md w-full">
+          <FiAlertCircle className="text-red-500 text-4xl mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Checkout Error</h2>
+          <p className="text-gray-700 mb-6">{error}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => router.push('/notebook-gallery')}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Back to Notebooks
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="bg-white p-6 rounded-lg shadow-md text-center">
-        <FiLoader className="animate-spin text-blue-600 text-4xl mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-gray-800">Preparing Your Checkout</h2>
-        <p className="text-gray-600 mt-2">
-          {isLoading ? 'Processing...' : 'Redirecting to checkout...'}
-        </p>
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-lg shadow-md text-center max-w-md w-full">
+        <div className="mb-4">
+          {isLoading ? (
+            <FiLoader className="animate-spin text-blue-600 text-4xl mx-auto" />
+          ) : (
+            <FiCheck className="text-green-500 text-4xl mx-auto" />
+          )}
+        </div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">
+          {isLoading ? 'Processing Your Order' : 'Ready to Checkout'}
+        </h2>
+        <p className="text-gray-600 mb-6">{statusMessage}</p>
+        {!isLoading && (
+          <p className="text-sm text-gray-500">
+            If not redirected automatically,{' '}
+            <button 
+              onClick={() => router.push('/checkout')} 
+              className="text-blue-600 hover:underline"
+            >
+              click here
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );
