@@ -32,47 +32,24 @@ const AboutUs = () => {
         <div className="flex flex-col lg:flex-row items-center gap-12">
           {/* Image Section with Animated Badge */}
           <div className="w-full lg:w-1/2 relative">
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl"
-            >
-          <div className="relative w-full h-[60vh] sm:h-[500px]">
-  <Image
-    src="https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook9/notebook9-detail5.jpeg"
-    alt="NotebookForU design team at work"
-    fill
-    className="object-cover object-left-bottom"
-    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 50vw"
-    priority
-  />
+  <motion.div
+    initial={{ opacity: 0, x: -50 }}
+    whileInView={{ opacity: 1, x: 0 }}
+    transition={{ duration: 0.8 }}
+    viewport={{ once: true }}
+    className="relative h-[60vh] sm:h-[500px] rounded-2xl overflow-hidden shadow-2xl"
+  >
+    <Image
+      src="https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook9/notebook9-detail5.jpeg"
+      alt="NotebookForU design team at work"
+      fill
+      className="object-cover object-[0%_100%]"
+      style={{ objectPosition: 'left bottom' }} // Double assurance
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 50vw"
+      priority
+    />
+  </motion.div>
 </div>
-
-
-            </motion.div>
-
-            {/* Modern Link with Counter */}
-            <Link
-              href="/notebook-gallery"
-              ref={ref}
-              className="absolute -bottom-6 -right-6 bg-white p-4 rounded-xl shadow-lg hidden md:flex items-center hover:scale-105 transition-transform duration-300 cursor-pointer group"
-              aria-label="View our 10+ notebook designs"
-            >
-              <div className="bg-blue-100 p-3 rounded-full mr-3 group-hover:rotate-12 transition-transform">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-bold text-gray-800">
-                  {Math.floor(count)}+
-                </p>
-                <p className="text-sm text-gray-600">Unique Designs</p>
-              </div>
-            </Link>
-          </div>
 
           {/* Text Content with Animations */}
           <motion.div 
