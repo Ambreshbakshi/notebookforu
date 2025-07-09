@@ -107,7 +107,7 @@ const ProductSection = () => {
       if (containerRef.current) {
         containerRef.current.scrollBy({ left: cardWidth + 20, behavior: "smooth" });
       }
-    }, 3000);
+    }, 6000);
     return () => clearInterval(autoPlayRef.current);
   }, [autoPlayActive, isMobile]);
 
