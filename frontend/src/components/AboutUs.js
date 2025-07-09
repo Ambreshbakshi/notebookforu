@@ -39,16 +39,17 @@ const AboutUs = () => {
               viewport={{ once: true }}
               className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl"
             >
-           <div className="relative w-full h-[500px]"> {/* adjust height as needed */}
+          <div className="relative w-full h-[60vh] sm:h-[500px]">
   <Image
     src="https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook9/notebook9-detail5.jpeg"
     alt="NotebookForU design team at work"
     fill
     className="object-cover object-left-bottom"
-    sizes="(max-width: 1024px) 100vw, 50vw"
+    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 50vw"
     priority
   />
 </div>
+
 
             </motion.div>
 
