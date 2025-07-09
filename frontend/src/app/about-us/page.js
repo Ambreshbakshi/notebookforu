@@ -24,14 +24,14 @@ const AboutUs = () => {
 
   const founders = [
     {
-      name: "Alex Johnson",
+      name: "Himanshu Tripathi",
       role: "Chief Designer",
       quote: "Innovation starts with a blank page.",
       bio: "With 10+ years in product design, Alex ensures every notebook is both beautiful and functional.",
       image: "/about/founder1.jpg"
     },
     {
-      name: "Sam Wilson",
+      name: "Mridul Krishna Tripathi",
       role: "Production Head",
       quote: "Quality and creativity go hand in hand.",
       bio: "Sam's expertise in sustainable materials guarantees eco-friendly yet durable notebooks.",
@@ -116,12 +116,15 @@ const AboutUs = () => {
               variants={fadeIn('right', 'spring', 0.5, 1)}
               className="md:w-1/2 relative h-64 md:h-auto"
             >
-              <Image
-                src="/about/our-story.jpg"
-                alt="Our notebook design process"
-                fill
-                className="object-cover"
-              />
+             <Image
+                   src="https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook9/notebook9-detail5.jpeg"
+                   alt="NotebookForU design team at work"
+                   fill
+                   className="object-cover object-[0%_100%]"
+                   style={{ objectPosition: 'left bottom' }} // Double assurance
+                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 50vw"
+                   priority
+                 />
             </motion.div>
             <div className="p-8 md:p-12 md:w-1/2">
               <motion.h2 
