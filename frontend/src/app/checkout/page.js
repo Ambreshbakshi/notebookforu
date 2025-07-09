@@ -34,27 +34,38 @@ const CheckoutPage = () => {
   });
 
   // Enrich cart items with product data
-  const enrichCartItems = (cart) => {
-    return cart.map(cartItem => {
-      let foundProduct = null;
-      
-      // Search through all categories in productData
-      for (const category in productData) {
-        if (productData[category][cartItem.id]) {
-          foundProduct = productData[category][cartItem.id];
-          break;
-        }
+ const enrichCartItems = (cart) => {
+  // Handle direct checkout item
+  const urlParams = new URLSearchParams(window.location.search);
+  const directItemParam = urlParams.get('directItem');
+  
+  if (directItemParam) {
+    const directItem = JSON.parse(decodeURIComponent(directItemParam));
+    cart = [directItem]; // Replace cart with direct item
+  }
+
+  return cart.map(cartItem => {
+    let foundProduct = null;
+    
+    // Search through all categories in productData
+    for (const category in productData) {
+      if (productData[category][cartItem.id]) {
+        foundProduct = productData[category][cartItem.id];
+        break;
       }
-      
-      return {
-        ...cartItem,
-        name: foundProduct?.name || "Unknown Product",
-        price: foundProduct?.price || 0,
-        weight: foundProduct?.weight || 0.5,
-        product: foundProduct || null
-      };
-    });
-  };
+    }
+    
+    return {
+      ...cartItem,
+      id: cartItem.id, // Ensure ID is preserved
+      name: foundProduct?.name || cartItem.name || "Unknown Product",
+      price: foundProduct?.price || cartItem.price || 0,
+      weight: foundProduct?.weight || 0.5,
+      pageType: cartItem.pageType || "Ruled",
+      product: foundProduct || null
+    };
+  });
+};
 
   // Calculate order totals
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -242,12 +253,14 @@ const CheckoutPage = () => {
         amount: Math.round(finalAmount * 100), // Convert to paise
         currency: "INR",
         items: cartItems.map(item => ({
-          id: item.id,
-          name: sanitizeInput(item.name),
-          price: item.price,
-          quantity: item.quantity,
-          weight: item.weight || 0.5
-        })),
+  id: item.id,
+  name: sanitizeInput(item.name),
+  price: item.price,
+  quantity: item.quantity,
+  weight: item.weight || 0.5,
+  pageType: sanitizeInput(item.pageType || "Ruled")
+})),
+
         customer: {
           name: sanitizeInput(customerDetails.name),
           email: sanitizeInput(customerDetails.email),
@@ -682,7 +695,10 @@ const CheckoutPage = () => {
                 <div key={item.id} className="flex justify-between border-b pb-3">
                   <div>
                     <p className="font-medium">{item.name}</p>
-                    <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                    <p className="text-sm text-gray-600">
+  Qty: {item.quantity} • {item.pageType}
+</p>
+
                   </div>
                   <p className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</p>
                 </div>

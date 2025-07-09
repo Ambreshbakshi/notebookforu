@@ -64,13 +64,13 @@ export default function generateInvoice(order) {
     docPDF.text(addressLines, 14, 106);
 
     // Items Table
-    const items = order.items?.map((item, index) => [
-      index + 1,
-      item.name,
-      item.quantity,
-      `Rs.${item.price.toFixed(2)}`,
-      `Rs.${(item.price * item.quantity).toFixed(2)}`,
-    ]) || [];
+  const items = order.items.map((item, index) => [
+  index + 1,
+  `${item.name} (${item.pageType || 'N/A'})`,
+  item.quantity,
+  `Rs.${item.price.toFixed(2)}`,
+  `Rs.${(item.price * item.quantity).toFixed(2)}`
+]) || [];
 
     autoTable(docPDF, {
       startY: 116 + addressLines.length * 4, // Dynamic start below address

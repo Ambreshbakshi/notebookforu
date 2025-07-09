@@ -68,7 +68,8 @@ const sanitizeOrderData = (data) => {
       name: String(item.name).substring(0, 100),
       price: Number(item.price) || 0,
       quantity: Math.min(Number(item.quantity) || 1, 10),
-      weight: Number(item.weight) || 0.5
+      weight: Number(item.weight) || 0.5,
+      pageType: String(item.pageType || 'Ruled') 
     }))
   };
 

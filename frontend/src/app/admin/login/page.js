@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from 'next/navigation'; 
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signInWithRedirect } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLoader, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
@@ -16,7 +16,8 @@ const AUTH_CONFIG = {
     '/cart',
     '/admin/dashboard/orders',
     '/checkout',
-    '/'
+    '/',
+    '/notebook/[id]/checkout', 
   ],
   defaultRoute: '/admin/dashboard/profile',
   loginPath: '/admin/login',
@@ -35,6 +36,7 @@ const LoginPage = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams(); 
   const provider = new GoogleAuthProvider();
 
   // Enhanced storage with namespace and verification
@@ -92,60 +94,155 @@ const LoginPage = () => {
     setCredentials(prev => ({ ...prev, [name]: value }));
     setError("");
   };
+const handleLoginSuccess = () => {
+  // Check for pending direct checkout
+  const pendingCheckout = localStorage.getItem('pendingDirectCheckout');
+  
+  if (pendingCheckout) {
+    localStorage.removeItem('pendingDirectCheckout');
+    const directItem = JSON.parse(pendingCheckout);
+    router.push(`/checkout?directItem=${encodeURIComponent(JSON.stringify(directItem))}`);
+    return;
+  }
 
-  const handleRedirect = () => {
-    console.group('Redirect Process');
-    try {
-      setTimeout(() => {
-        const prevPath = storage.get('prevPath');
-        console.log('Retrieved prevPath:', prevPath);
+  // Normal redirect logic
+  const urlParams = new URLSearchParams(window.location.search);
+  const redirect = urlParams.get('redirect');
+  
+  if (redirect) {
+    router.push(redirect);
+  } else {
+    router.push(AUTH_CONFIG.defaultRoute);
+  }
+};
 
-        if (!prevPath) {
-          console.warn('No previous path found in storage');
-          console.log('Current localStorage state:', { 
-            ...localStorage,
-            prevPath: undefined // Hide actual value for security
-          });
-          console.groupEnd();
-          window.location.href = AUTH_CONFIG.defaultRoute;
-          return;
-        }
+const handleRedirect = () => {
+  console.group('Redirect Process');
+  try {
+    // Get all possible sources of redirect information
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectFromParams = urlParams.get('redirect');
+    const prevPath = storage.get('prevPath');
+    const pendingCheckout = localStorage.getItem('pendingDirectCheckout');
 
-        // Validate path structure
-        if (typeof prevPath !== 'string' || !prevPath.startsWith('/')) {
-          console.error('Invalid path format:', prevPath);
-          console.groupEnd();
-          window.location.href = AUTH_CONFIG.defaultRoute;
-          return;
-        }
+    console.log('Redirect sources:', {
+      redirectFromParams,
+      prevPath,
+      pendingCheckout
+    });
 
-        const isValidPath = AUTH_CONFIG.allowedRedirects.some(allowedPath => {
-          const isAllowed = prevPath === allowedPath || 
-                          (prevPath.startsWith(allowedPath) && 
-                          (prevPath === allowedPath || prevPath.charAt(allowedPath.length) === '/'));
-          console.log(`Checking ${prevPath} against ${allowedPath}:`, isAllowed);
-          return isAllowed;
-        });
-
-        const redirectUrl = isValidPath ? prevPath : AUTH_CONFIG.defaultRoute;
-        console.log('Final redirect destination:', redirectUrl);
+    // 1. First check for pending direct checkout in localStorage
+    if (pendingCheckout) {
+      console.log('Found pending direct checkout');
+      try {
+        const directItem = JSON.parse(pendingCheckout);
+        localStorage.removeItem('pendingDirectCheckout');
+        storage.remove('prevPath');
         
+        const checkoutUrl = `/checkout?directItem=${encodeURIComponent(JSON.stringify(directItem))}`;
+        console.log('Redirecting to checkout:', checkoutUrl);
+        console.groupEnd();
+        window.location.href = checkoutUrl;
+        return;
+      } catch (error) {
+        console.error('Error processing pending checkout:', error);
+      }
+    }
+
+    // 2. Check for notebook checkout redirect in URL params
+    if (redirectFromParams && redirectFromParams.startsWith('/notebook/') && redirectFromParams.endsWith('/checkout')) {
+      console.log('Handling notebook checkout redirect');
+      const notebookId = redirectFromParams.split('/')[2];
+      const quantity = urlParams.get('quantity');
+      const pageType = urlParams.get('pageType');
+      
+      const checkoutUrl = `/notebook/${notebookId}/checkout?${new URLSearchParams({
+        ...(quantity && { quantity }),
+        ...(pageType && { pageType })
+      }).toString()}`;
+      
+      console.log('Redirecting to notebook checkout:', checkoutUrl);
+      storage.remove('prevPath');
+      console.groupEnd();
+      window.location.href = checkoutUrl;
+      return;
+    }
+
+    // 3. Check for stored previous path
+    if (prevPath) {
+      console.log('Found previous path:', prevPath);
+      
+      // Handle notebook checkout from stored path
+      if (prevPath.startsWith('/notebook/') && prevPath.endsWith('/checkout')) {
+        const notebookId = prevPath.split('/')[2];
+        const quantity = urlParams.get('quantity');
+        const pageType = urlParams.get('pageType');
+        
+        const checkoutUrl = `/notebook/${notebookId}/checkout?${new URLSearchParams({
+          ...(quantity && { quantity }),
+          ...(pageType && { pageType })
+        }).toString()}`;
+        
+        console.log('Redirecting to stored notebook checkout:', checkoutUrl);
         storage.remove('prevPath');
         console.groupEnd();
+        window.location.href = checkoutUrl;
+        return;
+      }
 
-        if (window.location.pathname !== redirectUrl) {
-          window.location.href = redirectUrl;
-        } else {
-          console.log('Already on target page, skipping redirect');
-        }
-      }, 100); // Increased delay for more reliable state
-    } catch (error) {
-      console.error('Redirect processing failed:', error);
-      console.groupEnd();
-      storage.remove('prevPath');
-      window.location.href = AUTH_CONFIG.defaultRoute;
+      // Validate the stored path
+      const isValidPath = AUTH_CONFIG.allowedRedirects.some(allowedPath => {
+        const isAllowed = prevPath === allowedPath || 
+          (prevPath.startsWith(allowedPath) && 
+          (prevPath === allowedPath || prevPath.charAt(allowedPath.length) === '/'));
+        console.log(`Checking ${prevPath} against ${allowedPath}:`, isAllowed);
+        return isAllowed;
+      });
+
+      if (isValidPath) {
+        console.log('Redirecting to stored valid path:', prevPath);
+        storage.remove('prevPath');
+        console.groupEnd();
+        window.location.href = prevPath;
+        return;
+      }
     }
-  };
+
+    // 4. Check for redirect in URL params (general case)
+    if (redirectFromParams) {
+      console.log('Found redirect in URL params:', redirectFromParams);
+      
+      const isValidPath = AUTH_CONFIG.allowedRedirects.some(allowedPath => {
+        const isAllowed = redirectFromParams === allowedPath || 
+          (redirectFromParams.startsWith(allowedPath) && 
+          (redirectFromParams === allowedPath || redirectFromParams.charAt(allowedPath.length) === '/'));
+        console.log(`Checking ${redirectFromParams} against ${allowedPath}:`, isAllowed);
+        return isAllowed;
+      });
+
+      if (isValidPath) {
+        console.log('Redirecting to valid path from params:', redirectFromParams);
+        console.groupEnd();
+        window.location.href = redirectFromParams;
+        return;
+      }
+    }
+
+    // 5. Fallback to default route
+    console.warn('No valid redirect path found, using default');
+    console.groupEnd();
+    window.location.href = AUTH_CONFIG.defaultRoute;
+
+  } catch (error) {
+    console.error('Redirect processing failed:', error);
+    console.groupEnd();
+    // Clean up any stored paths
+    storage.remove('prevPath');
+    localStorage.removeItem('pendingDirectCheckout');
+    // Fallback to default route
+    window.location.href = AUTH_CONFIG.defaultRoute;
+  }
+};
 
   const validateEmail = (email) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

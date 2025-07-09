@@ -131,37 +131,37 @@ docPDF.text(`Payment Status: ${orderData.paymentStatus || 'N/A'}`, 14, 70);
 
       // Items table
       const items = orderData?.items?.map((item, index) => [
-        index + 1,
-        item.name,
-        item.quantity,
-        `Rs.${item.price.toFixed(2)}`,
-        `Rs.${(item.price * item.quantity).toFixed(2)}`
-      ]) || [];
+  index + 1,
+  `${item.name} (${item.pageType || 'N/A'})`,
+  item.quantity,
+  `Rs.${item.price.toFixed(2)}`,
+  `Rs.${(item.price * item.quantity).toFixed(2)}`
+]) || [];
 
-      // Use the imported autoTable function directly
-      autoTable(docPDF, {
-        startY: 130,
-        headStyles: {
-          fillColor: primaryColor,
-          textColor: 255,
-          fontStyle: 'bold'
-        },
-        head: [['S.No', 'Product', 'Qty', 'Unit Price', 'Total']],
-        body: items,
-        theme: 'grid',
-        styles: {
-          cellPadding: 3,
-          fontSize: 9,
-          valign: 'middle'
-        },
-        columnStyles: {
-          0: { cellWidth: 10 },
-          1: { cellWidth: 70 },
-          2: { cellWidth: 20 },
-          3: { cellWidth: 30 },
-          4: { cellWidth: 30 }
-        }
-      });
+autoTable(docPDF, {
+  startY: 130,
+  headStyles: {
+    fillColor: primaryColor,
+    textColor: 255,
+    fontStyle: 'bold'
+  },
+  head: [['S.No', 'Product (Page Type)', 'Qty', 'Unit Price', 'Total']],
+  body: items,
+  theme: 'grid',
+  styles: {
+    cellPadding: 3,
+    fontSize: 9,
+    valign: 'middle'
+  },
+  columnStyles: {
+    0: { cellWidth: 10 },
+    1: { cellWidth: 70 },
+    2: { cellWidth: 20 },
+    3: { cellWidth: 30 },
+    4: { cellWidth: 30 }
+  }
+});
+
 
       // Totals section
       const finalY = docPDF.lastAutoTable.finalY + 10;
@@ -290,6 +290,15 @@ docPDF.text(`Payment Status: ${orderData.paymentStatus || 'N/A'}`, 14, 70);
 </span>
 
               </div>
+              {orderData.items.some(item => item.pageType) && (
+  <div className="flex justify-between">
+    <span className="text-gray-600">Page Type:</span>
+    <span className="font-medium">
+      {orderData.items.map(item => item.pageType).filter(Boolean).join(', ')}
+    </span>
+  </div>
+)}
+
             </div>
           </div>
         )}

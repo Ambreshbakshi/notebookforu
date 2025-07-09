@@ -229,25 +229,29 @@ export default function OrderCard({ order }) {
                 <div className="w-full h-full flex items-center justify-center text-gray-400"><FiPackage size={20} /></div>}
             </div>
             <div className="flex-1">
-              <p className="font-medium">{item.name}</p>
-              <p className="text-sm text-gray-600">₹{item.price.toFixed(2)} × {item.quantity}</p>
+           <p className="font-medium">{item.name}</p>
+<p className="text-sm text-gray-600">
+  Rs.{item.price.toFixed(2)} × {item.quantity}
+  {item.pageType && <span className="ml-2 italic text-gray-500">({item.pageType})</span>}
+</p>
+
             </div>
-            <div className="text-right font-medium">₹{(item.price * item.quantity).toFixed(2)}</div>
+            <div className="text-right font-medium">Rs.{(item.price * item.quantity).toFixed(2)}</div>
           </div>
         ))}
 
         <div className="border-t pt-4 space-y-1 text-sm text-gray-700">
           <div className="flex justify-between">
             <p>Items Total</p>
-            <p>₹{itemsTotal.toFixed(2)}</p>
+            <p>Rs.{itemsTotal.toFixed(2)}</p>
           </div>
           <div className="flex justify-between">
             <p>Shipping</p>
-            <p>₹{shippingCost.toFixed(2)}</p>
+            <p>Rs.{shippingCost.toFixed(2)}</p>
           </div>
           <div className="flex justify-between font-semibold border-t pt-1">
             <p>Total</p>
-            <p>₹{grandTotal.toFixed(2)}</p>
+            <p>Rs.{grandTotal.toFixed(2)}</p>
           </div>
         </div>
 

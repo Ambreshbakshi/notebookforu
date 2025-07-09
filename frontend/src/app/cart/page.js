@@ -100,27 +100,37 @@ const CartPage = () => {
     }
   };
 
-  const handleRemoveItem = (id) => {
-    const updatedCart = cartItems.filter((item) => item.id !== id);
-    setCartItems(updatedCart);
-    localStorage.setItem("cart", JSON.stringify(updatedCart.map(item => ({
-      id: item.id,
-      quantity: item.quantity
-    }))));
-    toast.success("Item removed from cart");
-  };
+ const handleRemoveItem = (itemIdToRemove) => {
+  const updatedCart = cartItems.filter((item) => item.itemId !== itemIdToRemove);
+  setCartItems(updatedCart);
+  localStorage.setItem("cart", JSON.stringify(updatedCart.map(item => ({
+    itemId: item.itemId,
+    id: item.id,
+    name: item.name,
+    quantity: item.quantity,
+    pageType: item.pageType
+  }))));
+  toast.success("Item removed from cart");
+};
 
-  const handleUpdateQuantity = (id, newQuantity) => {
-    if (newQuantity < 1 || newQuantity > 99) return;
-    const updatedCart = cartItems.map((item) =>
-      item.id === id ? { ...item, quantity: newQuantity } : item
-    );
-    setCartItems(updatedCart);
-    localStorage.setItem("cart", JSON.stringify(updatedCart.map(item => ({
-      id: item.id,
-      quantity: item.quantity
-    }))));
-  };
+
+  const handleUpdateQuantity = (itemId, newQuantity) => {
+  if (newQuantity < 1 || newQuantity > 99) return;
+  
+  const updatedCart = cartItems.map((item) =>
+    item.itemId === itemId ? { ...item, quantity: newQuantity } : item
+  );
+  
+  setCartItems(updatedCart);
+  localStorage.setItem("cart", JSON.stringify(updatedCart.map(item => ({
+    itemId: item.itemId,
+    id: item.id,
+    name: item.name,
+    quantity: item.quantity,
+    pageType: item.pageType
+  }))));
+};
+
 
   const applyPromoCode = () => {
     if (!promoCode) {
@@ -190,7 +200,8 @@ const CartPage = () => {
           <div className="lg:w-2/3 space-y-4">
   {cartItems.map((item) => (
     <div
-      key={item.id}
+      key={item.itemId}
+
       className="flex flex-col sm:flex-row items-start sm:items-center border p-4 rounded-lg gap-4"
     >
       {/* Left Aligned Image */}
@@ -205,7 +216,11 @@ const CartPage = () => {
 
       {/* Product Details */}
       <div className="flex-1 w-full">
-        <h2 className="font-medium text-lg">{item.product?.name}</h2>
+        <h2 className="font-medium text-lg">
+  {item.product?.name}{" "}
+  <span className="text-sm font-normal text-gray-500">({item.pageType})</span>
+</h2>
+
         {item.product?.designation && (
           <p className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded inline-block mt-1">
             {item.product.designation}
@@ -222,7 +237,7 @@ const CartPage = () => {
       {/* Quantity Controls */}
       <div className="flex items-center gap-2 mt-2 sm:mt-0">
         <button
-          onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+          onClick={() => handleUpdateQuantity(item.itemId, item.quantity - 1)}
           className="p-2 rounded border"
         >
           <FiMinus />
@@ -234,20 +249,20 @@ const CartPage = () => {
           value={item.quantity}
           onChange={(e) =>
             handleUpdateQuantity(
-              item.id,
+              item.itemId,
               Math.min(99, Math.max(1, parseInt(e.target.value) || 1))
             )
           }
           className="w-12 text-center border rounded"
         />
         <button
-          onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+          onClick={() => handleUpdateQuantity(item.itemId, item.quantity + 1)}
           className="p-2 rounded border"
         >
           <FiPlus />
         </button>
         <button
-          onClick={() => handleRemoveItem(item.id)}
+          onClick={() => handleRemoveItem(item.itemId)}
           className="text-red-500 ml-2"
         >
           <FiTrash2 />

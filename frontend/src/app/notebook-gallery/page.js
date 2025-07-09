@@ -3,6 +3,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import productData from "@/data/productData";
 import Image from "next/image";
+import { useRouter } from 'next/navigation';
 import { FaHeart, FaRegHeart, FaStar, FaCartPlus, FaSearch, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -46,6 +47,7 @@ const NotebookGallery = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("featured");
   const [isClient, setIsClient] = useState(false);
+  const [productsWithType, setProductsWithType] = useState([]);
 
   useEffect(() => {
     setIsClient(true);
@@ -75,17 +77,20 @@ const NotebookGallery = () => {
       ...item,
       key: key,
       type: "notebook",
+      selectedType: "Ruled" // Default to Ruled
     }));
     const diaries = Object.entries(productData.diaries || {}).map(([key, item]) => ({
       ...item,
       key: key,
       type: "diary",
+      selectedType: "Ruled" // Default to Ruled
     }));
     const combinations = Object.entries(productData.combinations || {}).map(
       ([key, item]) => ({
         ...item,
         key: key,
         type: "combination",
+        selectedType: "Ruled" // Default to Ruled
       })
     );
     return {
@@ -169,40 +174,45 @@ const NotebookGallery = () => {
     return products;
   }, [selectedType, notebooks, diaries, combinations, allProducts, searchQuery, sortOption]);
 
+  useEffect(() => {
+    setProductsWithType(filteredProducts);
+  }, [filteredProducts]);
+
   const getProductRoute = (type, id) => {
     return type === "combination" ? `/combination/${id}` : `/${type}/${id}`;
   };
 
- const addToCart = (product) => {
-  try {
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    const existingItemIndex = cart.findIndex(
-      (item) => item.key === product.key && item.type === product.type
-    );
+  const addToCart = (product) => {
+    try {
+      const cart = JSON.parse(localStorage.getItem("cart")) || [];
+      const pageType = product.selectedType || "Ruled";
+      const itemId = `${product.key}-${product.type}-${pageType}`;
 
-    if (existingItemIndex > -1) {
-      cart[existingItemIndex].quantity += 1;
-    } else {
-      cart.push({
-        key: product.key,
-        id: product.id,
-        type: product.type,
-        quantity: 1,
-      });
+      const existingItemIndex = cart.findIndex((item) => item.itemId === itemId);
+
+      if (existingItemIndex > -1) {
+        cart[existingItemIndex].quantity += 1;
+      } else {
+        cart.push({
+          itemId,
+          key: product.key,
+          id: product.id,
+          name: product.name,
+          type: product.type,
+          quantity: 1,
+          price: product.price,
+          pageType,
+        });
+      }
+
+      localStorage.setItem("cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("cartUpdated"));
+      toast.success(`${product.name} - ${pageType} added to cart`);
+    } catch (error) {
+      toast.error("Failed to add item to cart");
+      console.error("Error adding to cart:", error);
     }
-
-    localStorage.setItem("cart", JSON.stringify(cart));
-
-    // **Trigger Custom Event for Cart Update**
-    window.dispatchEvent(new Event("cartUpdated"));
-
-    toast.success(`${product.name} added to cart`);
-  } catch (error) {
-    toast.error("Failed to add item to cart");
-    console.error("Error adding to cart:", error);
-  }
-};
-
+  };
 
   const toggleWishlist = (product) => {
     const productKey = `${product.type}-${product.id}`;
@@ -235,7 +245,7 @@ const NotebookGallery = () => {
   };
 
   const openQuickView = (product) => {
-    setQuickView(product);
+    setQuickView({...product});
     setCurrentImageIndex(0);
     document.body.style.overflow = 'hidden';
   };
@@ -256,6 +266,20 @@ const NotebookGallery = () => {
       setCurrentImageIndex(prev => 
         prev === quickView.images.length - 1 ? 0 : prev + 1
       );
+    }
+  };
+
+  const updateProductType = (productId, type, newPageType) => {
+    setProductsWithType(prevProducts => 
+      prevProducts.map(product => 
+        product.id === productId && product.type === type 
+          ? { ...product, selectedType: newPageType }
+          : product
+      )
+    );
+
+    if (quickView && quickView.id === productId && quickView.type === type) {
+      setQuickView(prev => ({ ...prev, selectedType: newPageType }));
     }
   };
 
@@ -365,28 +389,69 @@ const NotebookGallery = () => {
                     </div>
                   )}
                   
-                  <div className="flex flex-wrap gap-3 mt-6">
-                    <button
-                      onClick={() => {
-                        addToCart(quickView);
-                        closeQuickView();
-                      }}
-                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition"
-                    >
-                      <FaCartPlus /> Add to Cart
-                    </button>
-                    <button
-                      onClick={() => toggleWishlist(quickView)}
-                      className="p-3 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
-                      aria-label={isInWishlist(quickView) ? "Remove from wishlist" : "Add to wishlist"}
-                    >
-                      {isInWishlist(quickView) ? (
-                        <FaHeart className="text-red-500" />
-                      ) : (
-                        <FaRegHeart />
-                      )}
-                    </button>
-                  </div>
+                  <div className="space-y-4">
+  {/* Page Type Selection */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Page Type
+    </label>
+    <div className="flex gap-3">
+      <button
+        onClick={() => {
+          const updatedQuickView = { ...quickView, selectedType: "Ruled" };
+          setQuickView(updatedQuickView);
+          updateProductType(quickView.id, quickView.type, "Ruled");
+        }}
+        className={`flex-1 py-2 px-4 rounded-md border transition-all ${
+          quickView.selectedType === "Ruled"
+            ? "bg-indigo-600 text-white border-indigo-700"
+            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+        }`}
+      >
+        Ruled
+      </button>
+      <button
+        onClick={() => {
+          const updatedQuickView = { ...quickView, selectedType: "Plain" };
+          setQuickView(updatedQuickView);
+          updateProductType(quickView.id, quickView.type, "Plain");
+        }}
+        className={`flex-1 py-2 px-4 rounded-md border transition-all ${
+          quickView.selectedType === "Plain"
+            ? "bg-indigo-600 text-white border-indigo-700"
+            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+        }`}
+      >
+        Plain
+      </button>
+    </div>
+  </div>
+
+  {/* Action Buttons */}
+  <div className="flex gap-3">
+    <button
+      onClick={() => {
+        addToCart(quickView);
+        closeQuickView();
+      }}
+      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+    >
+      <FaCartPlus className="text-lg" />
+      <span>Add to Cart</span>
+    </button>
+    <button
+      onClick={() => toggleWishlist(quickView)}
+      className="w-12 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+      aria-label={isInWishlist(quickView) ? "Remove from wishlist" : "Add to wishlist"}
+    >
+      {isInWishlist(quickView) ? (
+        <FaHeart className="text-red-500 text-lg" />
+      ) : (
+        <FaRegHeart className="text-lg" />
+      )}
+    </button>
+  </div>
+</div>
                 </div>
               </div>
             </div>
@@ -396,100 +461,99 @@ const NotebookGallery = () => {
       
       <div className="max-w-7xl mx-auto py-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-          {/* Heading & Description Centered */}
-    <div className="text-center md:text-left w-full md:w-auto">
-      <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-        Our Collection
-      </h1>
-      <p className="text-gray-600 mt-2">
-        Premium notebooks, diaries, and combination packs
-      </p>
-    </div>
+          <div className="text-center md:text-left w-full md:w-auto">
+            <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+              Our Collection
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Premium notebooks, diaries, and combination packs
+            </p>
+          </div>
           
-       <div className="sticky top-0 z-40 bg-white shadow-sm py-3 mb-6">
-  <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-3">
-    
-    <div className="relative flex-1 w-full md:max-w-xs">
-      <input
-        type="text"
-        placeholder="Search products..."
-        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-      />
-      <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-    </div>
+          <div className="sticky top-0 z-40 bg-white shadow-sm py-3 mb-6">
+            <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-3">
+              <div className="relative flex-1 w-full md:max-w-xs">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              </div>
 
-    <div className="flex gap-2 w-full md:w-auto">
-      <select
-        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition text-sm"
-        value={selectedType}
-        onChange={(e) => setSelectedType(e.target.value)}
-      >
-        {filterOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+              <div className="flex gap-2 w-full md:w-auto">
+                <select
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition text-sm"
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                >
+                  {filterOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
 
-      <select
-        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition text-sm"
-        value={sortOption}
-        onChange={(e) => setSortOption(e.target.value)}
-      >
-        {sortOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-
-  </div>
-</div>
-
-
+                <select
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition text-sm"
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value)}
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-  {filteredProducts.map((item, index) => (
+        {productsWithType.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+  {productsWithType.map((item, index) => (
     <div
       key={`${item.type}-${item.id}`}
-      className="bg-white p-2 rounded-lg shadow-md hover:shadow-lg transition h-full flex flex-col group relative overflow-hidden border border-gray-100"
+      className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex flex-col border border-gray-200 overflow-hidden"
     >
-      <div className="relative w-full" style={{ paddingBottom: "100%" }}>
+      {/* Product Image */}
+      <div className="relative aspect-square">
         <Link href={getProductRoute(item.type, item.id)} className="block w-full h-full">
           <Image
             src={item.gridImage || item.images?.[0] || "/placeholder.png"}
             alt={item.name}
             fill
-            className="object-contain rounded-lg transition group-hover:opacity-90"
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 25vw"
+            className="object-contain w-full h-full transition-opacity hover:opacity-90"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             priority={index < 4}
             loading={index > 3 ? "lazy" : "eager"}
           />
         </Link>
 
-        {item.discount && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded z-10">
-            -{item.discount}%
-          </div>
-        )}
+        {/* Badges */}
+        <div className="absolute top-2 left-2 space-y-1">
+          {item.discount && (
+            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              -{item.discount}%
+            </span>
+          )}
+          {item.stockStatus === "soldout" && (
+            <span className="bg-yellow-400 text-black text-xs font-bold px-2 py-0.5 rounded-full">
+              SOLD OUT
+            </span>
+          )}
+        </div>
 
-        {item.stockStatus === "soldout" && (
-          <div className="absolute top-2 left-2 mt-4 bg-yellow-400 text-black text-[10px] font-bold px-1.5 py-0.5 rounded z-10">
-            SOLD OUT
-          </div>
-        )}
-
+        {/* Wishlist Button */}
         <button
           onClick={(e) => {
             e.preventDefault();
             toggleWishlist(item);
           }}
-          className="absolute top-2 right-2 p-1 bg-white rounded-full shadow hover:bg-gray-100 transition z-10"
+          className="absolute top-2 right-2 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow hover:bg-white transition z-10"
           aria-label={isInWishlist(item) ? "Remove from wishlist" : "Add to wishlist"}
         >
           {isInWishlist(item) ? (
@@ -500,12 +564,14 @@ const NotebookGallery = () => {
         </button>
       </div>
 
-      <div className="mt-2 flex flex-col flex-1">
-        <h2 className="text-xs font-semibold text-gray-800 line-clamp-2 mb-1">
+      {/* Product Info */}
+      <div className="p-3 flex flex-col flex-1">
+        <h2 className="text-sm font-medium text-gray-800 line-clamp-2 mb-1">
           {item.name}
         </h2>
 
-        <div className="flex items-center mb-1">
+        {/* Rating */}
+        <div className="flex items-center mb-2">
           <div className="flex text-yellow-400 text-xs">
             {[...Array(5)].map((_, i) => (
               <FaStar
@@ -514,47 +580,58 @@ const NotebookGallery = () => {
               />
             ))}
           </div>
-          <span className="text-gray-500 text-[10px] ml-1">({item.reviews || 24})</span>
+          <span className="text-gray-500 text-xs ml-1">({item.reviews || 24})</span>
         </div>
 
-        <div className="flex items-center mb-1">
-          <p className="text-sm font-bold text-indigo-600">
-  {item.maxPrice && item.maxPrice > item.price && (
-    <span className="line-through text-gray-400 mr-1">₹{item.maxPrice}</span>
-  )}
-  ₹{item.price}
-</p>
-
+        {/* Price */}
+        <div className="mb-3">
+          {item.maxPrice && item.maxPrice > item.price && (
+            <span className="line-through text-gray-400 text-xs mr-1">₹{item.maxPrice}</span>
+          )}
+          <span className="text-base font-bold text-indigo-600">₹{item.price}</span>
           {item.originalPrice && (
-            <p className="text-[10px] text-gray-500 line-through ml-1">₹{item.originalPrice}</p>
+            <span className="line-through text-gray-500 text-xs ml-1">₹{item.originalPrice}</span>
           )}
         </div>
 
-        <div className="mt-auto flex gap-1">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              addToCart(item);
+        {/* Actions */}
+        <div className="mt-auto space-y-2">
+          <select
+            className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-indigo-500 focus:border-indigo-500"
+            value={item.selectedType}
+            onChange={(e) => {
+              updateProductType(item.id, item.type, e.target.value);
             }}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-1 rounded flex items-center justify-center gap-1 text-xs"
           >
-            <FaCartPlus /> Add to Cart
-          </button>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              openQuickView(item);
-            }}
-            className="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-1 px-2 rounded transition text-xs"
-          >
-            View
-          </button>
+            <option value="Ruled">Ruled</option>
+            <option value="Plain">Plain</option>
+          </select>
+
+          <div className="flex gap-2">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                addToCart(item);
+              }}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-md flex items-center justify-center gap-1 text-sm"
+            >
+              <FaCartPlus /> Cart
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                openQuickView(item);
+              }}
+              className="flex-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-2 rounded-md text-sm"
+            >
+              View
+            </button>
+          </div>
         </div>
       </div>
     </div>
   ))}
 </div>
-
         ) : (
           <div className="max-w-7xl mx-auto text-center py-16">
             <p className="text-xl text-gray-600">
@@ -563,66 +640,6 @@ const NotebookGallery = () => {
           </div>
         )}
       </div>
-
-      {/* <section className="py-16 px-6 max-w-7xl mx-auto">
-        <div className="bg-white p-8 md:p-10 rounded-2xl shadow-lg">
-          <div className="text-center">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-              Custom Notebook Services
-            </h2>
-            <p className="text-gray-600 mt-4 max-w-3xl mx-auto">
-              Create personalized notebooks with your own designs, sizes, and paper
-              types. Currently available for local customers in Gorakhpur, Uttar Pradesh.
-            </p>
-          </div>
-          
-          <div className="mt-8 grid md:grid-cols-3 gap-6">
-            <div className="bg-gray-50 p-6 rounded-xl">
-              <h3 className="font-bold text-lg text-gray-900 mb-2">Custom Covers</h3>
-              <p className="text-gray-600">
-                Upload your own design or choose from our templates to create a unique cover.
-              </p>
-            </div>
-            <div className="bg-gray-50 p-6 rounded-xl">
-              <h3 className="font-bold text-lg text-gray-900 mb-2">Paper Options</h3>
-              <p className="text-gray-600">
-                Choose from various paper types including ruled, dotted, blank, or custom layouts.
-              </p>
-            </div>
-            <div className="bg-gray-50 p-6 rounded-xl">
-              <h3 className="font-bold text-lg text-gray-900 mb-2">Bulk Orders</h3>
-              <p className="text-gray-600">
-                Special discounts for bulk orders - perfect for businesses, schools, and events.
-              </p>
-            </div>
-          </div>
-          
-          <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-            <a
-              href="https://wa.me/919876543210"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block"
-            >
-              <button className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 flex items-center gap-2">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-6.29-3.588c.545 1.488 1.573 2.729 2.934 3.152.198.05.396.074.57.074.248 0 .471-.05.669-.149.198-.099.371-.297.52-.644.149-.347.124-.644-.025-.842-.149-.198-.446-.471-.793-.743-.347-.272-.57-.446-.743-.446-.174 0-.347.074-.52.223-.173.148-.669.694-.768.842-.1.149-.199.149-.372.05-.174-.1-.733-.272-1.392-.892-.545-.495-.909-1.102-1.015-1.288-.1-.198-.012-.297.074-.396.086-.1.198-.248.298-.347.1-.1.124-.198.074-.347-.05-.149-.446-1.076-.612-1.474-.167-.397-.334-.347-.446-.347-.1 0-.273-.025-.446-.025-.174 0-.446.05-.669.272-.223.222-.866.86-.866 2.098 0 1.239 1.04 2.433 1.191 2.604.149.171 2.058 3.152 4.99 4.33.669.298 1.192.446 1.637.545.421.095.771.087 1.042.04.406-.07.991-.396 1.14-1.44.149-1.045.744-2.934.744-3.975 0-.198-.024-.347-.074-.446-.05-.099-.198-.149-.446-.248-.248-.1-1.44-.718-1.663-.792-.223-.075-.384-.124-.545.124-.149.248-.594.792-.742.966-.149.174-.298.198-.546.1-.248-.1-1.043-.384-1.985-1.226-.735-.669-1.231-1.488-1.376-1.736-.149-.248-.016-.384.112-.509.116-.112.248-.285.372-.46.123-.173.165-.248.247-.41.083-.16.042-.306-.008-.446-.05-.14-.545-1.31-.763-1.793-.2-.433-.4-.367-.545-.376-.124-.008-.26-.01-.384-.01z"/>
-                </svg>
-                WhatsApp for Custom Orders
-              </button>
-            </a>
-            <a href="tel:+919876543210" className="inline-block">
-              <button className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg shadow-md hover:bg-green-700 transition duration-300 flex items-center gap-2">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20 10.999h2C22 5.869 18.127 2 12.99 2v2C17.052 4 20 6.943 20 10.999z"/>
-                  <path d="M13 8c2.103 0 3 .897 3 3h2c0-3.225-1.775-5-5-5v2zm3.422 5.443a1.001 1.001 0 00-1.391.043l-2.393 2.461c-.576-.11-1.734-.471-2.926-1.66-1.192-1.193-1.553-2.354-1.66-2.926l2.459-2.394a1 1 0 00.043-1.391L6.859 3.513a1 1 0 00-1.391-.087l-2.17 1.861a1 1 0 00-.29.649c-.015.25-.301 6.172 4.291 10.766C11.305 20.707 16.323 21 17.705 21c.202 0 .326-.006.359-.008a.992.992 0 00.648-.291l1.86-2.171a1 1 0 00-.086-1.391l-4.064-3.696z"/>
-                </svg>
-                Call for Enquiries
-              </button>
-            </a>
-          </div>
-        </div>
-      </section> */}
       
       <section className="py-12 px-6 max-w-7xl mx-auto">
         <div className="bg-white p-8 rounded-2xl shadow-lg">

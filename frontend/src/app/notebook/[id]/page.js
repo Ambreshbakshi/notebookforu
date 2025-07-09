@@ -3,7 +3,10 @@
 import { useParams } from "next/navigation";
 import productData from "@/data/productData";
 import DeliveryChargeCalculator from "@/components/DeliveryChargeCalculator";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import Image from "next/image";
+import { useRouter } from 'next/navigation';
 import { useState, useEffect } from "react";
 import { useSwipeable } from "react-swipeable";
 import { 
@@ -26,13 +29,16 @@ const NotebookDetail = () => {
   const { id } = useParams();
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [pageType, setPageType] = useState("Ruled"); // Default selection
+  const router = useRouter();  
   const [address, setAddress] = useState("");
   const [autoAddress, setAutoAddress] = useState("");
   const [shippingCost, setShippingCost] = useState(50);
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [loadingLocation, setLoadingLocation] = useState(false);
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+ 
   const [showShareModal, setShowShareModal] = useState(false);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [showZoomedImage, setShowZoomedImage] = useState(false);
@@ -47,6 +53,13 @@ const NotebookDetail = () => {
     const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
     setIsWishlisted(wishlist.includes(id));
   }, [id]);
+
+  useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    setIsLoggedIn(!!user);
+  });
+  return () => unsubscribe();
+}, []);
 
   // Get current location
   useEffect(() => {
@@ -104,19 +117,67 @@ const NotebookDetail = () => {
   });
 
   const handleAddToCart = () => {
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    const existingIndex = cart.findIndex(item => item.id === notebook.id);
-    if (existingIndex >= 0) {
-      cart[existingIndex].quantity += quantity;
-    } else {
-      cart.push({ ...notebook, quantity });
-    }
-    localStorage.setItem("cart", JSON.stringify(cart));
-    toast.success(`${quantity} ${notebook.name} added to cart!`, {
-      position: "bottom-right",
-      autoClose: 3000,
+  const cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+  const modifiedName = `${notebook.name} - ${pageType}`;
+  const itemId = `${notebook.id}-${pageType}`; // Unique combo ID
+
+  const existingIndex = cart.findIndex(item => item.itemId === itemId);
+
+  if (existingIndex >= 0) {
+    cart[existingIndex].quantity += quantity;
+  } else {
+    cart.push({ 
+      ...notebook, 
+      name: modifiedName, 
+      itemId, 
+      quantity,
+      pageType  
     });
+  }
+
+  localStorage.setItem("cart", JSON.stringify(cart));
+
+  toast.success(`${quantity} ${modifiedName} added to cart!`, {
+    position: "bottom-right",
+    autoClose: 3000,
+  });
+};
+const handleBuyNow = () => {
+  if (!isLoggedIn) {
+    // Store the intended destination
+    const redirectUrl = `/notebook/${notebook.id}/checkout`;
+    
+    // Store product details in localStorage
+    const directItem = {
+      id: notebook.id,
+      quantity,
+      pageType,
+      name: notebook.name,
+      price: notebook.price,
+      image: notebook.gridImage
+    };
+    
+    localStorage.setItem('pendingDirectCheckout', JSON.stringify(directItem));
+    
+    // Redirect to login with all necessary parameters
+    const loginUrl = `/admin/login?redirect=${encodeURIComponent(redirectUrl)}&quantity=${quantity}&pageType=${pageType}`;
+    router.push(loginUrl);
+    return;
+  }
+
+  // If already logged in, go directly to checkout
+  const directItem = {
+    id: notebook.id,
+    name: `${notebook.name} - ${pageType}`,
+    price: notebook.price,
+    quantity,
+    pageType,
+    image: notebook.gridImage
   };
+
+  router.push(`/checkout?directItem=${encodeURIComponent(JSON.stringify(directItem))}`);
+};
 
   const toggleWishlist = () => {
     const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
@@ -306,6 +367,24 @@ const NotebookDetail = () => {
               <h2 className="text-lg font-medium text-gray-900 mb-1">Description</h2>
               <p className="text-gray-700">{notebook.details.description}</p>
             </div>
+<div className="flex items-center gap-4 mt-4">
+  <label className="font-medium">Pages Type:</label>
+  <div className="flex gap-2">
+    {["Ruled", "Plain"].map((type) => (
+      <button
+        key={type}
+        onClick={() => setPageType(type)}
+        className={`px-4 py-2 rounded-lg border ${
+          pageType === type
+            ? "bg-indigo-600 text-white border-indigo-600"
+            : "bg-white text-gray-700 border-gray-300"
+        }`}
+      >
+        {type}
+      </button>
+    ))}
+  </div>
+</div>
 
             {/* Quantity Selector */}
             <div className="flex items-center space-x-4 mt-4">
@@ -372,11 +451,11 @@ const NotebookDetail = () => {
                 <FiShoppingCart /> Add to Cart
               </button>
               <button
-                onClick={() => setShowCheckoutModal(true)}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg"
-              >
-                Buy Now
-              </button>
+  onClick={handleBuyNow}
+  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg"
+>
+  Buy Now
+</button>
             </div>
           </div>
         </div>
@@ -463,7 +542,7 @@ const NotebookDetail = () => {
       )}
 
       {/* Checkout Modal */}
-      {showCheckoutModal && (
+      {/* {showCheckoutModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={() => setShowCheckoutModal(false)}>
           <div className="bg-white rounded-lg max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
@@ -502,7 +581,7 @@ const NotebookDetail = () => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
