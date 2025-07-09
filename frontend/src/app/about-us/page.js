@@ -137,7 +137,7 @@ const AboutUs = () => {
                 variants={fadeIn('left', 'spring', 0.5, 1)}
                 className="text-gray-700 text-lg leading-relaxed"
               >
-                Founded in 2020, NotebookForU began as a passion project between two college friends who believed 
+                Founded in 2022, NotebookForU began as a passion project between two college friends who believed 
                 notebooks should be more than just paper. After testing hundreds of materials and designs, we created 
                 our signature collection that combines premium paper quality with covers that tell a story. Today, 
                 we serve thousands of creatives, professionals, and journal enthusiasts worldwide.
