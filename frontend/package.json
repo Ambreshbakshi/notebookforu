@@ -13,6 +13,7 @@
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@next/font": "^14.2.15",
     "@vercel/analytics": "^1.5.0",
+    "@vercel/speed-insights": "^1.2.0",
     "date-fns": "^4.1.0",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^7.5.0",
