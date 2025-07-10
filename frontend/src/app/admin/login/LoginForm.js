@@ -2,34 +2,32 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signInWithRedirect } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signInWithRedirect
+} from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { FiMail, FiLock, FiEye, FiEyeOff, FiLoader, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
+import {
+  FiMail, FiLock, FiEye, FiEyeOff,
+  FiLoader, FiAlertCircle, FiCheckCircle
+} from "react-icons/fi";
 import { FcGoogle } from "react-icons/fc";
 import { toast, ToastContainer } from 'react-toastify';
 import { createUserIfNotExists } from "@/lib/utils/createUserIfNotExists";
+import { handlePostLoginRedirect } from "@/hooks/useAuth"; // ✅ IMPORTED
 import 'react-toastify/dist/ReactToastify.css';
 
 const AUTH_CONFIG = {
-  allowedRedirects: [
-    '/admin/dashboard/profile',
-    '/cart',
-    '/admin/dashboard/orders',
-    '/checkout',
-    '/',
-    '/notebook/[id]/checkout', 
-  ],
-  defaultRoute: '/admin/dashboard/profile',
-  loginPath: '/admin/login',
   signupPath: '/admin/signup',
   forgotPasswordPath: '/admin/login/forget-password',
   storageKeys: {
-    user: 'firebase:auth:user',
-    prevPath: 'firebase:auth:prevPath'
+    user: 'firebase:auth:user'
   }
 };
 
-const LoginForm = ({ searchParams }) => {
+const LoginForm = () => {
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,7 +36,6 @@ const LoginForm = ({ searchParams }) => {
   const router = useRouter();
   const provider = new GoogleAuthProvider();
 
-  // Enhanced storage with namespace and verification
   const storage = {
     get: (key) => {
       try {
@@ -55,11 +52,6 @@ const LoginForm = ({ searchParams }) => {
       try {
         if (typeof window !== 'undefined') {
           localStorage.setItem(`${AUTH_CONFIG.storageKeys[key]}`, JSON.stringify(value));
-          // Verify the write was successful
-          const storedValue = storage.get(key);
-          if (JSON.stringify(storedValue) !== JSON.stringify(value)) {
-            console.error('Storage verification failed for:', key);
-          }
         }
       } catch (error) {
         console.error('Storage set error:', error);
@@ -76,99 +68,26 @@ const LoginForm = ({ searchParams }) => {
     }
   };
 
-  useEffect(() => {
-    console.log('Login form mounted');
-    return () => {
-      console.log('Login form unmounting');
-    };
-  }, []);
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setCredentials(prev => ({ ...prev, [name]: value }));
     setError("");
   };
 
-// ... existing code ...
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-const handleRedirect = () => {
-  try {
-    const redirect = searchParams.get('redirect');
-    const quantity = searchParams.get('quantity');
-    const pageType = searchParams.get('pageType');
-    const checkoutType = searchParams.get('checkoutType');
-    const pendingCheckout = sessionStorage.getItem('pendingDirectCheckout');
-
-    console.log('--- REDIRECT DEBUG ---');
-    console.log('Redirect URL:', redirect);
-    console.log('Quantity:', quantity);
-    console.log('PageType:', pageType);
-    console.log('CheckoutType:', checkoutType);
-    console.log('PendingCheckout:', pendingCheckout);
-
-    // 1. Handle notebook checkout
-    if (checkoutType === 'notebook') {
-      console.log('Handling notebook checkout flow');
-      
-      // If we have pending checkout data, use it
-      const checkoutData = pendingCheckout ? JSON.parse(pendingCheckout) : {
-        id: redirect?.split('/')[2], // extract notebook id from redirect URL
-        quantity,
-        pageType
-      };
-
-      sessionStorage.setItem('directCheckoutItem', JSON.stringify(checkoutData));
-      sessionStorage.removeItem('pendingDirectCheckout');
-      
-      console.log('Redirecting to /checkout');
-      window.location.href = '/checkout';
-      return;
-    }
-
-    // 2. Handle other pending checkouts
-    if (pendingCheckout) {
-      console.log('Handling generic checkout flow');
-      sessionStorage.setItem('directCheckoutItem', pendingCheckout);
-      sessionStorage.removeItem('pendingDirectCheckout');
-      window.location.href = '/checkout';
-      return;
-    }
-
-    // 3. Handle allowed redirects
-    if (redirect && isAllowedRedirect(redirect)) {
-      console.log('Redirecting to original URL:', redirect);
-      window.location.href = redirect;
-      return;
-    }
-
-    // 4. Default fallback
-    console.log('Using default redirect');
-    window.location.href = AUTH_CONFIG.defaultRoute;
-  } catch (error) {
-    console.error('Redirect error:', error);
-    sessionStorage.removeItem('pendingDirectCheckout');
-    window.location.href = AUTH_CONFIG.defaultRoute;
-  }
-};
-
-// ... existing code ...
-
-// Helper function to check allowed redirects
-const isAllowedRedirect = (path) => {
-  return AUTH_CONFIG.allowedRedirects.some(allowedPath => {
-    // Convert allowedPath to regex pattern
-    const pattern = allowedPath
-      .replace(/\[.*?\]/g, '[^/]+') // Replace [id] with wildcard
-      .replace(/\//g, '\\/'); // Escape slashes
-    
-    return new RegExp(`^${pattern}$`).test(path) || 
-           path.startsWith(`${allowedPath}/`);
-  });
-};
-
-  const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
+  const getAuthErrorMessage = (errorCode) => {
+    const errorMap = {
+      "auth/user-not-found": "No account found with this email.",
+      "auth/wrong-password": "Incorrect password. Please try again.",
+      "auth/too-many-requests": "Too many attempts. Account temporarily locked.",
+      "auth/user-disabled": "This account has been disabled.",
+      "auth/invalid-email": "Please enter a valid email address",
+      "auth/network-request-failed": "Network error. Please check your connection",
+      "auth/popup-closed-by-user": "Google sign-in was cancelled",
+      default: "Login failed. Please try again."
+    };
+    return errorMap[errorCode] || errorMap.default;
   };
 
   const handleEmailLogin = async (e) => {
@@ -189,9 +108,7 @@ const isAllowedRedirect = (path) => {
 
     try {
       const userCredential = await signInWithEmailAndPassword(
-        auth, 
-        credentials.email, 
-        credentials.password
+        auth, credentials.email, credentials.password
       );
 
       if (!userCredential.user.emailVerified) {
@@ -218,7 +135,7 @@ const isAllowedRedirect = (path) => {
       };
 
       storage.set('user', userData);
-      handleRedirect();
+      handlePostLoginRedirect(); // ✅ universal redirect
     } catch (err) {
       console.error("Login error:", err);
       const errorMessage = getAuthErrorMessage(err.code);
@@ -229,20 +146,6 @@ const isAllowedRedirect = (path) => {
     }
   };
 
-  const getAuthErrorMessage = (errorCode) => {
-    const errorMap = {
-      "auth/user-not-found": "No account found with this email.",
-      "auth/wrong-password": "Incorrect password. Please try again.",
-      "auth/too-many-requests": "Too many attempts. Account temporarily locked.",
-      "auth/user-disabled": "This account has been disabled.",
-      "auth/invalid-email": "Please enter a valid email address",
-      "auth/network-request-failed": "Network error. Please check your connection",
-      "auth/popup-closed-by-user": "Google sign-in was cancelled",
-      default: "Login failed. Please try again."
-    };
-    return errorMap[errorCode] || errorMap.default;
-  };
-
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     provider.setCustomParameters({ prompt: "select_account" });
@@ -250,7 +153,7 @@ const isAllowedRedirect = (path) => {
     try {
       const result = await signInWithPopup(auth, provider);
       await createUserIfNotExists(result.user);
-      
+
       const userData = {
         uid: result.user.uid,
         email: result.user.email,
@@ -262,7 +165,7 @@ const isAllowedRedirect = (path) => {
 
       storage.set('user', userData);
       toast.success("Google login successful!");
-      handleRedirect();
+      handlePostLoginRedirect(); // ✅
     } catch (error) {
       if (error.code === "auth/popup-blocked") {
         try {
@@ -394,24 +297,13 @@ const isAllowedRedirect = (path) => {
       </form>
 
       <div className="mt-6 text-center text-sm text-gray-600">
-        Don't have an account?{" "}
+        Don&apos;t have an account?{" "}
         <Link href={AUTH_CONFIG.signupPath} className="font-medium text-blue-600 hover:text-blue-800">
           Sign up
         </Link>
       </div>
 
-      <ToastContainer
-        position="top-center"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-      />
+      <ToastContainer position="top-center" autoClose={5000} theme="colored" />
     </div>
   );
 };

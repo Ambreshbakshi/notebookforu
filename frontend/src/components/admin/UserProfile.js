@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit2, FiCalendar } from 'react-icons/fi';
+import {
+  FiUser, FiMail, FiPhone, FiMapPin, FiEdit2, FiCalendar
+} from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { doc, updateDoc, getDoc, getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -13,6 +15,7 @@ export default function UserProfile({ user }) {
     phone: '',
     address: ''
   });
+  const [createdAt, setCreatedAt] = useState(null); // ✅ fix
   const [loading, setLoading] = useState(true);
 
   const auth = getAuth();
@@ -27,12 +30,15 @@ export default function UserProfile({ user }) {
           
           if (userSnap.exists()) {
             const userData = userSnap.data();
+
             setFormData({
               name: userData.name || '',
               email: userData.email || '',
               phone: userData.phone || '',
               address: userData.address || ''
             });
+
+            setCreatedAt(userData.createdAt || null); // ✅ store createdAt
           }
         }
       } catch (error) {
@@ -48,20 +54,30 @@ export default function UserProfile({ user }) {
 
   const formatMemberSinceDate = () => {
     try {
-      if (typeof user?.createdAt === 'string') {
-        return new Date(user.createdAt).toLocaleDateString('en-US', {
+      if (!createdAt) return 'Unknown date';
+
+      if (typeof createdAt?.toDate === 'function') {
+        return createdAt.toDate().toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'long',
           day: 'numeric'
         });
       }
-      return user?.createdAt?.toDate?.().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }) || 'Unknown date';
-    } catch (error) {
-      console.error('Error formatting date:', error);
+
+      if (typeof createdAt === 'string') {
+        const parsed = new Date(createdAt);
+        if (!isNaN(parsed)) {
+          return parsed.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        }
+      }
+
+      return 'Unknown date';
+    } catch (err) {
+      console.error('Error formatting date:', err);
       return 'Unknown date';
     }
   };
@@ -76,7 +92,7 @@ export default function UserProfile({ user }) {
           address: formData.address,
           updatedAt: new Date().toISOString()
         });
-        
+
         setIsEditing(false);
         toast.success('Profile updated successfully');
       }
@@ -127,7 +143,7 @@ export default function UserProfile({ user }) {
                 <input
                   type={field.key === 'phone' ? 'tel' : 'text'}
                   value={formData[field.key]}
-                  onChange={(e) => setFormData({...formData, [field.key]: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
                   className="w-full border rounded px-3 py-1.5 mt-1 text-sm"
                 />
               ) : (

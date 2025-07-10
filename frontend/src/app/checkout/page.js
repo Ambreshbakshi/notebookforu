@@ -339,7 +339,7 @@ const CheckoutPage = () => {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: paymentData.data.amount,
         currency: paymentData.data.currency,
-        name: "Your Store",
+        name: "Notebook ForU",
         description: `Order #${orderId}`,
         order_id: paymentData.data.id,
         handler: async (response) => {
