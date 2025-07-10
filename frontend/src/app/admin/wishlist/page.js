@@ -143,12 +143,12 @@ const WishlistPage = () => {
                   </div>
 
                   <div className="mt-auto flex gap-1">
-                    <button
+                    {/* <button
                       onClick={() => addToCart(product)}
                       className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-1 rounded flex items-center justify-center gap-1 text-xs"
                     >
                       <FaCartPlus /> Add to Cart
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               </div>

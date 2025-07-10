@@ -249,7 +249,7 @@ const ProductSection = () => {
                     </div>
 
                     {/* Quantity and Add to Cart */}
-                    <div className="mt-auto flex items-center gap-2">
+                    {/* <div className="mt-auto flex items-center gap-2">
                       <div className="flex items-center border rounded-md overflow-hidden">
                         <button
                           onClick={() => updateQuantity(productKey, -1)}
@@ -274,7 +274,7 @@ const ProductSection = () => {
                       >
                         <FaCartPlus /> Add to Cart
                       </button>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </div>
@@ -283,35 +283,40 @@ const ProductSection = () => {
         </div>
 
         {/* Mobile Arrows + CTA */}
-        {isMobile && (
-          <div className="mt-6 flex justify-center items-center gap-6">
-            <button
-              onClick={() => {
-                setAutoPlayActive(false);
-                const cardWidth = window.innerWidth * 0.75;
-                containerRef.current.scrollBy({ left: -(cardWidth + 20), behavior: "smooth" });
-              }}
-              className="p-2 bg-white shadow rounded-full"
-            >
-              <ChevronLeft />
-            </button>
-            <Link href="/notebook-gallery" legacyBehavior>
-              <a className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md shadow hover:from-blue-700 hover:to-blue-800 transition-all transform hover:-translate-y-0.5">
-                Explore All Products <ChevronRight size={20} className="ml-2" />
-              </a>
-            </Link>
-            <button
-              onClick={() => {
-                setAutoPlayActive(false);
-                const cardWidth = window.innerWidth * 0.75;
-                containerRef.current.scrollBy({ left: cardWidth + 20, behavior: "smooth" });
-              }}
-              className="p-2 bg-white shadow rounded-full"
-            >
-              <ChevronRight />
-            </button>
-          </div>
-        )}
+       <div className="mt-6 flex justify-center items-center gap-6">
+  {isMobile && (
+    <button
+      onClick={() => {
+        setAutoPlayActive(false);
+        const cardWidth = window.innerWidth * 0.75;
+        containerRef.current.scrollBy({ left: -(cardWidth + 20), behavior: "smooth" });
+      }}
+      className="p-2 bg-white shadow rounded-full"
+    >
+      <ChevronLeft />
+    </button>
+  )}
+
+  <Link href="/notebook-gallery" legacyBehavior>
+    <a className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md shadow hover:from-blue-700 hover:to-blue-800 transition-all transform hover:-translate-y-0.5">
+      Explore All Products <ChevronRight size={20} className="ml-2" />
+    </a>
+  </Link>
+
+  {isMobile && (
+    <button
+      onClick={() => {
+        setAutoPlayActive(false);
+        const cardWidth = window.innerWidth * 0.75;
+        containerRef.current.scrollBy({ left: cardWidth + 20, behavior: "smooth" });
+      }}
+      className="p-2 bg-white shadow rounded-full"
+    >
+      <ChevronRight />
+    </button>
+  )}
+</div>
+
       </div>
     </section>
   );
