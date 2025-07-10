@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged, auth } from '@/lib/firebase';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { FiLoader, FiCheck, FiAlertCircle } from 'react-icons/fi';
+import { FiLoader, FiCheck, FiAlertCircle, FiArrowLeft } from 'react-icons/fi';
+import productData from '@/data/productData';
 
 export default function NotebookCheckout() {
   const router = useRouter();
@@ -12,21 +13,58 @@ export default function NotebookCheckout() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusMessage, setStatusMessage] = useState('Preparing your checkout...');
+  const [productDetails, setProductDetails] = useState(null);
 
   useEffect(() => {
     const handleCheckoutFlow = async () => {
       try {
-        // 1. Get product details from URL or session storage
-        const productDetails = {
+        setIsLoading(true);
+        setStatusMessage('Loading product details...');
+
+        // 1. Get product details from multiple possible sources
+        let details = {
+          // From URL params
           id: window.location.pathname.split('/')[2],
-          quantity: searchParams.get('quantity') || 1,
+          quantity: parseInt(searchParams.get('quantity')) || 1,
           pageType: searchParams.get('pageType') || 'Ruled',
-          ...(JSON.parse(sessionStorage.getItem('pendingDirectCheckout') || '{}'))
+          
+          // From session storage (if coming from login redirect)
+          ...(JSON.parse(sessionStorage.getItem('pendingDirectCheckout') || '{}')),
+          
+          // From direct URL parameter
+          ...(searchParams.get('directItem') ? 
+              JSON.parse(decodeURIComponent(searchParams.get('directItem'))) : {}
+  )};
+
+        // Validate product ID
+        if (!details.id) {
+          throw new Error('Invalid product details - missing ID');
+        }
+
+        // Find product in database to get complete details
+        let product = null;
+        for (const category in productData) {
+          if (productData[category][details.id]) {
+            product = productData[category][details.id];
+            break;
+          }
+        }
+
+        if (!product) {
+          throw new Error('Product not found in database');
+        }
+
+        // Complete the product details
+        const completeDetails = {
+          ...details,
+          name: product.name,
+          price: product.price,
+          image: product.gridImage || product.detailImage1,
+          maxPrice: product.maxPrice,
+          discount: product.discount
         };
 
-        if (!productDetails.id) {
-          throw new Error('Invalid product details');
-        }
+        setProductDetails(completeDetails);
 
         // 2. Handle authentication state
         return new Promise((resolve) => {
@@ -34,29 +72,33 @@ export default function NotebookCheckout() {
             if (!user) {
               setStatusMessage('Redirecting to login...');
               
-              // Store for after login
-              sessionStorage.setItem('pendingDirectCheckout', JSON.stringify({
-                id: productDetails.id,
-                quantity: productDetails.quantity,
-                pageType: productDetails.pageType
-              }));
+              // Store complete details for after login
+              sessionStorage.setItem('pendingDirectCheckout', JSON.stringify(completeDetails));
 
-              // In the handleCheckoutFlow function, update the login redirect:
-router.push(`/admin/login?redirect=/checkout&checkoutType=notebook`);
+              // Redirect to login with all context
+              router.push(
+                `/admin/login?redirect=${encodeURIComponent(window.location.pathname)}` +
+                `&quantity=${completeDetails.quantity}` +
+                `&pageType=${completeDetails.pageType}` +
+                `&checkoutType=notebook`
+              );
               return resolve();
             }
 
             // User is authenticated - prepare checkout
             setStatusMessage('Finalizing your order...');
             
-            // Prepare cart data
+            // Prepare cart data with all product information
             const cartItem = {
-              id: productDetails.id,
-              name: `Notebook | Sunny Sky - ${productDetails.pageType}`,
-              price: 115, // Should fetch actual price from your database
-              quantity: Number(productDetails.quantity),
-              pageType: productDetails.pageType,
-              image: 'https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook2/notebook2-cover.png'
+              id: completeDetails.id,
+              name: `${completeDetails.name} - ${completeDetails.pageType}`,
+              price: completeDetails.price,
+              maxPrice: completeDetails.maxPrice,
+              discount: completeDetails.discount,
+              quantity: Number(completeDetails.quantity),
+              pageType: completeDetails.pageType,
+              image: completeDetails.image,
+              weight: 0.5 // Default weight, can be fetched from product data
             };
 
             // Set cart and special checkout flag
@@ -75,7 +117,7 @@ router.push(`/admin/login?redirect=/checkout&checkoutType=notebook`);
       } catch (err) {
         console.error('Checkout error:', err);
         setError(err.message || 'Failed to process checkout');
-        toast.error('Checkout processing failed');
+        toast.error(err.message || 'Checkout processing failed');
       } finally {
         setIsLoading(false);
       }
@@ -94,9 +136,15 @@ router.push(`/admin/login?redirect=/checkout&checkoutType=notebook`);
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => router.push('/notebook-gallery')}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
             >
-              Back to Notebooks
+              <FiArrowLeft /> Back to Notebooks
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
+            >
+              Try Again
             </button>
           </div>
         </div>
@@ -117,17 +165,36 @@ router.push(`/admin/login?redirect=/checkout&checkoutType=notebook`);
         <h2 className="text-xl font-bold text-gray-800 mb-2">
           {isLoading ? 'Processing Your Order' : 'Ready to Checkout'}
         </h2>
+        
+        {productDetails && !isLoading && (
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg text-left">
+            <p className="font-medium">{productDetails.name}</p>
+            <div className="flex justify-between mt-2">
+              <span>Quantity: {productDetails.quantity}</span>
+              <span>Page Type: {productDetails.pageType}</span>
+            </div>
+            <div className="mt-2 flex justify-between items-center">
+              <span className="font-semibold">
+                ₹{(productDetails.price * productDetails.quantity).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        )}
+        
         <p className="text-gray-600 mb-6">{statusMessage}</p>
+        
         {!isLoading && (
-          <p className="text-sm text-gray-500">
-            If not redirected automatically,{' '}
+          <>
+            <p className="text-sm text-gray-500 mb-4">
+              You'll be redirected to complete your purchase
+            </p>
             <button 
               onClick={() => router.push('/checkout')} 
-              className="text-blue-600 hover:underline"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
             >
-              click here
+              Proceed to Checkout Now
             </button>
-          </p>
+          </>
         )}
       </div>
     </div>

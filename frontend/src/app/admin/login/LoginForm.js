@@ -89,34 +89,45 @@ const LoginForm = ({ searchParams }) => {
     setError("");
   };
 
+// ... existing code ...
+
 const handleRedirect = () => {
   try {
     const redirect = searchParams.get('redirect');
     const quantity = searchParams.get('quantity');
     const pageType = searchParams.get('pageType');
-    const pendingCheckout = sessionStorage.getItem('pendingDirectCheckout'); // Use sessionStorage
+    const checkoutType = searchParams.get('checkoutType');
+    const pendingCheckout = sessionStorage.getItem('pendingDirectCheckout');
 
-    console.log('Redirect data:', { redirect, quantity, pageType, pendingCheckout });
+    console.log('--- REDIRECT DEBUG ---');
+    console.log('Redirect URL:', redirect);
+    console.log('Quantity:', quantity);
+    console.log('PageType:', pageType);
+    console.log('CheckoutType:', checkoutType);
+    console.log('PendingCheckout:', pendingCheckout);
 
-    // 1. Handle notebook checkout first
-    if (redirect?.includes('/notebook/') && redirect?.includes('/checkout')) {
-      const notebookId = redirect.split('/')[2];
+    // 1. Handle notebook checkout
+    if (checkoutType === 'notebook') {
+      console.log('Handling notebook checkout flow');
       
-      const checkoutData = {
-        id: notebookId,
-        quantity: quantity ? parseInt(quantity) : 1,
-        pageType: pageType || 'Ruled',
-        ...(pendingCheckout ? JSON.parse(pendingCheckout) : {})
+      // If we have pending checkout data, use it
+      const checkoutData = pendingCheckout ? JSON.parse(pendingCheckout) : {
+        id: redirect?.split('/')[2], // extract notebook id from redirect URL
+        quantity,
+        pageType
       };
 
       sessionStorage.setItem('directCheckoutItem', JSON.stringify(checkoutData));
       sessionStorage.removeItem('pendingDirectCheckout');
+      
+      console.log('Redirecting to /checkout');
       window.location.href = '/checkout';
       return;
     }
 
     // 2. Handle other pending checkouts
     if (pendingCheckout) {
+      console.log('Handling generic checkout flow');
       sessionStorage.setItem('directCheckoutItem', pendingCheckout);
       sessionStorage.removeItem('pendingDirectCheckout');
       window.location.href = '/checkout';
@@ -125,11 +136,13 @@ const handleRedirect = () => {
 
     // 3. Handle allowed redirects
     if (redirect && isAllowedRedirect(redirect)) {
+      console.log('Redirecting to original URL:', redirect);
       window.location.href = redirect;
       return;
     }
 
     // 4. Default fallback
+    console.log('Using default redirect');
     window.location.href = AUTH_CONFIG.defaultRoute;
   } catch (error) {
     console.error('Redirect error:', error);
@@ -137,6 +150,8 @@ const handleRedirect = () => {
     window.location.href = AUTH_CONFIG.defaultRoute;
   }
 };
+
+// ... existing code ...
 
 // Helper function to check allowed redirects
 const isAllowedRedirect = (path) => {

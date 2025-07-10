@@ -145,10 +145,8 @@ const NotebookDetail = () => {
 };
 const handleBuyNow = () => {
   if (!isLoggedIn) {
-    // Store the intended destination
     const redirectUrl = `/notebook/${notebook.id}/checkout`;
     
-    // Store product details in localStorage
     const directItem = {
       id: notebook.id,
       quantity,
@@ -158,10 +156,11 @@ const handleBuyNow = () => {
       image: notebook.gridImage
     };
     
-    localStorage.setItem('pendingDirectCheckout', JSON.stringify(directItem));
+    console.log('Storing pending checkout:', directItem);
+    sessionStorage.setItem('pendingDirectCheckout', JSON.stringify(directItem));
     
-    // Redirect to login with all necessary parameters
-    const loginUrl = `/admin/login?redirect=${encodeURIComponent(redirectUrl)}&quantity=${quantity}&pageType=${pageType}`;
+    const loginUrl = `/admin/login?redirect=${encodeURIComponent(redirectUrl)}&quantity=${quantity}&pageType=${pageType}&checkoutType=notebook`;
+    console.log('Redirecting to login:', loginUrl);
     router.push(loginUrl);
     return;
   }
@@ -176,6 +175,8 @@ const handleBuyNow = () => {
     image: notebook.gridImage
   };
 
+  console.log('Logged in - going directly to checkout:', directItem);
+  sessionStorage.setItem('directCheckoutItem', JSON.stringify(directItem));
   router.push(`/checkout?directItem=${encodeURIComponent(JSON.stringify(directItem))}`);
 };
 
