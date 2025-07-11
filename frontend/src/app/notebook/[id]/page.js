@@ -132,7 +132,8 @@ const NotebookDetail = () => {
       name: modifiedName, 
       itemId, 
       quantity,
-      pageType  
+      pageType,
+      type: "notebook" , 
     });
   }
 
