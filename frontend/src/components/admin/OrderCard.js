@@ -1,14 +1,24 @@
 "use client";
-import { FiCalendar, FiTruck,   FiDownload,FiCheckCircle, FiClock, FiCreditCard, FiPackage, FiXCircle, FiDollarSign, FiClipboard, FiExternalLink } from "react-icons/fi";
+
+import {
+  FiCalendar,
+  FiTruck,
+  FiDownload,
+  FiCheckCircle,
+  FiClock,
+  FiCreditCard,
+  FiPackage,
+  FiXCircle,
+  FiDollarSign,
+  FiClipboard,
+  FiExternalLink,
+} from "react-icons/fi";
 import { format, parseISO } from "date-fns";
 import { useEffect, useState } from "react";
 import { getAuth } from "firebase/auth";
 import generateInvoice from "@/utils/invoiceGenerate";
-
-
 import toast from "react-hot-toast";
 
-// Custom hook to load Razorpay script
 function useRazorpay() {
   useEffect(() => {
     if (window.Razorpay) return;
@@ -82,7 +92,8 @@ export default function OrderCard({ order }) {
 
   const itemsTotal = order?.items?.reduce((acc, item) => acc + (item.price * item.quantity), 0) || 0;
   const shippingCost = order?.shipping?.cost || 0;
-  const grandTotal = itemsTotal + shippingCost;
+  const promoDiscount = order?.promo?.discountAmount || 0;
+  const grandTotal = itemsTotal + shippingCost - promoDiscount;
 
   const shippingStatus = order.shippingStatus || "not_dispatched";
   const paymentStatus = order.paymentStatus || "unpaid";
@@ -93,7 +104,7 @@ export default function OrderCard({ order }) {
   const showPaymentGateway = paymentStatus === "unpaid" && shippingStatus !== "cancelled";
 
   const handleCancelOrder = async () => {
-    if (!window.confirm("Are you sure you want to cancel this order? Refund will be processed within 3-5 business days.")) return;
+    if (!window.confirm("Are you sure you want to cancel this order? Refund will be processed within 3–5 business days.")) return;
     setIsCancelling(true);
     setError(null);
     setShowSuccess(false);
@@ -197,8 +208,6 @@ export default function OrderCard({ order }) {
     }
   };
 
-  if (!order) return <div className="border rounded-2xl p-4 bg-white"><p className="text-red-500">Order data not available</p></div>;
-
   return (
     <div className="border rounded-2xl overflow-hidden hover:shadow-lg transition-all bg-white">
       <div className="p-4 bg-gray-50 border-b flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
@@ -225,16 +234,20 @@ export default function OrderCard({ order }) {
         {order.items?.map((item) => (
           <div key={item.id} className="flex items-center">
             <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden mr-3 flex-shrink-0">
-              {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> :
-                <div className="w-full h-full flex items-center justify-center text-gray-400"><FiPackage size={20} /></div>}
+              {item.image ? (
+                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <FiPackage size={20} />
+                </div>
+              )}
             </div>
             <div className="flex-1">
-           <p className="font-medium">{item.name}</p>
-<p className="text-sm text-gray-600">
-  Rs.{item.price.toFixed(2)} × {item.quantity}
-  {item.pageType && <span className="ml-2 italic text-gray-500">({item.pageType})</span>}
-</p>
-
+              <p className="font-medium">{item.name}</p>
+              <p className="text-sm text-gray-600">
+                Rs.{item.price.toFixed(2)} × {item.quantity}
+                {item.pageType && <span className="ml-2 italic text-gray-500">({item.pageType})</span>}
+              </p>
             </div>
             <div className="text-right font-medium">Rs.{(item.price * item.quantity).toFixed(2)}</div>
           </div>
@@ -249,6 +262,12 @@ export default function OrderCard({ order }) {
             <p>Shipping</p>
             <p>Rs.{shippingCost.toFixed(2)}</p>
           </div>
+          {promoDiscount > 0 && (
+            <div className="flex justify-between text-green-700">
+              <p>Promo Applied ({order.promo.code})</p>
+              <p>-Rs.{promoDiscount.toFixed(2)}</p>
+            </div>
+          )}
           <div className="flex justify-between font-semibold border-t pt-1">
             <p>Total</p>
             <p>Rs.{grandTotal.toFixed(2)}</p>
@@ -263,101 +282,96 @@ export default function OrderCard({ order }) {
         )}
 
         <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-200">
-  
-  {showTrack && order.trackingId && (
-    <>
-      <button 
-        onClick={() => setShowPopup(true)} 
-        className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-1.5"
-      >
-        <FiTruck size={16} />
-        Track Order
-      </button>
-      
-      {showPopup && (
-        <div className="absolute mt-2 p-4 bg-white border border-gray-200 rounded-lg shadow-lg space-y-3 z-10">
-          <p className="text-gray-700 text-sm font-medium">
-            Tracking ID: <span className="font-semibold text-gray-900">{order.trackingId}</span>
-          </p>
-          <div className="flex gap-2">
-            <button 
-              onClick={handleCopy} 
-              className="px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-1.5"
+          {showTrack && order.trackingId && (
+            <>
+              <button
+                onClick={() => setShowPopup(true)}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-1.5"
+              >
+                <FiTruck size={16} />
+                Track Order
+              </button>
+
+              {showPopup && (
+                <div className="absolute mt-2 p-4 bg-white border border-gray-200 rounded-lg shadow-lg space-y-3 z-10">
+                  <p className="text-gray-700 text-sm font-medium">
+                    Tracking ID: <span className="font-semibold text-gray-900">{order.trackingId}</span>
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCopy}
+                      className="px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-1.5"
+                    >
+                      <FiClipboard size={14} />
+                      Copy
+                    </button>
+                    <button
+                      onClick={openIndiaPost}
+                      className="px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-1.5"
+                    >
+                      <FiExternalLink size={14} />
+                      India Post
+                    </button>
+                    <button
+                      onClick={() => setShowPopup(false)}
+                      className="ml-auto px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {showPaymentGateway && (
+            <button
+              onClick={handlePaymentGateway}
+              disabled={!isRazorpayLoaded || isProcessingPayment}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center gap-1.5 ${
+                !isRazorpayLoaded || isProcessingPayment
+                  ? "bg-indigo-400 text-white cursor-not-allowed"
+                  : "bg-indigo-600 text-white hover:bg-indigo-700"
+              }`}
             >
-              <FiClipboard size={14} />
-              Copy
+              <FiCreditCard size={16} />
+              {isProcessingPayment ? "Processing..." : "Pay Now"}
             </button>
-            <button 
-              onClick={openIndiaPost} 
-              className="px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-1.5"
+          )}
+
+          {canCancel && (
+            <button
+              onClick={handleCancelOrder}
+              disabled={isCancelling}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center gap-1.5 ${
+                isCancelling
+                  ? "bg-gray-400 text-white cursor-not-allowed"
+                  : "bg-red-600 text-white hover:bg-red-700"
+              }`}
             >
-              <FiExternalLink size={14} />
-              India Post
+              <FiXCircle size={16} />
+              {isCancelling ? "Cancelling..." : "Cancel Order"}
             </button>
-            <button 
-              onClick={() => setShowPopup(false)} 
-              className="ml-auto px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              Close
-            </button>
-          </div>
+          )}
+
+          <button
+            onClick={() => generateInvoice(order)}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm flex items-center gap-1.5"
+          >
+            <FiDownload size={16} />
+            Download Invoice
+          </button>
+
+          {error && (
+            <div className="w-full mt-3 p-2 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>
+          )}
+
+          {showSuccess && (
+            <div className="w-full mt-3 p-2 text-sm text-green-700 bg-green-50 rounded-md">
+              Order cancelled successfully! Refund initiated. Refreshing...
+            </div>
+          )}
         </div>
-      )}
-    </>
-  )}
-
-  {showPaymentGateway && (
-    <button
-      onClick={handlePaymentGateway}
-      disabled={!isRazorpayLoaded || isProcessingPayment}
-      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center gap-1.5 ${
-        !isRazorpayLoaded || isProcessingPayment
-          ? "bg-indigo-400 text-white cursor-not-allowed"
-          : "bg-indigo-600 text-white hover:bg-indigo-700"
-      }`}
-    >
-      <FiCreditCard size={16} />
-      {isProcessingPayment ? "Processing..." : "Pay Now"}
-    </button>
-  )}
-
-  {canCancel && (
-    <button
-      onClick={handleCancelOrder}
-      disabled={isCancelling}
-      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center gap-1.5 ${
-        isCancelling
-          ? "bg-gray-400 text-white cursor-not-allowed"
-          : "bg-red-600 text-white hover:bg-red-700"
-      }`}
-    >
-      <FiXCircle size={16} />
-      {isCancelling ? "Cancelling..." : "Cancel Order"}
-    </button>
-  )}
-
-  {order && (
-    <button
-      onClick={() => generateInvoice(order)}
-      className="px-4 py-2 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm flex items-center gap-1.5"
-    >
-      <FiDownload size={16} />
-      Download Invoice
-    </button>
-  )}
-
-  {error && (
-    <div className="w-full mt-3 p-2 text-sm text-red-600 bg-red-50 rounded-md">
-      {error}
-    </div>
-  )}
-  
-  {showSuccess && (
-    <div className="w-full mt-3 p-2 text-sm text-green-700 bg-green-50 rounded-md">
-      Order cancelled successfully! Refund initiated. Refreshing...
-    </div>
-  )}
-</div>
       </div>
     </div>
   );

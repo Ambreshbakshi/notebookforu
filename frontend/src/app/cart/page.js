@@ -188,35 +188,43 @@ const CartPage = () => {
     );
   };
 
-  const applyPromoCode = () => {
-    if (!promoCode) {
-      toast.info("Please enter a promo code");
-      return;
-    }
+ const applyPromoCode = () => {
+  if (!promoCode) {
+    toast.info("Please enter a promo code");
+    return;
+  }
 
-    const validCodes = {
-      NOTEBOOK10: 0.1,
-      NOTEBOOK20: 0.2,
-      FREESHIP: shippingCost ? shippingCost : 0,
-    };
-    const code = promoCode.toUpperCase();
+  if (shippingCost === null) {
+    toast.error("Please check shipping before applying promo");
+    return;
+  }
 
-    if (validCodes[code]) {
-      const discountValue =
-        code === "FREESHIP" ? validCodes[code] : subtotal * validCodes[code];
-      setDiscount(discountValue);
-      toast.success(
-        `Promo code applied! ${
-          code === "FREESHIP"
-            ? "Free shipping"
-            : `${validCodes[code] * 100}% discount`
-        }`
-      );
-    } else {
-      setDiscount(0);
-      toast.error("Invalid promo code");
-    }
+  const code = promoCode.toUpperCase();
+  const validCodes = {
+    NOTEBOOK10: 0.1,
+    NOTEBOOK20: 0.2,
+    FREESHIP: shippingCost || 0,
   };
+
+  if (validCodes[code]) {
+    const fullAmount = subtotal + (subtotal > 499 ? 0 : shippingCost || 0);
+    const discountValue =
+      code === "FREESHIP" ? validCodes[code] : fullAmount * validCodes[code];
+
+    setDiscount(discountValue);
+    toast.success(
+      `Promo code applied! ${
+        code === "FREESHIP"
+          ? "Free shipping"
+          : `${validCodes[code] * 100}% discount`
+      }`
+    );
+  } else {
+    setDiscount(0);
+    toast.error("Invalid promo code");
+  }
+};
+
 
   const handlePincodeChange = (e) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 6);
@@ -448,13 +456,28 @@ const CartPage = () => {
                   : "bg-green-600 text-white hover:bg-green-700"
               }`}
               onClick={(e) => {
-                if (shippingCost === null || cartItems.length === 0) {
-                  e.preventDefault();
-                  toast.error(
-                    shippingCost === null ? "Check shipping first" : "Cart is empty"
-                  );
-                }
-              }}
+  if (shippingCost === null || cartItems.length === 0) {
+    e.preventDefault();
+    toast.error(
+      shippingCost === null ? "Check shipping first" : "Cart is empty"
+    );
+    return;
+  }
+
+  // Save total, discount, shipping, etc. for checkout
+  localStorage.setItem(
+    "checkoutSummary",
+    JSON.stringify({
+      subtotal,
+      shippingCost: subtotal > 499 ? 0 : shippingCost,
+      discount,
+      total,
+      deliveryPincode,
+      deliveryEstimate,
+    })
+  );
+}}
+
             >
               {isLoggedIn ? "Proceed to Checkout" : "Login to Checkout"}
             </Link>

@@ -20,6 +20,10 @@ const CheckoutPage = () => {
   const [formErrors, setFormErrors] = useState({});
   const [isRazorpayLoaded, setIsRazorpayLoaded] = useState(false);
   const [shippingChecked, setShippingChecked] = useState(false);
+const [promoCode, setPromoCode] = useState("");
+const [promoDiscount, setPromoDiscount] = useState(0);
+const [promoError, setPromoError] = useState("");
+const [lastCheckedPincode, setLastCheckedPincode] = useState("");
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -92,7 +96,8 @@ const enrichCartItems = (cart) => {
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalWeight = calculateTotalWeight(cartItems);
   const finalShippingCost = subtotal > 499 ? 0 : (shippingCost || 0);
-  const amountWithShipping = subtotal + finalShippingCost;
+  const amountWithShipping = subtotal + finalShippingCost - promoDiscount;
+
   const shippingAddress = `${customerDetails.address}, ${customerDetails.city}, ${customerDetails.state} - ${deliveryPincode}`;
 
 
@@ -112,6 +117,11 @@ const enrichCartItems = (cart) => {
         setCartItems([]);
       }
     };
+const appliedPromo = localStorage.getItem("promoCode");
+if (appliedPromo) {
+  setPromoCode(appliedPromo);
+  handleApplyPromo(); // try apply
+}
 
     const loadRazorpay = () => {
       if (window.Razorpay) {
@@ -218,7 +228,7 @@ const enrichCartItems = (cart) => {
       if (!shippingInfo || typeof shippingInfo.shippingCost !== "number") {
         throw new Error("Invalid shipping response");
       }
-
+setLastCheckedPincode(deliveryPincode); 
       // Apply free shipping if subtotal > 499
       const finalShippingCost = subtotal > 499 ? 0 : shippingInfo.shippingCost;
       
@@ -236,6 +246,69 @@ const enrichCartItems = (cart) => {
       setCheckingShipping(false);
     }
   };
+const handleApplyPromo = () => {
+  const code = promoCode.trim().toUpperCase();
+
+  if (!code) {
+    toast.info("Please enter a promo code");
+    return;
+  }
+
+  if (shippingCost === null) {
+    toast.error("Please check shipping before applying promo");
+    return;
+  }
+
+  const fullAmount = subtotal + (subtotal > 499 ? 0 : shippingCost || 0);
+
+  const promoMap = {
+    WELCOME10: {
+      type: "percent",
+      value: 0.10,
+      condition: subtotal >= 200,
+      error: "Minimum ₹200 subtotal required for WELCOME10",
+    },
+    NOTEBOOK10: {
+      type: "percent",
+      value: 0.10,
+      condition: true,
+    },
+    NOTEBOOK20: {
+      type: "percent",
+      value: 0.20,
+      condition: true,
+    },
+    FREESHIP: {
+      type: "shipping",
+      value: shippingCost || 0,
+      condition: true,
+    },
+  };
+
+  const promo = promoMap[code];
+
+  if (!promo || !promo.condition) {
+    setPromoDiscount(0);
+    setPromoError(promo?.error || "Invalid promo or conditions not met");
+    toast.error(promo?.error || "Invalid promo code");
+    return;
+  }
+
+  let discount = 0;
+
+  if (promo.type === "percent") {
+    discount = Math.min(fullAmount * promo.value, 100); // Optional: cap max discount
+    toast.success(`Promo applied! ${promo.value * 100}% off`);
+  } else if (promo.type === "shipping") {
+    discount = promo.value;
+    toast.success("Promo applied! Free shipping");
+  }
+
+  setPromoDiscount(discount);
+  setPromoError("");
+  localStorage.setItem("promoCode", code); // sync for later page load
+};
+
 
   // Sanitize input data
   const sanitizeInput = (input) => {
@@ -248,209 +321,207 @@ const enrichCartItems = (cart) => {
   };
 
   // Process payment
-  const handlePayment = async () => {
-    if (!validateForm()) {
-      toast.error("Please fix all form errors before proceeding");
-      return;
+ const handlePayment = async () => {
+  if (!validateForm()) {
+    toast.error("Please fix all form errors before proceeding");
+    return;
+  }
+
+  if (!isRazorpayLoaded) {
+    toast.error("Payment system is still loading. Please wait...");
+    return;
+  }
+
+  setLoading(true);
+  const toastId = toast.loading("Processing your order...");
+
+  try {
+    const idToken = await user?.getIdToken();
+    if (!idToken) throw new Error("Authentication required");
+
+    const finalAmount = subtotal > 499 ? subtotal : subtotal + (shippingCost || 0) - promoDiscount;
+
+    const orderData = {
+      amount: Math.round(finalAmount * 100), // in paise
+      currency: "INR",
+      items: cartItems.map(item => ({
+        id: item.id,
+        name: sanitizeInput(item.name),
+        price: item.price,
+        quantity: item.quantity,
+        weight: item.weight || 0.5,
+        pageType: sanitizeInput(item.pageType || "Ruled")
+      })),
+      customer: {
+        name: sanitizeInput(customerDetails.name),
+        email: sanitizeInput(customerDetails.email),
+        phone: sanitizeInput(customerDetails.phone),
+        userId: user?.uid || "guest"
+      },
+      shipping: {
+        cost: subtotal > 499 ? 0 : shippingCost,
+        pincode: deliveryPincode,
+        estimate: deliveryEstimate,
+        address: sanitizeInput(shippingAddress)
+      },
+      paymentMethod: "razorpay",
+
+      // ✅ Include promo info
+      promo: {
+        code: promoCode || null,
+        discount: promoDiscount || 0
+      },
+
+      _metadata: {
+        userAgent: navigator.userAgent,
+        ip: await fetch('https://api.ipify.org?format=json')
+             .then(res => res.json())
+             .then(data => data.ip)
+             .catch(() => "unknown"),
+        device: window.innerWidth < 768 ? "mobile" : "desktop",
+        freeShippingApplied: subtotal > 499
+      }
+    };
+
+    const orderResponse = await fetch("/api/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${idToken}`,
+        "X-Request-ID": `order_${Date.now()}`
+      },
+      body: JSON.stringify(orderData),
+    });
+
+    if (!orderResponse.ok) {
+      const error = await orderResponse.json().catch(() => ({}));
+      throw new Error(error.error || "Order creation failed");
     }
 
-    if (!isRazorpayLoaded) {
-      toast.error("Payment system is still loading. Please wait...");
-      return;
+    const orderResult = await orderResponse.json();
+    if (!orderResult?.data?.orderId) {
+      console.error('Invalid order response:', orderResult);
+      throw new Error("Invalid order response - Missing orderId");
     }
 
-    setLoading(true);
-    const toastId = toast.loading("Processing your order...");
+    const { orderId } = orderResult.data;
 
-    try {
-      // 1. Get user token
-      const idToken = await user?.getIdToken();
-      if (!idToken) throw new Error("Authentication required");
+    const paymentResponse = await fetch("/api/razorpay", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
+        amount: orderData.amount,
+        orderId
+      })
+    });
 
-      // Calculate final amount with free shipping if applicable
-      const finalAmount = subtotal > 499 ? subtotal : subtotal + (shippingCost || 0);
+    if (!paymentResponse.ok) {
+      throw new Error("Payment gateway error");
+    }
 
-      // 2. Prepare order data
-      const orderData = {
-        amount: Math.round(finalAmount * 100), // Convert to paise
-        currency: "INR",
-        items: cartItems.map(item => ({
-  id: item.id,
-  name: sanitizeInput(item.name),
-  price: item.price,
-  quantity: item.quantity,
-  weight: item.weight || 0.5,
-  pageType: sanitizeInput(item.pageType || "Ruled")
-})),
+    const paymentData = await paymentResponse.json();
+    if (!paymentData?.data?.id) {
+      throw new Error(
+        paymentData.error ||
+        `Payment failed (Status: ${paymentResponse.status})`
+      );
+    }
 
-        customer: {
-          name: sanitizeInput(customerDetails.name),
-          email: sanitizeInput(customerDetails.email),
-          phone: sanitizeInput(customerDetails.phone),
-          userId: user?.uid || "guest"
-        },
-        shipping: {
-          cost: subtotal > 499 ? 0 : shippingCost, // Store 0 if free shipping
-          pincode: deliveryPincode,
-          estimate: deliveryEstimate,
-          address: sanitizeInput(shippingAddress)
-        },
-        paymentMethod: "razorpay",
-        _metadata: {
-          userAgent: navigator.userAgent,
-          ip: await fetch('https://api.ipify.org?format=json')
-               .then(res => res.json())
-               .then(data => data.ip)
-               .catch(() => "unknown"),
-          device: window.innerWidth < 768 ? "mobile" : "desktop",
-          freeShippingApplied: subtotal > 499
-        }
-      };
+    const rzpOptions = {
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      amount: paymentData.data.amount,
+      currency: paymentData.data.currency,
+      name: "Notebook ForU",
+      description: `Order #${orderId}`,
+      order_id: paymentData.data.id,
+      handler: async (response) => {
+        try {
+          const verificationToast = toast.loading("Verifying payment...");
 
-      // 3. Create order in database
-      const orderResponse = await fetch("/api/orders", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`,
-          "X-Request-ID": `order_${Date.now()}`
-        },
-        body: JSON.stringify(orderData),
-      });
-
-      if (!orderResponse.ok) {
-        const error = await orderResponse.json().catch(() => ({}));
-        throw new Error(error.error || "Order creation failed");
-      }
-
-      const orderResult = await orderResponse.json();
-      if (!orderResult?.data?.orderId) {
-        console.error('Invalid order response:', orderResult);
-        throw new Error("Invalid order response - Missing orderId");
-      }
-
-      const { orderId } = orderResult.data;
-
-      // 4. Create Razorpay payment
-      const paymentResponse = await fetch("/api/razorpay", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          amount: orderData.amount,
-          orderId
-        })
-      });
-
-      if (!paymentResponse.ok) {
-        throw new Error("Payment gateway error");
-      }
-
-      const paymentData = await paymentResponse.json();
-      if (!paymentData?.data?.id) {
-        throw new Error(
-          paymentData.error || 
-          `Payment failed (Status: ${paymentResponse.status})`
-        );
-      }
-
-      // 5. Initialize Razorpay
-      const rzpOptions = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: paymentData.data.amount,
-        currency: paymentData.data.currency,
-        name: "Notebook ForU",
-        description: `Order #${orderId}`,
-        order_id: paymentData.data.id,
-        handler: async (response) => {
-          try {
-            const verificationToast = toast.loading("Verifying payment...");
-            
-            // Add additional verification data
-            const verificationData = {
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
-              orderId,
-              _metadata: {
-                userAgent: navigator.userAgent,
-                timestamp: new Date().toISOString(),
-                ip: await fetch('https://api.ipify.org?format=json')
-                     .then(res => res.json())
-                     .then(data => data.ip)
-                     .catch(() => "unknown")
-              }
-            };
-
-            const verification = await fetch("/api/razorpay/verify", {
-              method: "POST",
-              headers: { 
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${idToken}`,
-                "X-Request-ID": `verify_${Date.now()}`
-              },
-              body: JSON.stringify(verificationData),
-              signal: AbortSignal.timeout(10000) // 10 second timeout
-            });
-
-            const verificationResult = await verification.json();
-
-            if (!verification.ok || !verificationResult.success) {
-              throw new Error(verificationResult.error || "Payment verification failed");
+          const verificationData = {
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature,
+            orderId,
+            _metadata: {
+              userAgent: navigator.userAgent,
+              timestamp: new Date().toISOString(),
+              ip: await fetch('https://api.ipify.org?format=json')
+                   .then(res => res.json())
+                   .then(data => data.ip)
+                   .catch(() => "unknown")
             }
+          };
 
-            // Clear cart and show success
-            localStorage.removeItem("cart");
-            toast.dismiss(verificationToast);
-            toast.success("Payment successful!");
-            router.push(`/success?order_id=${orderId}`);
-            
-          } catch (error) {
-            console.error("Payment verification error:", error);
-            toast.dismiss();
-            toast.error(error.message || "Payment verification failed");
-            router.push(`/order-failed?id=${orderId}&error=${encodeURIComponent(error.message)}`);
+          const verification = await fetch("/api/razorpay/verify", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${idToken}`,
+              "X-Request-ID": `verify_${Date.now()}`
+            },
+            body: JSON.stringify(verificationData),
+            signal: AbortSignal.timeout(10000)
+          });
+
+          const verificationResult = await verification.json();
+
+          if (!verification.ok || !verificationResult.success) {
+            throw new Error(verificationResult.error || "Payment verification failed");
           }
-        },
-        prefill: {
-          name: customerDetails.name,
-          email: customerDetails.email,
-          contact: customerDetails.phone
-        },
-        theme: {
-          color: "#4f46e5"
-        },
-        modal: {
-          ondismiss: () => {
-            toast.info("Payment window closed - payment not completed");
-          }
-        },
-        notes: {
-          orderId,
-          userId: user?.uid || "guest",
-          source: "web-checkout",
-          freeShipping: subtotal > 499
+
+          localStorage.removeItem("cart");
+          localStorage.removeItem("promoCode");
+          toast.dismiss(verificationToast);
+          toast.success("Payment successful!");
+         router.push(`/success?order_id=${orderId}&promo=${promoCode}&discount=${promoDiscount}`);
+
+        } catch (error) {
+          console.error("Payment verification error:", error);
+          toast.dismiss();
+          toast.error(error.message || "Payment verification failed");
+          router.push(`/order-failed?id=${orderId}&error=${encodeURIComponent(error.message)}`);
         }
-      };
+      },
+      prefill: {
+        name: customerDetails.name,
+        email: customerDetails.email,
+        contact: customerDetails.phone
+      },
+      theme: { color: "#4f46e5" },
+      modal: {
+        ondismiss: () => toast.info("Payment window closed - payment not completed")
+      },
+      notes: {
+        orderId,
+        userId: user?.uid || "guest",
+        source: "web-checkout",
+        freeShipping: subtotal > 499,
+        promoCode: promoCode || "",
+        promoDiscount: promoDiscount || 0
+      }
+    };
 
-      const rzp = new window.Razorpay(rzpOptions);
-      rzp.on("payment.failed", (response) => {
-        console.error("Payment failed:", response.error);
-        toast.error(`Payment failed: ${response.error.description}`);
-        router.push(`/order-failed?id=${orderId}`);
-      });
-      rzp.open();
+    const rzp = new window.Razorpay(rzpOptions);
+    rzp.on("payment.failed", (response) => {
+      console.error("Payment failed:", response.error);
+      toast.error(`Payment failed: ${response.error.description}`);
+      router.push(`/order-failed?id=${orderId}`);
+    });
+    rzp.open();
 
-    } catch (error) {
-      console.error("Payment error:", error);
-      toast.error(error.message || "Payment processing failed");
-    } finally {
-      toast.dismiss(toastId);
-      setLoading(false);
-    }
-  };
+  } catch (error) {
+    console.error("Payment error:", error);
+    toast.error(error.message || "Payment processing failed");
+  } finally {
+    toast.dismiss(toastId);
+    setLoading(false);
+  }
+};
+
 
   // Handle input changes
   const handleInputChange = (e) => {
@@ -542,11 +613,38 @@ const enrichCartItems = (cart) => {
                   <input
                     type="text"
                     value={deliveryPincode}
-                    onChange={(e) => {
-                      setDeliveryPincode(e.target.value.replace(/\D/g, '').slice(0, 6));
-                      if (formErrors.pincode) setFormErrors(prev => ({ ...prev, pincode: "" }));
-                      setShippingChecked(false);
-                    }}
+          onChange={(e) => {
+  const newPincode = e.target.value.replace(/\D/g, '').slice(0, 6);
+  const wasSamePincode = newPincode === lastCheckedPincode;
+
+  setDeliveryPincode(newPincode);
+  setShippingChecked(false);
+  setShippingCost(null);
+  setDeliveryEstimate("");
+
+  if (!wasSamePincode) {
+    // New pincode: reset promo
+    setPromoCode("");
+    setPromoDiscount(0);
+    setPromoError("");
+    localStorage.removeItem("promoCode");
+  } else {
+    // Same pincode again: try auto-reapply promo
+    const saved = localStorage.getItem("promoCode");
+    if (saved) {
+      setPromoCode(saved);
+      setTimeout(() => {
+        handleApplyPromo();
+      }, 100); // slight delay to ensure state update
+    }
+  }
+
+  // Clear error if any
+  if (formErrors.pincode) {
+    setFormErrors(prev => ({ ...prev, pincode: "" }));
+  }
+}}
+
                     className={`flex-1 border rounded-lg px-4 py-2 focus:ring-2 ${
                       formErrors.pincode ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
                     }`}
@@ -744,6 +842,31 @@ const enrichCartItems = (cart) => {
                   )}
                 </span>
               </div>
+              <div className="mb-4">
+  <label className="block text-sm font-medium mb-1">Promo Code</label>
+  <div className="flex gap-2">
+    <input
+      type="text"
+      value={promoCode}
+      onChange={(e) => setPromoCode(e.target.value)}
+      placeholder="Enter promo code"
+      className="flex-1 border rounded-lg px-4 py-2 focus:ring-blue-500"
+    />
+    <button
+      onClick={handleApplyPromo}
+      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+    >
+      Apply
+    </button>
+  </div>
+  {promoError && <p className="text-red-500 text-xs mt-1">{promoError}</p>}
+  {promoDiscount > 0 && (
+    <p className="text-green-600 text-sm mt-1">
+      Promo applied: -₹{promoDiscount.toFixed(2)}
+    </p>
+  )}
+</div>
+
             </div>
             
             <div className="border-t pt-4 mb-6">

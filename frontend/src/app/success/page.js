@@ -56,142 +56,145 @@ function SuccessContent() {
     fetchOrder();
   }, [searchParams]);
 
-  const generateInvoice = () => {
-    if (!orderData) return;
+ const generateInvoice = () => {
+  if (!orderData) return;
+
+  try {
+    const docPDF = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Set metadata
+    docPDF.setProperties({
+      title: `Invoice - ${searchParams.get("order_id")}`,
+      subject: 'Purchase Invoice',
+      author: 'NotebookForU',
+      keywords: 'invoice, receipt, purchase',
+      creator: 'NotebookForU'
+    });
+
+    // Colors
+    const primaryColor = '#4CAF50';
+    const secondaryColor = '#333333';
+
+    // Header
+    docPDF.setFontSize(18);
+    docPDF.setTextColor(secondaryColor);
+    docPDF.setFont('helvetica', 'bold');
+    docPDF.text("NotebookForU", 14, 20);
+    
+    docPDF.setFontSize(12);
+    docPDF.setFont('helvetica', 'normal');
+    docPDF.text("Invoice", 14, 26);
 
     try {
-      const docPDF = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      // Set metadata
-      docPDF.setProperties({
-        title: `Invoice - ${searchParams.get("order_id")}`,
-        subject: 'Purchase Invoice',
-        author: 'NotebookForU',
-        keywords: 'invoice, receipt, purchase',
-        creator: 'NotebookForU'
-      });
-
-      // Colors
-      const primaryColor = '#4CAF50';
-      const secondaryColor = '#333333';
-
-      // Header
-      docPDF.setFontSize(18);
-      docPDF.setTextColor(secondaryColor);
-      docPDF.setFont('helvetica', 'bold');
-      docPDF.text("NotebookForU", 14, 20);
-      
-      docPDF.setFontSize(12);
-      docPDF.setFont('helvetica', 'normal');
-      docPDF.text("Invoice", 14, 26);
-
-      // Logo (try-catch for safety)
-      try {
-        docPDF.addImage('/logo.jpg', 'JPG', 160, 10, 30, 30);
-      } catch (error) {
-        console.log("Logo image not found or inaccessible in PDF");
-      }
-
-      // Order details section
-      docPDF.setFontSize(10);
-      docPDF.text("www.notebookforu.in", 14, 34);
-      docPDF.text(`Invoice Date: ${new Date().toLocaleDateString('en-IN')}`, 14, 40);
-      docPDF.text(`Order ID: ${searchParams.get("order_id")}`, 14, 46);
-      
-      // Payment Details - Corrected and Enhanced
-      docPDF.text(`Payment ID: ${orderData.payment?.id || 'N/A'}`, 14, 52);
-      docPDF.text(`Razorpay Order ID: ${orderData.payment?.order_id || 'N/A'}`, 14, 58);
-      docPDF.text(`Payment Method: ${orderData.paymentMethod || 'N/A'}`, 14, 64);
-docPDF.text(`Payment Status: ${orderData.paymentStatus || 'N/A'}`, 14, 70);
-
-      docPDF.text(`Verified: ${orderData.payment?.verified ? 'Yes' : 'No'}`, 14, 76);
-      docPDF.text(`Verified At: ${orderData.payment?.verified_at?.toDate().toLocaleString() || 'N/A'}`, 14, 82);
-
-      // Customer details
-      docPDF.setFontSize(11);
-      docPDF.setFont('helvetica', 'bold');
-      docPDF.text("Bill To:", 14, 94);
-      docPDF.setFont('helvetica', 'normal');
-      docPDF.text(`${orderData.customer?.name || 'N/A'}`, 14, 100);
-      docPDF.text(`${orderData.customer?.email || 'N/A'}`, 14, 106);
-      docPDF.text(`${orderData.customer?.phone || 'N/A'}`, 14, 112);
-      
-      // Handle multi-line address
-      const addressLines = docPDF.splitTextToSize(orderData.shipping?.address || 'N/A', 150);
-      docPDF.text(addressLines, 14, 118);
-
-      // Calculate totals
-      const itemsTotal = orderData?.items?.reduce((acc, item) => acc + (item.price * item.quantity), 0) || 0;
-      const shippingCost = orderData?.shipping?.cost || 0;
-      const grandTotal = itemsTotal + shippingCost;
-
-      // Items table
-      const items = orderData?.items?.map((item, index) => [
-  index + 1,
-  `${item.name} (${item.pageType || 'N/A'})`,
-  item.quantity,
-  `Rs.${item.price.toFixed(2)}`,
-  `Rs.${(item.price * item.quantity).toFixed(2)}`
-]) || [];
-
-autoTable(docPDF, {
-  startY: 130,
-  headStyles: {
-    fillColor: primaryColor,
-    textColor: 255,
-    fontStyle: 'bold'
-  },
-  head: [['S.No', 'Product (Page Type)', 'Qty', 'Unit Price', 'Total']],
-  body: items,
-  theme: 'grid',
-  styles: {
-    cellPadding: 3,
-    fontSize: 9,
-    valign: 'middle'
-  },
-  columnStyles: {
-    0: { cellWidth: 10 },
-    1: { cellWidth: 70 },
-    2: { cellWidth: 20 },
-    3: { cellWidth: 30 },
-    4: { cellWidth: 30 }
-  }
-});
-
-
-      // Totals section
-      const finalY = docPDF.lastAutoTable.finalY + 10;
-      docPDF.setFontSize(11);
-      docPDF.setFont('helvetica', 'bold');
-      docPDF.text("Order Summary", 14, finalY);
-      
-      docPDF.setFont('helvetica', 'normal');
-      docPDF.text(`Subtotal: Rs.${itemsTotal.toFixed(2)}`, 140, finalY, { align: 'right' });
-      docPDF.text(`Shipping: Rs.${shippingCost.toFixed(2)}`, 140, finalY + 6, { align: 'right' });
-      
-      docPDF.setFontSize(12);
-      docPDF.setFont('helvetica', 'bold');
-      docPDF.text(`Grand Total: Rs.${grandTotal.toFixed(2)}`, 140, finalY + 14, { align: 'right' });
-
-      // Footer
-      docPDF.setFontSize(9);
-      docPDF.setFont('helvetica', 'normal');
-      docPDF.setTextColor(100);
-      docPDF.text("Thank you for shopping with us!", 14, finalY + 24);
-      docPDF.text("This is a system-generated invoice. No signature required.", 14, finalY + 30);
-      docPDF.text("For any queries, contact: notebookforu009@gmail.com", 14, finalY + 36);
-
-      // Save PDF
-      docPDF.save(`Invoice_${searchParams.get("order_id")}_NotebookForU.pdf`);
+      docPDF.addImage('/logo.jpg', 'JPG', 160, 10, 30, 30);
     } catch (error) {
-      console.error("Error generating invoice:", error);
-      alert("Failed to generate invoice. Please try again later.");
+      console.log("Logo image not found or inaccessible in PDF");
     }
-  };
+
+    // Order details
+    docPDF.setFontSize(10);
+    docPDF.text("www.notebookforu.in", 14, 34);
+    docPDF.text(`Invoice Date: ${new Date().toLocaleDateString('en-IN')}`, 14, 40);
+    docPDF.text(`Order ID: ${searchParams.get("order_id")}`, 14, 46);
+
+    docPDF.text(`Payment ID: ${orderData.payment?.id || 'N/A'}`, 14, 52);
+    docPDF.text(`Razorpay Order ID: ${orderData.payment?.order_id || 'N/A'}`, 14, 58);
+    docPDF.text(`Payment Method: ${orderData.paymentMethod || 'N/A'}`, 14, 64);
+    docPDF.text(`Payment Status: ${orderData.paymentStatus || 'N/A'}`, 14, 70);
+    docPDF.text(`Verified: ${orderData.payment?.verified ? 'Yes' : 'No'}`, 14, 76);
+    docPDF.text(`Verified At: ${orderData.payment?.verified_at?.toDate().toLocaleString() || 'N/A'}`, 14, 82);
+
+    // Customer details
+    docPDF.setFontSize(11);
+    docPDF.setFont('helvetica', 'bold');
+    docPDF.text("Bill To:", 14, 94);
+    docPDF.setFont('helvetica', 'normal');
+    docPDF.text(`${orderData.customer?.name || 'N/A'}`, 14, 100);
+    docPDF.text(`${orderData.customer?.email || 'N/A'}`, 14, 106);
+    docPDF.text(`${orderData.customer?.phone || 'N/A'}`, 14, 112);
+
+    const addressLines = docPDF.splitTextToSize(orderData.shipping?.address || 'N/A', 150);
+    docPDF.text(addressLines, 14, 118);
+
+    // Totals calculation
+    const itemsTotal = orderData?.items?.reduce((acc, item) => acc + (item.price * item.quantity), 0) || 0;
+    const shippingCost = orderData?.shipping?.cost || 0;
+    const promoCode = orderData?.promo?.code || null;
+    const promoDiscount = orderData?.promo?.discount || 0;
+    const grandTotal = itemsTotal + shippingCost - promoDiscount;
+
+    // Items table
+    const items = orderData?.items?.map((item, index) => [
+      index + 1,
+      `${item.name} (${item.pageType || 'N/A'})`,
+      item.quantity,
+      `Rs.${item.price.toFixed(2)}`,
+      `Rs.${(item.price * item.quantity).toFixed(2)}`
+    ]) || [];
+
+    autoTable(docPDF, {
+      startY: 130,
+      headStyles: {
+        fillColor: primaryColor,
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      head: [['S.No', 'Product (Page Type)', 'Qty', 'Unit Price', 'Total']],
+      body: items,
+      theme: 'grid',
+      styles: {
+        cellPadding: 3,
+        fontSize: 9,
+        valign: 'middle'
+      },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 30 }
+      }
+    });
+
+    // Totals section
+    const finalY = docPDF.lastAutoTable.finalY + 10;
+    docPDF.setFontSize(11);
+    docPDF.setFont('helvetica', 'bold');
+    docPDF.text("Order Summary", 14, finalY);
+
+    docPDF.setFont('helvetica', 'normal');
+    docPDF.setFontSize(10);
+    docPDF.text(`Subtotal: Rs.${itemsTotal.toFixed(2)}`, 140, finalY, { align: 'right' });
+    docPDF.text(`Shipping: Rs.${shippingCost.toFixed(2)}`, 140, finalY + 6, { align: 'right' });
+
+    if (promoDiscount > 0) {
+      docPDF.text(`Discount (${promoCode}): -Rs.${promoDiscount.toFixed(2)}`, 140, finalY + 12, { align: 'right' });
+    }
+
+    docPDF.setFontSize(12);
+    docPDF.setFont('helvetica', 'bold');
+    docPDF.text(`Grand Total: Rs.${grandTotal.toFixed(2)}`, 140, finalY + (promoDiscount > 0 ? 20 : 12), { align: 'right' });
+
+    // Footer
+    docPDF.setFontSize(9);
+    docPDF.setFont('helvetica', 'normal');
+    docPDF.setTextColor(100);
+    const footerY = finalY + (promoDiscount > 0 ? 30 : 22);
+    docPDF.text("Thank you for shopping with us!", 14, footerY);
+    docPDF.text("This is a system-generated invoice. No signature required.", 14, footerY + 6);
+    docPDF.text("For any queries, contact: notebookforu009@gmail.com", 14, footerY + 12);
+
+    docPDF.save(`Invoice_${searchParams.get("order_id")}_NotebookForU.pdf`);
+  } catch (error) {
+    console.error("Error generating invoice:", error);
+    alert("Failed to generate invoice. Please try again later.");
+  }
+};
+
 
   if (loading) {
     return (
@@ -284,12 +287,36 @@ autoTable(docPDF, {
                 <span className="font-medium">{new Date(orderData.payment?.verified_at?.toDate() || new Date()).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Total:</span>
-                <span className="font-medium">
-  Rs.{orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) + (orderData.shipping?.cost || 0)}
-</span>
+  <span className="text-gray-600">Subtotal:</span>
+  <span className="font-medium">
+    Rs.{orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)}
+  </span>
+</div>
+<div className="flex justify-between">
+  <span className="text-gray-600">Shipping:</span>
+  <span className="font-medium">
+    Rs.{orderData.shipping?.cost?.toFixed(2) || '0.00'}
+  </span>
+</div>
+{orderData.promo?.discount > 0 && (
+  <div className="flex justify-between">
+    <span className="text-gray-600">Discount ({orderData.promo?.code}):</span>
+    <span className="font-medium text-green-600">
+      -Rs.{orderData.promo?.discount?.toFixed(2)}
+    </span>
+  </div>
+)}
+<div className="flex justify-between font-semibold">
+  <span className="text-gray-700">Grand Total:</span>
+  <span className="font-bold text-gray-900">
+    Rs.{(
+      orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+      + (orderData.shipping?.cost || 0)
+      - (orderData.promo?.discount || 0)
+    ).toFixed(2)}
+  </span>
+</div>
 
-              </div>
               {orderData.items.some(item => item.pageType) && (
   <div className="flex justify-between">
     <span className="text-gray-600">Page Type:</span>
