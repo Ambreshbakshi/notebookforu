@@ -10,7 +10,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook12/notebook12-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook12/notebook12-detail1.jpeg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook12/notebook12-detail3.jpeg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook12/notebook12-detail4.jpeg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook12/notebook12-detail5.jpeg",
     details: {
@@ -31,7 +31,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook1/notebook1-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook1/notebook1-detail1.jpg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook1/notebook1-detail3.jpg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook1/notebook1-detail4.jpg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook1/notebook1-detail5.jpg",
     details: {
@@ -52,7 +52,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook2/notebook2-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook2/notebook2-detail1.jpg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook2/notebook2-detail3.jpg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook2/notebook2-detail4.jpg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook2/notebook2-detail5.jpg",
     details: {
@@ -73,7 +73,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook3/notebook3-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook3/notebook3-detail1.jpg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook3/notebook3-detail3.jpg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook3/notebook3-detail4.jpg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook3/notebook3-detail5.jpg",
     details: {
@@ -94,7 +94,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook4/notebook4-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook4/notebook4-detail1.jpg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook4/notebook4-detail3.jpg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook4/notebook4-detail4.jpg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook4/notebook4-detail5.jpg",
     details: {
@@ -115,7 +115,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook5/notebook5-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook5/notebook5-detail1.jpeg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook5/notebook5-detail3.jpeg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook5/notebook5-detail4.jpeg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook5/notebook5-detail5.jpeg",
     details: {
@@ -136,7 +136,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook6/notebook6-cover.jpg",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook6/notebook6-detail1.jpg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook6/notebook6-detail3.jpg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook6/notebook6-detail4.jpg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook6/notebook6-detail5.jpg",
     details: {
@@ -157,7 +157,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook7/notebook7-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook7/notebook7-detail1.jpeg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook7/notebook7-detail3.jpeg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook7/notebook7-detail4.jpeg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook7/notebook7-detail5.jpeg",
     details: {
@@ -178,7 +178,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook8/notebook8-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook8/notebook8-detail1.jpeg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook8/notebook8-detail3.jpeg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook8/notebook8-detail4.jpeg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook8/notebook8-detail5.jpeg",
     details: {
@@ -200,7 +200,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook9/notebook9-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook9/notebook9-detail1.jpeg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook9/notebook9-detail3.jpeg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook9/notebook9-detail4.jpeg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook9/notebook9-detail5.jpeg",
     details: {
@@ -221,7 +221,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook10/notebook10-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook10/notebook10-detail1.jpeg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook10/notebook10-detail3.jpeg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook10/notebook10-detail4.jpeg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook10/notebook10-detail5.jpeg",
     details: {
@@ -242,7 +242,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook11/notebook11-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook11/notebook11-detail1.jpeg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook11/notebook11-detail3.jpeg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook11/notebook11-detail4.jpeg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook11/notebook11-detail5.jpeg",
     details: {
@@ -263,7 +263,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook13/notebook13-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook13/notebook13-detail1.jpeg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook13/notebook13-detail3.jpeg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook13/notebook13-detail4.jpeg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook13/notebook13-detail5.jpeg",
     details: {
@@ -284,7 +284,7 @@ const productData = {
     gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook14/notebook14-cover.png",
     detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook14/notebook14-detail1.jpeg",
     detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook14/notebook14-detail3.jpeg",
+    detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
     detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook14/notebook14-detail4.jpeg",
     detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/notebook/notebook14/notebook14-detail5.jpeg",
     details: {
@@ -311,7 +311,7 @@ const productData = {
       gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary1/diary1-cover.jpeg",
       detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary1/diary1-cover.jpeg",
       detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary1/diary1-detail2.jpg",
-      detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary1/diary1-detail3.jpg",
+      detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
       detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary1/diary1-detail4.jpg",
       detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary1/diary1-detail5.jpg",
       details: {
@@ -332,7 +332,7 @@ const productData = {
       gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary2/diary2-cover.jpeg",
       detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary2/diary2-cover.jpeg",
       detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary2/diary2-detail2.jpg",
-      detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary2/diary2-detail3.jpg",
+      detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
       detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary2/diary2-detail4.jpg",
       detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary2/diary2-detail5.jpg",
       details: {
@@ -353,7 +353,7 @@ const productData = {
       gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary3/diary3-cover.jpeg",
       detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary3/diary3-cover.jpeg",
       detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary2/diary2-detail2.jpg",
-      detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary2/diary2-detail3.jpg",
+      detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
       detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary2/diary2-detail4.jpg",
       detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary2/diary2-detail5.jpg",
       details: {
@@ -377,7 +377,7 @@ const productData = {
       gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/combination/combination1/combination1-detail1.jpg",
       detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/combination/combination1/combination1-detail1.jpg",
       detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-      detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary1/diary1-detail3.jpg",
+      detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
       detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary1/diary1-detail4.jpg",
       detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/diary/diary1/diary1-detail5.jpg",
       details: {
@@ -398,7 +398,7 @@ const productData = {
       gridImage: "https://ik.imagekit.io/h5by6dwco/public/products/combination/combination2/combination2-cover.jpeg",
       detailImage1: "https://ik.imagekit.io/h5by6dwco/public/products/combination/combination2/combination2-cover.jpeg",
       detailImage2: "https://ik.imagekit.io/h5by6dwco/public/products/notebook-index.jpg",
-      detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/combination/combination2/combination2-detail3.jpeg",
+      detailImage3: "https://ik.imagekit.io/h5by6dwco/public/products/Notebook-spiral-pages.jpg",
       detailImage4: "https://ik.imagekit.io/h5by6dwco/public/products/combination/combination2/combination2-detail4.jpeg",
       detailImage5: "https://ik.imagekit.io/h5by6dwco/public/products/combination/combination2/diary1-detail5.jpg",
       details: {
