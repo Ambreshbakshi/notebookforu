@@ -116,7 +116,7 @@ const NotebookDetail = () => {
     delta: 10
   });
 
-  const handleAddToCart = () => {
+ const handleAddToCart = () => {
   const cart = JSON.parse(localStorage.getItem("cart")) || [];
 
   const modifiedName = `${notebook.name} - ${pageType}`;
@@ -137,12 +137,14 @@ const NotebookDetail = () => {
   }
 
   localStorage.setItem("cart", JSON.stringify(cart));
+  window.dispatchEvent(new Event("cartUpdated")); // 🔄 Live update badge in navbar
 
   toast.success(`${quantity} ${modifiedName} added to cart!`, {
     position: "bottom-right",
     autoClose: 3000,
   });
 };
+
 const handleBuyNow = () => {
   if (!isLoggedIn) {
     const redirectUrl = `/notebook/${notebook.id}/checkout`;

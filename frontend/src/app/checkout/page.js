@@ -34,38 +34,59 @@ const CheckoutPage = () => {
   });
 
   // Enrich cart items with product data
- const enrichCartItems = (cart) => {
-  // Handle direct checkout item
+const enrichCartItems = (cart) => {
   const urlParams = new URLSearchParams(window.location.search);
-  const directItemParam = urlParams.get('directItem');
-  
+  const directItemParam = urlParams.get("directItem");
+
   if (directItemParam) {
-    const directItem = JSON.parse(decodeURIComponent(directItemParam));
-    cart = [directItem]; // Replace cart with direct item
+    try {
+      const directItem = JSON.parse(decodeURIComponent(directItemParam));
+      cart = [directItem];
+    } catch (err) {
+      console.error("Invalid directItem param:", err);
+    }
   }
 
-  return cart.map(cartItem => {
-    let foundProduct = null;
-    
-    // Search through all categories in productData
-    for (const category in productData) {
-      if (productData[category][cartItem.id]) {
-        foundProduct = productData[category][cartItem.id];
-        break;
-      }
+  const findProductById = (type, id) => {
+    const productTypeMap = {
+      notebook: "notebooks",
+      diary: "diaries",
+      combination: "combinations"
+    };
+
+    const category = productTypeMap[type];
+    if (category && productData[category]) {
+      return productData[category][id] || productData[category][String(id)];
     }
-    
+
+    // fallback in case type is missing
+    for (const cat in productData) {
+      const product = productData[cat][id] || productData[cat][String(id)];
+      if (product) return product;
+    }
+
+    return null;
+  };
+
+  return cart.map((cartItem) => {
+    const foundProduct = findProductById(cartItem.type, cartItem.id); // ✅ Corrected
+
     return {
       ...cartItem,
-      id: cartItem.id, // Ensure ID is preserved
+      itemId: cartItem.itemId,
       name: foundProduct?.name || cartItem.name || "Unknown Product",
-      price: foundProduct?.price || cartItem.price || 0,
-      weight: foundProduct?.weight || 0.5,
-      pageType: cartItem.pageType || "Ruled",
-      product: foundProduct || null
+      price: foundProduct?.price ?? cartItem.price ?? 0,
+      weight: foundProduct?.weight ?? cartItem.weight ?? 0.5,
+      gridImage: foundProduct?.gridImage || cartItem.gridImage || "/placeholder-product.jpg",
+      product: foundProduct,
+      pageType: cartItem.pageType || "Ruled"
     };
   });
 };
+
+
+
+
 
   // Calculate order totals
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -73,6 +94,7 @@ const CheckoutPage = () => {
   const finalShippingCost = subtotal > 499 ? 0 : (shippingCost || 0);
   const amountWithShipping = subtotal + finalShippingCost;
   const shippingAddress = `${customerDetails.address}, ${customerDetails.city}, ${customerDetails.state} - ${deliveryPincode}`;
+
 
   // Load cart and Razorpay script
   useEffect(() => {

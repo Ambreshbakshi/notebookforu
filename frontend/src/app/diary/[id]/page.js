@@ -1,15 +1,32 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import productData from "@/data/productData";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSwipeable } from "react-swipeable";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { toast, ToastContainer } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
+import { FiShoppingCart, FiPlus, FiMinus } from "react-icons/fi";
 
 export default function DiaryDetail() {
   const { id } = useParams();
+  const router = useRouter();
   const [activeImage, setActiveImage] = useState(0);
-  const diary = productData.diaries[id]; // Direct object access
+  const [pageType, setPageType] = useState("Ruled");
+  const [quantity, setQuantity] = useState(1);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsLoggedIn(!!user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const diary = productData.diaries?.[id];
 
   if (!diary) {
     return (
@@ -21,40 +38,72 @@ export default function DiaryDetail() {
     );
   }
 
-  const { name, price, detailImage1, detailImage2, detailImage3, detailImage4, detailImage5, details } = diary;
+  const { name, price, gridImage, detailImage1, detailImage2, detailImage3, detailImage4, detailImage5, details } = diary;
   const { size, pages, material, binding, gsm, description } = details;
 
-  // Create an array of all detail images
-  const detailImages = [
-    detailImage1,
-    detailImage2,
-    detailImage3,
-    detailImage4,
-    detailImage5
-  ].filter(img => img);
+  const detailImages = [detailImage1, detailImage2, detailImage3, detailImage4, detailImage5].filter(Boolean);
 
-  const nextImage = () => {
-    setActiveImage((prev) => (prev === detailImages.length - 1 ? 0 : prev + 1));
-  };
-
-  const prevImage = () => {
-    setActiveImage((prev) => (prev === 0 ? detailImages.length - 1 : prev - 1));
-  };
+  const nextImage = () => setActiveImage((prev) => (prev === detailImages.length - 1 ? 0 : prev + 1));
+  const prevImage = () => setActiveImage((prev) => (prev === 0 ? detailImages.length - 1 : prev - 1));
 
   const swipeHandlers = useSwipeable({
     onSwipedLeft: nextImage,
     onSwipedRight: prevImage,
     trackMouse: true,
-    delta: 10 // Minimum distance to trigger swipe
+    delta: 10,
   });
+
+  const handleAddToCart = () => {
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
+    const itemId = `diary-${diary.id}-${pageType}`;
+    const existingIndex = cart.findIndex(item => item.itemId === itemId);
+
+    if (existingIndex >= 0) {
+      cart[existingIndex].quantity += quantity;
+    } else {
+      cart.push({
+        ...diary,
+        name: `${diary.name} - ${pageType}`,
+        itemId,
+        quantity,
+        type: "diary",
+        pageType
+      });
+    }
+
+    localStorage.setItem("cart", JSON.stringify(cart));
+    window.dispatchEvent(new Event("cartUpdated"));
+    toast.success(`${quantity} ${diary.name} (${pageType}) added to cart!`, {
+      position: "bottom-right"
+    });
+  };
+
+  const handleBuyNow = () => {
+    const directItem = {
+      id: diary.id,
+      type: "diary",
+      name: `${diary.name} - ${pageType}`,
+      price: diary.price,
+      quantity,
+      pageType,
+      image: gridImage || detailImage1 || "/placeholder.jpg"
+    };
+
+    if (!isLoggedIn) {
+      sessionStorage.setItem("pendingDirectCheckout", JSON.stringify(directItem));
+      router.push(`/admin/login?redirect=/diary/${diary.id}/checkout`);
+    } else {
+      router.push(`/checkout?directItem=${encodeURIComponent(JSON.stringify(directItem))}`);
+    }
+  };
 
   return (
     <div className="bg-gray-50 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+      <ToastContainer position="bottom-right" autoClose={3000} />
       <div className="max-w-6xl mx-auto">
         <div className="bg-white overflow-hidden shadow-lg rounded-lg flex flex-col md:flex-row">
           {/* Diary Image Gallery */}
           <div className="md:w-1/2">
-            {/* Swipeable area */}
             <div className="relative aspect-square md:aspect-auto md:h-[500px]" {...swipeHandlers}>
               <Image
                 src={detailImages[activeImage]}
@@ -64,33 +113,25 @@ export default function DiaryDetail() {
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
                 priority
               />
-              
-              {/* Navigation Arrows - Hidden on touch devices */}
               {detailImages.length > 1 && (
-                <div className="hidden md:block">
-                  <button 
+                <>
+                  <button
                     onClick={prevImage}
                     className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition-all"
                     aria-label="Previous image"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
+                    &lt;
                   </button>
-                  <button 
+                  <button
                     onClick={nextImage}
                     className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition-all"
                     aria-label="Next image"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    &gt;
                   </button>
-                </div>
+                </>
               )}
             </div>
-            
-            {/* Thumbnail Navigation */}
             {detailImages.length > 1 && (
               <div className="flex gap-2 p-4 overflow-x-auto">
                 {detailImages.map((img, index) => (
@@ -115,8 +156,8 @@ export default function DiaryDetail() {
           {/* Diary Info */}
           <div className="md:w-1/2 p-6 sm:p-8 flex flex-col justify-center">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{name}</h1>
-            <p className="text-xl sm:text-2xl text-indigo-600 font-semibold mb-5">{price}</p>
-            
+            <p className="text-xl sm:text-2xl text-indigo-600 font-semibold mb-5">₹{price}</p>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <DetailItem label="Size" value={size} />
               <DetailItem label="Pages" value={pages} />
@@ -124,10 +165,46 @@ export default function DiaryDetail() {
               <DetailItem label="Binding" value={binding} />
               <DetailItem label="GSM" value={gsm} />
             </div>
-            
-            <div className="border-t border-gray-200 pt-5">
+
+            <div className="border-t border-gray-200 pt-5 mb-4">
               <h2 className="text-lg font-medium text-gray-900 mb-2">Description</h2>
               <p className="text-gray-600">{description}</p>
+            </div>
+
+            {/* Page Type Selection */}
+            <div className="flex items-center gap-4 mt-4">
+              <label className="font-medium">Pages Type:</label>
+              <div className="flex gap-2">
+                {["Ruled", "Plain"].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setPageType(type)}
+                    className={`px-4 py-2 rounded-lg border ${pageType === type ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-700 border-gray-300"}`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quantity Selector */}
+            <div className="flex items-center space-x-4 mt-4">
+              <label className="font-medium">Quantity:</label>
+              <div className="flex items-center border rounded">
+                <button onClick={() => setQuantity(prev => Math.max(1, prev - 1))} className="px-3 py-1 text-gray-600 hover:bg-gray-100"><FiMinus /></button>
+                <span className="px-4 py-1 border-x">{quantity}</span>
+                <button onClick={() => setQuantity(prev => prev + 1)} className="px-3 py-1 text-gray-600 hover:bg-gray-100"><FiPlus /></button>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-6 flex gap-4">
+              <button onClick={handleAddToCart} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2">
+                <FiShoppingCart /> Add to Cart
+              </button>
+              <button onClick={handleBuyNow} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg">
+                Buy Now
+              </button>
             </div>
           </div>
         </div>

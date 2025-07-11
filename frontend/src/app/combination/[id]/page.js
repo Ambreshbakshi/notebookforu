@@ -3,12 +3,32 @@
 import { useParams } from "next/navigation";
 import productData from "@/data/productData";
 import Image from "next/image";
-import { useState } from "react";
+
 import { useSwipeable } from "react-swipeable";
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { toast } from "react-toastify";
+import { FiShoppingCart, FiPlus, FiMinus } from "react-icons/fi";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const CombinationDetail = () => {
   const { id } = useParams();
   const [activeImage, setActiveImage] = useState(0);
+  const [pageType, setPageType] = useState("Ruled");
+const [quantity, setQuantity] = useState(1);
+const [isLoggedIn, setIsLoggedIn] = useState(false);
+const router = useRouter();
+
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    setIsLoggedIn(!!user);
+  });
+  return () => unsubscribe();
+}, []);
+
   
   // Access combination directly from productData
   const combination = productData.combinations?.[id];
@@ -52,6 +72,7 @@ const CombinationDetail = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+          <ToastContainer position="bottom-right" autoClose={3000} />
       <div className="max-w-6xl mx-auto">
         <div className="bg-white overflow-hidden shadow-lg rounded-lg flex flex-col md:flex-row">
           {/* Image Gallery Section */}
@@ -143,6 +164,102 @@ const CombinationDetail = () => {
                 <li>Coordinated designs</li>
               </ul>
             </div>
+            {/* Page Type Selection */}
+<div className="flex items-center gap-4 mt-6">
+  <label className="font-medium">Pages Type:</label>
+  <div className="flex gap-2">
+    {["Ruled", "Plain"].map((type) => (
+      <button
+        key={type}
+        onClick={() => setPageType(type)}
+        className={`px-4 py-2 rounded-lg border ${
+          pageType === type
+            ? "bg-indigo-600 text-white border-indigo-600"
+            : "bg-white text-gray-700 border-gray-300"
+        }`}
+      >
+        {type}
+      </button>
+    ))}
+  </div>
+</div>
+
+{/* Quantity Selector */}
+<div className="flex items-center space-x-4 mt-4">
+  <label className="font-medium">Quantity:</label>
+  <div className="flex items-center border rounded">
+    <button 
+      onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+      className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+    >
+      <FiMinus />
+    </button>
+    <span className="px-4 py-1 border-x">{quantity}</span>
+    <button 
+      onClick={() => setQuantity(prev => prev + 1)}
+      className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+    >
+      <FiPlus />
+    </button>
+  </div>
+</div>
+<div className="mt-6 flex gap-4">
+  <button
+    onClick={() => {
+      const cart = JSON.parse(localStorage.getItem("cart")) || [];
+      const itemId = `combination-${combination.id}-${pageType}`;
+      const existingIndex = cart.findIndex(item => item.itemId === itemId);
+
+      if (existingIndex >= 0) {
+        cart[existingIndex].quantity += quantity;
+      } else {
+        cart.push({
+          ...combination,
+          name: `${combination.name} - ${pageType}`,
+          itemId,
+          quantity,
+          type: "combination",
+          pageType
+        });
+      }
+
+      localStorage.setItem("cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("cartUpdated")); // 🔄 Navbar update trigger
+      toast.success(`${quantity} ${combination.name} (${pageType}) added to cart!`, {
+        position: "bottom-right"
+      });
+    }}
+    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2"
+  >
+    <FiShoppingCart /> Add to Cart
+  </button>
+
+  <button
+    onClick={() => {
+      const directItem = {
+        id: combination.id,
+        type: "combination",
+        name: `${combination.name} - ${pageType}`,
+        price: combination.price,
+        quantity,
+        pageType,
+        image: combination.gridImage || combination.detailImage1 || "/placeholder.jpg"
+      };
+
+      if (!isLoggedIn) {
+        sessionStorage.setItem("pendingDirectCheckout", JSON.stringify(directItem));
+        router.push(`/admin/login?redirect=/combination/${combination.id}/checkout`);
+      } else {
+        router.push(`/checkout?directItem=${encodeURIComponent(JSON.stringify(directItem))}`);
+      }
+    }}
+    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg"
+  >
+    Buy Now
+  </button>
+</div>
+
+
           </div>
         </div>
       </div>

@@ -76,12 +76,14 @@ const NotebookGallery = () => {
     const notebooks = Object.entries(productData.notebooks || {}).map(([key, item]) => ({
       ...item,
       key: key,
+      id: key,
       type: "notebook",
       selectedType: "Ruled" // Default to Ruled
     }));
     const diaries = Object.entries(productData.diaries || {}).map(([key, item]) => ({
       ...item,
       key: key,
+      id: key,
       type: "diary",
       selectedType: "Ruled" // Default to Ruled
     }));
@@ -89,6 +91,7 @@ const NotebookGallery = () => {
       ([key, item]) => ({
         ...item,
         key: key,
+        id: key,
         type: "combination",
         selectedType: "Ruled" // Default to Ruled
       })
@@ -182,37 +185,54 @@ const NotebookGallery = () => {
     return type === "combination" ? `/combination/${id}` : `/${type}/${id}`;
   };
 
-  const addToCart = (product) => {
-    try {
-      const cart = JSON.parse(localStorage.getItem("cart")) || [];
-      const pageType = product.selectedType || "Ruled";
-      const itemId = `${product.key}-${product.type}-${pageType}`;
+const addToCart = (product) => {
+  try {
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
+    const pageType = product.selectedType || "Ruled";
+    // Create a more unique itemId that includes the product type
+    const itemId = `${product.type}-${product.id}-${pageType}`;
 
-      const existingItemIndex = cart.findIndex((item) => item.itemId === itemId);
+    // Find the actual product data from productData
+    let actualProduct = null;
+    if (product.type && productData[product.type]) {
+      const typeMap = {
+  notebook: "notebooks",
+  diary: "diaries",
+  combination: "combinations"
+};
+const mappedType = typeMap[product.type];
+if (mappedType && productData[mappedType]) {
+  actualProduct = productData[mappedType][product.id];
+}
 
-      if (existingItemIndex > -1) {
-        cart[existingItemIndex].quantity += 1;
-      } else {
-        cart.push({
-          itemId,
-          key: product.key,
-          id: product.id,
-          name: product.name,
-          type: product.type,
-          quantity: 1,
-          price: product.price,
-          pageType,
-        });
-      }
-
-      localStorage.setItem("cart", JSON.stringify(cart));
-      window.dispatchEvent(new Event("cartUpdated"));
-      toast.success(`${product.name} - ${pageType} added to cart`);
-    } catch (error) {
-      toast.error("Failed to add item to cart");
-      console.error("Error adding to cart:", error);
     }
-  };
+
+    const existingItemIndex = cart.findIndex((item) => item.itemId === itemId);
+
+    if (existingItemIndex > -1) {
+      cart[existingItemIndex].quantity += 1;
+    } else {
+      cart.push({
+        itemId,
+        id: product.id,
+        type: product.type, // Store the product type
+        name: actualProduct?.name || product.name,
+        price: actualProduct?.price || product.price,
+        quantity: 1,
+        pageType,
+        weight: actualProduct?.weight || product.weight || 0.5, // Default weight if not specified
+        gridImage: actualProduct?.gridImage || product.gridImage // Include the image
+      });
+    }
+
+    localStorage.setItem("cart", JSON.stringify(cart));
+    window.dispatchEvent(new Event("cartUpdated"));
+    toast.success(`${actualProduct?.name || product.name} - ${pageType} added to cart`);
+  } catch (error) {
+    toast.error("Failed to add item to cart");
+    console.error("Error adding to cart:", error);
+  }
+};
 
   const toggleWishlist = (product) => {
     const productKey = `${product.type}-${product.id}`;
