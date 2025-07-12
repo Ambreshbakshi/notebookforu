@@ -92,7 +92,8 @@ export default function OrderCard({ order }) {
 
   const itemsTotal = order?.items?.reduce((acc, item) => acc + (item.price * item.quantity), 0) || 0;
   const shippingCost = order?.shipping?.cost || 0;
-  const promoDiscount = order?.promo?.discountAmount || 0;
+  const promoDiscount = order?.promo?.discount || 0;
+
   const grandTotal = itemsTotal + shippingCost - promoDiscount;
 
   const shippingStatus = order.shippingStatus || "not_dispatched";
