@@ -23,21 +23,43 @@ const AboutUs = () => {
   ];
 
   const founders = [
-    {
-      name: "Himanshu Tripathi",
-      role: "Chief Designer",
-      quote: "Innovation starts with a blank page.",
-      bio: "With 10+ years in product design, Alex ensures every notebook is both beautiful and functional.",
-      image: "/about/founder1.jpg"
-    },
-    {
-      name: "Mridul Krishna Tripathi",
-      role: "Production Head",
-      quote: "Quality and creativity go hand in hand.",
-      bio: "Sam's expertise in sustainable materials guarantees eco-friendly yet durable notebooks.",
-      image: "/about/founder2.jpg"
-    }
-  ];
+  {
+    name: "Manas Mani Tripathi",
+    role: "CEO & Founder",
+    quote: "Great ideas deserve the right canvas to grow.",
+    bio: "Manas is the driving force behind the company’s vision and strategy. With a background in business leadership and a passion for design-driven products, he leads the brand’s journey to redefine stationery for modern creators.",
+    image: "/about/founder1.jpg"
+  },
+  {
+    name: "Himanshu Tripathi",
+    role: "Chief Creative Officer",
+    quote: "Design is where imagination meets purpose.",
+    bio: "Himanshu shapes the aesthetic identity of the brand. His expertise in product design ensures that every notebook blends functionality with elegance, inspiring people to think, create, and achieve.",
+    image: "/about/founder2.jpg"
+  },
+  {
+    name: "Mridul Krishna Tripathi",
+    role: "Head of Production",
+    quote: "Sustainability is the foundation of quality.",
+    bio: "Mridul oversees manufacturing and supply chain operations. His focus on sustainable materials and efficient processes ensures that each product is both eco-friendly and built to last.",
+    image: "/about/founder3.jpg"
+  },
+  {
+    name: "Ambresh Kumar Bakshi",
+    role: "Technical Director",
+    quote: "Innovation lies in the details of execution.",
+    bio: "Ambresh leads the technical development side, from material research to production optimization. His expertise ensures that creative concepts are translated into high-quality, scalable products.",
+    image: "/about/founder4.jpg"
+  },
+  {
+    name: "Mayuresh Pandey",
+    role: "Lead Designer",
+    quote: "A notebook should feel like an extension of your mind.",
+    bio: "Mayuresh focuses on design innovation, creating layouts, textures, and finishes that elevate everyday stationery. His work bridges practicality with a premium creative experience.",
+    image: "/about/founder5.jpg"
+  }
+];
+
 
   const fadeIn = (direction, type, delay, duration) => ({
     hidden: {
