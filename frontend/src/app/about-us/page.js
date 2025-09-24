@@ -31,12 +31,12 @@ const AboutUs = () => {
     bio: "Manas is the driving force behind the company’s vision and strategy. With a background in business leadership and a passion for design-driven products, he leads the brand’s journey to redefine stationery for modern creators.",
     image: "/about/founder1.jpg"
   },
-  {
-    name: "Himanshu Tripathi",
-    role: "Chief Creative Officer",
-    quote: "Design is where imagination meets purpose.",
-    bio: "Himanshu shapes the aesthetic identity of the brand. His expertise in product design ensures that every notebook blends functionality with elegance, inspiring people to think, create, and achieve.",
-    image: "/about/founder2.jpg"
+    {
+    name: "Sanchita Pathak",
+    role: "Marketing & Communications Head",
+    quote: "Stories and strategy build lasting connections.",
+    bio: "Sanchita drives the brand’s marketing initiatives and communication strategy. Her expertise in branding and outreach ensures the products reach and resonate with the right audience.",
+    image: "/about/founder3.jpg"
   },
   {
     name: "Mridul Krishna Tripathi", 
@@ -59,12 +59,12 @@ const AboutUs = () => {
     bio: "Mayuresh focuses on design innovation, creating layouts, textures, and finishes that elevate everyday stationery. His work bridges practicality with a premium creative experience.",
     image: "/about/founder5.jpg"
   },
-  {
-    name: "Sanchita Pathak",
-    role: "Marketing & Communications Head",
-    quote: "Stories and strategy build lasting connections.",
-    bio: "Sanchita drives the brand’s marketing initiatives and communication strategy. Her expertise in branding and outreach ensures the products reach and resonate with the right audience.",
-    image: "/about/founder3.jpg"
+    {
+    name: "Himanshu Tripathi",
+    role: "Chief Creative Officer",
+    quote: "Design is where imagination meets purpose.",
+    bio: "Himanshu shapes the aesthetic identity of the brand. His expertise in product design ensures that every notebook blends functionality with elegance, inspiring people to think, create, and achieve.",
+    image: "/about/founder2.jpg"
   }
 
 
