@@ -23,7 +23,7 @@ const AboutUs = () => {
   ];
 
   const founders = [
- [
+ 
   {
     name: "Manas Mani Tripathi",
     role: "CEO & Founder",
@@ -66,7 +66,7 @@ const AboutUs = () => {
     bio: "Sanchita drives the brand’s marketing initiatives and communication strategy. Her expertise in branding and outreach ensures the products reach and resonate with the right audience.",
     image: "/about/founder3.jpg"
   }
-];
+
 
 ];
 
