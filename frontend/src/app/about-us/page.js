@@ -38,10 +38,10 @@ const AboutUs = () => {
     image: "/about/founder2.jpg"
   },
   {
-    name: "Mridul Krishna Tripathi",
+    name: "Sanchita Pathak",
     role: "Head of Production",
     quote: "Sustainability is the foundation of quality.",
-    bio: "Mridul oversees manufacturing and supply chain operations. His focus on sustainable materials and efficient processes ensures that each product is both eco-friendly and built to last.",
+    bio: "Sanchita oversees manufacturing and supply chain operations. His focus on sustainable materials and efficient processes ensures that each product is both eco-friendly and built to last.",
     image: "/about/founder3.jpg"
   },
   {
