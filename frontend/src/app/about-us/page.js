@@ -23,6 +23,7 @@ const AboutUs = () => {
   ];
 
   const founders = [
+ [
   {
     name: "Manas Mani Tripathi",
     role: "CEO & Founder",
@@ -38,11 +39,11 @@ const AboutUs = () => {
     image: "/about/founder2.jpg"
   },
   {
-    name: "Sanchita Pathak",
+    name: "Mridul Krishna Tripathi", 
     role: "Head of Production",
     quote: "Sustainability is the foundation of quality.",
-    bio: "Sanchita oversees manufacturing and supply chain operations. His focus on sustainable materials and efficient processes ensures that each product is both eco-friendly and built to last.",
-    image: "/about/founder3.jpg"
+    bio: "Mridul oversees manufacturing and supply chain operations. His focus on sustainable materials and efficient processes ensures that each product is both eco-friendly and built to last.", 
+    image: "/about/founder6.jpeg"
   },
   {
     name: "Ambresh Kumar Bakshi",
@@ -57,7 +58,16 @@ const AboutUs = () => {
     quote: "A notebook should feel like an extension of your mind.",
     bio: "Mayuresh focuses on design innovation, creating layouts, textures, and finishes that elevate everyday stationery. His work bridges practicality with a premium creative experience.",
     image: "/about/founder5.jpg"
+  },
+  {
+    name: "Sanchita Pathak",
+    role: "Marketing & Communications Head",
+    quote: "Stories and strategy build lasting connections.",
+    bio: "Sanchita drives the brand’s marketing initiatives and communication strategy. Her expertise in branding and outreach ensures the products reach and resonate with the right audience.",
+    image: "/about/founder3.jpg"
   }
+];
+
 ];
 
 
