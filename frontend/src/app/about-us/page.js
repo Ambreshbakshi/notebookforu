@@ -105,7 +105,7 @@ const AboutUs = () => {
       {/* Hero Section */}
       <section className="relative h-[60vh] min-h-[400px] flex items-center justify-center">
         <Image 
-          src="/about/about-us-hero.jpg"
+          src="/about/about-us-hero.jpeg"
           alt="NotebookForU workspace"
           fill
           className="object-cover"
