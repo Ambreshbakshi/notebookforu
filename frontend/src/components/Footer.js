@@ -270,10 +270,10 @@ const Footer = () => {
               <p>
                 Phone:{' '}
                 <a 
-                  href="tel:+918303157090" 
+                  href="tel:+918303137090" 
                   className="hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
                 >
-                  +91 8303157090
+                  +91 8303137090
                 </a>
               </p>
               <p>
@@ -303,7 +303,7 @@ const Footer = () => {
                 <FaInstagram className="text-2xl" aria-hidden="true" />
               </a>
               <a 
-                href="https://wa.me/918303157090" 
+                href="https://wa.me/918303137090" 
                 target="_blank" 
                 rel="noopener noreferrer nofollow"
                 aria-label="WhatsApp (opens in new tab)"
