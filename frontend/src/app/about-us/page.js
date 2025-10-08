@@ -31,13 +31,6 @@ const AboutUs = () => {
     bio: "Manas is the driving force behind the company’s vision and strategy. With a background in business leadership and a passion for design-driven products, he leads the brand’s journey to redefine stationery for modern creators.",
     image: "/about/founder1.jpg"
   },
-    {
-    name: "Sanchita Pathak",
-    role: "Marketing & Communications Head",
-    quote: "Stories and strategy build lasting connections.",
-    bio: "Sanchita drives the brand’s marketing initiatives and communication strategy. Her expertise in branding and outreach ensures the products reach and resonate with the right audience.",
-    image: "/about/founder3.jpg"
-  },
   {
     name: "Mridul Krishna Tripathi", 
     role: "Head of Production",
