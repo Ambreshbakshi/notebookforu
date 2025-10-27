@@ -111,11 +111,11 @@ export default function BlogPage() {
           </div>
 
           {/* REACH US BUTTON */}
-          <div className="flex justify-center">
-            <button className="transform rotate-90 bg-blue-600 text-white px-4 py-2 rounded-md font-semibold tracking-wide shadow-md">
-              REACH US
-            </button>
-          </div>
+          <div className="fixed right-4 top-1/2 -translate-y-1/2 z-50">
+        <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-l-md font-semibold shadow-lg rotate-90 origin-right tracking-wide">
+          REACH&nbsp;US
+        </button>
+      </div>
         </aside>
       </div>
     </div>
