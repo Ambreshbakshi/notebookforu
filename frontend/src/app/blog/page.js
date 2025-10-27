@@ -28,7 +28,7 @@ export default function BlogPage() {
       title: 'How to Stay Organized: Notebook Hacks You’ll Actually Use',
       date: 'September 12, 2025',
       author: 'Admin',
-      image: '/post3.jpeg',
+      image: '/post3.png',
       excerpt:
         'Organization doesn’t have to be complicated — it just needs consistency. Notebooks are more than blank pages; they’re powerful tools to bring structure to your life...',
     },
