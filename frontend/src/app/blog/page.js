@@ -1,139 +1,133 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { FiCalendar, FiUser } from 'react-icons/fi';
 
-// NOTE: Put your hero image in /public/blog-hero.png (or change src to your image path)
-export default function BlogPageWithSidebar() {
+export default function ThemedBlogPage() {
+  const heroImages = ['/hero1.png', '/hero2.png', '/hero3.png'];
+  const [index, setIndex] = useState(0);
+
   const posts = [
     {
       id: 1,
-      title: 'Linc Smart GL: The Perfect Pen For Students And Professionals',
-      date: 'October 24, 2025',
-      author: 'Admin',
+      title: 'The Power of Pen and Paper in the Digital Age',
+      date: 'October 27, 2025',
+      author: 'NotebookForU Team',
+      image: '/post1.png',
       excerpt:
-        'In the fast-paced world we find ourselves with today, and the speed at which ideas can move these days, you will find a real difference with the right pen in hand. At Linc we believe with comfort, innovative function, and performance in mind.',
-      image: '/blog-hero.png',
+        'In an era ruled by screens, writing with a pen still unlocks deeper focus and creativity. Here’s why you should keep a notebook close by.',
     },
     {
       id: 2,
-      title: 'How Linc Limited Creates Smooth Writing Pens For Stress-Free Note-Taking',
-      date: 'September 10, 2025',
-      author: 'Admin',
-      excerpt: 'A quick look into manufacturing and design choices that make writing effortless.',
-      image: '/blog-hero.png',
+      title: 'Top 10 Stationery Essentials Every Student and Professional Should Own',
+      date: 'October 24, 2025',
+      author: 'NotebookForU Team',
+      image: '/post2.png',
+      excerpt: 'A quick guide to the stationery that makes studying and work flow smoothly.',
     },
     {
       id: 3,
-      title: 'Best Ball Pens For Everyday Writing',
-      date: 'August 5, 2025',
-      author: 'Admin',
-      excerpt: 'Comparing popular ball pens to help you pick the right everyday companion.',
-      image: '/blog-hero.png',
-    },
-    {
-      id: 4,
-      title: 'Notebook Organization Tips For Students',
-      date: 'July 2, 2025',
-      author: 'Admin',
-      excerpt: 'Simple, actionable notebook hacks that actually help you study better.',
-      image: '/blog-hero.png',
-    },
-    {
-      id: 5,
-      title: 'Stationery That Sparks Creativity',
-      date: 'June 12, 2025',
-      author: 'Admin',
-      excerpt: 'How colors, textures and design can influence your creative flow.',
-      image: '/blog-hero.png',
+      title: 'How to Stay Organized: Notebook Hacks You’ll Actually Use',
+      date: 'September 12, 2025',
+      author: 'NotebookForU Team',
+      image: '/post3.png',
+      excerpt: 'Simple notebook systems that help you focus and get things done.',
     },
   ];
 
-  const mainPost = posts[0];
-  const latest = posts.slice(0, 4);
+  function prev() {
+    setIndex((i) => (i - 1 + heroImages.length) % heroImages.length);
+  }
+
+  function next() {
+    setIndex((i) => (i + 1) % heroImages.length);
+  }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 py-10">
-      <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main area (two-thirds) */}
-        <main className="lg:col-span-2">
-          <article className="bg-gray-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="h-56 md:h-64 lg:h-72 bg-gray-700 relative">
-              <img
-                src={mainPost.image}
-                alt={mainPost.title}
-                className="w-full h-full object-cover"
-              />
-            </div>
+    <div className="min-h-screen bg-white text-gray-900">
+      <header className="py-6 px-6 border-b">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <img src="/logo.png" alt="NotebookForU" className="h-10" />
+          </div>
+          <nav className="flex items-center space-x-6 text-gray-600">
+            <a href="#" className="font-medium text-blue-600">Home</a>
+            <a href="#">All Products</a>
+            <a href="#">Info</a>
+            <button className="p-2 rounded-full hover:bg-gray-100">🔍</button>
+            <button className="p-2 rounded-full hover:bg-gray-100">🛒</button>
+          </nav>
+        </div>
+      </header>
 
-            <div className="p-8">
-              <div className="flex items-center text-sm text-blue-300 space-x-4 mb-4">
-                <div className="flex items-center">
-                  <FiCalendar className="mr-2" />
-                  <span>{mainPost.date}</span>
+      <section className="relative">
+        <div className="max-w-6xl mx-auto">
+          <div className="relative h-96 md:h-[520px] overflow-hidden rounded-b-2xl">
+            <img
+              src={heroImages[index]}
+              alt="hero"
+              className="absolute inset-0 w-full h-full object-cover filter blur-sm brightness-75"
+            />
+
+            <div className="absolute inset-0 flex items-center justify-center px-6">
+              <div className="text-center max-w-2xl">
+                <h1 className="text-5xl md:text-6xl font-extrabold text-white drop-shadow-lg">
+                  Make It Your Own
+                </h1>
+                <p className="mt-4 text-lg text-white/90">Discover our premium collection of handcrafted notebooks</p>
+
+                <div className="mt-8 flex items-center justify-center gap-4">
+                  <a href="#" className="inline-block bg-blue-600 text-white px-8 py-3 rounded-full font-semibold shadow-lg">Browse Collection</a>
                 </div>
-                <div className="flex items-center">
-                  <FiUser className="mr-2" />
-                  <span>by {mainPost.author}</span>
+
+                <div className="mt-6 flex items-center justify-center space-x-2">
+                  {heroImages.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setIndex(i)}
+                      className={`w-3 h-3 rounded-full ${i === index ? 'bg-white' : 'bg-white/40'}`}
+                    />
+                  ))}
                 </div>
               </div>
-
-              <h2 className="text-4xl font-extrabold leading-tight mb-4 text-white">
-                {mainPost.title}
-              </h2>
-
-              <p className="text-lg text-gray-200 mb-6">{mainPost.excerpt} [...]</p>
-
-              <a
-                href="#"
-                className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold shadow-md transition"
-              >
-                → Read More
-              </a>
             </div>
-          </article>
 
-          {/* Optional: other posts list below the main article */}
-          <div className="mt-8 space-y-6">
-            {posts.slice(1).map((p) => (
-              <article key={p.id} className="flex bg-gray-800 rounded-xl overflow-hidden">
-                <img src={p.image} alt={p.title} className="w-36 h-36 object-cover" />
-                <div className="p-4 flex-1">
-                  <div className="text-sm text-blue-300 mb-1">{p.date} • by {p.author}</div>
-                  <h3 className="font-bold text-lg text-white">{p.title}</h3>
-                  <p className="text-sm text-gray-300 mt-2">{p.excerpt}</p>
+            <button onClick={prev} className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full w-12 h-12 flex items-center justify-center">‹</button>
+            <button onClick={next} className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full w-12 h-12 flex items-center justify-center">›</button>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-slate-50 py-16">
+        <div className="max-w-4xl mx-auto text-center px-6">
+          <blockquote className="text-2xl md:text-3xl italic text-slate-700 leading-relaxed">"Your thoughts, your words, your notebook: where inspiration meets expression."</blockquote>
+          <div className="mt-4 text-blue-600 font-medium">— NotebookForU Team</div>
+        </div>
+      </section>
+
+      <section className="py-16">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2 className="text-3xl font-bold mb-8">From the Blog</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {posts.map((p) => (
+              <article key={p.id} className="bg-white border rounded-2xl overflow-hidden shadow-sm">
+                <img src={p.image} alt={p.title} className="w-full h-40 object-cover" />
+                <div className="p-6">
+                  <div className="text-sm text-blue-600 mb-2">{p.date} • {p.author}</div>
+                  <h3 className="font-semibold text-lg mb-2">{p.title}</h3>
+                  <p className="text-sm text-gray-600 mb-4">{p.excerpt}</p>
+                  <a href="#" className="text-blue-600 font-medium">Read More →</a>
                 </div>
               </article>
             ))}
           </div>
-        </main>
+        </div>
+      </section>
 
-        {/* Sidebar (one-third) */}
-        <aside className="sticky top-20">
-          <div className="bg-gray-800 rounded-xl p-6 shadow-lg">
-            <h4 className="text-2xl font-bold mb-6">Latest Posts</h4>
-
-            <div className="space-y-6">
-              {latest.map((l) => (
-                <div key={l.id} className="flex items-start space-x-4">
-                  <img src={l.image} alt={l.title} className="w-20 h-14 object-cover rounded" />
-                  <div>
-                    <div className="text-sm text-blue-300 mb-1">By {l.author}</div>
-                    <a href="#" className="font-semibold text-white block leading-tight">
-                      {l.title}
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Optional reach us vertical button like the screenshot */}
-          <div className="mt-6 flex justify-center">
-            <button className="transform rotate-90 bg-white text-blue-800 px-3 py-2 rounded shadow">REACH US</button>
-          </div>
-        </aside>
-      </div>
+      <footer className="border-t py-8">
+        <div className="max-w-6xl mx-auto px-6 text-center text-sm text-gray-500">© {new Date().getFullYear()} NotebookForU — All rights reserved</div>
+      </footer>
     </div>
   );
 }
