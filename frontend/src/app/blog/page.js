@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { FiCalendar, FiUser } from 'react-icons/fi';
-
+import Link from 'next/link';
 const posts = [
   {
     id: '1',
@@ -186,11 +186,14 @@ export default function BlogPage() {
           </div>
 
           {/* Floating Reach Us button */}
-          <div className="fixed right-4 top-1/2 -translate-y-1/2 z-50">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-l-md font-semibold shadow-lg rotate-90 origin-right tracking-wide">
-              REACH&nbsp;US
-            </button>
-          </div>
+         <div className="fixed right-4 top-1/2 -translate-y-1/2 z-50">
+  <Link
+    href="/contact-us"
+    className="block bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-l-md font-semibold shadow-lg rotate-90 origin-right tracking-wide"
+  >
+    REACH&nbsp;US
+  </Link>
+</div>
         </aside>
       </div>
     </div>
