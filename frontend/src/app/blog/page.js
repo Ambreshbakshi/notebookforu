@@ -10,7 +10,7 @@ export default function BlogPage() {
       title: 'The Power of Pen and Paper in the Digital Age',
       date: 'October 27, 2025',
       author: 'Admin',
-      image: '/post1.png',
+      image: '/post1.jpeg',
       excerpt:
         'In an era ruled by screens, typing, and AI, the simple act of writing with a pen still holds incredible power. While digital tools are fast and convenient, they can never truly replace the creativity that flows from handwriting...',
     },
@@ -19,7 +19,7 @@ export default function BlogPage() {
       title: 'Top 10 Stationery Essentials Every Student and Professional Should Own',
       date: 'October 24, 2025',
       author: 'Admin',
-      image: '/post2.png',
+      image: '/post2.jpeg',
       excerpt:
         'Whether you’re a student preparing for exams or a professional managing projects, having the right stationery can make all the difference...',
     },
@@ -28,7 +28,7 @@ export default function BlogPage() {
       title: 'How to Stay Organized: Notebook Hacks You’ll Actually Use',
       date: 'September 12, 2025',
       author: 'Admin',
-      image: '/post3.png',
+      image: '/post3.jpeg',
       excerpt:
         'Organization doesn’t have to be complicated — it just needs consistency. Notebooks are more than blank pages; they’re powerful tools to bring structure to your life...',
     },
