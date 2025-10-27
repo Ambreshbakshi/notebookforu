@@ -11,7 +11,7 @@ const posts = [
     title: 'The Power of Pen and Paper in the Digital Age',
     date: 'October 10, 2025',
     author: 'Admin',
-    image: '/post1.png',
+    image: '/post1.jpeg',
     content: `Writing with pen and paper activates your creativity and focus in ways typing never can. It builds mindfulness and helps you remember better. Next time, close your laptop and jot ideas by hand.`,
   },
   {
@@ -19,7 +19,7 @@ const posts = [
     title: 'Top 10 Stationery Essentials Every Student and Professional Should Own',
     date: 'September 24, 2025',
     author: 'Admin',
-    image: '/post2.png',
+    image: '/post2.jpeg',
     content: `Notebooks, pens, markers, sticky notes, planners — your toolkit defines your productivity. Here’s how to choose the best ones for your workflow.`,
   },
   {
