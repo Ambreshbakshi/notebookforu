@@ -52,7 +52,7 @@ const ContactUs = () => {
    
     {
       icon: <Instagram className="w-6 h-6" />,
-      href: "https://instagram.com/notebookforu",
+      href: "https://instagram.com/notebookforu.in",
       label: "Instagram"
     },
     {
