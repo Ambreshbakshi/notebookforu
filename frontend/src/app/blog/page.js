@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { FiCalendar, FiUser } from 'react-icons/fi';
-import Link from 'next/link';
 const posts = [
   {
     id: '1',
