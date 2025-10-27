@@ -51,7 +51,7 @@ export default function BlogPage() {
               <img
                 src={post.image}
                 alt={post.title}
-                className="w-full h-64 object-contain"
+                className="w-full h-64 object-cover"
               />
               <div className="p-8">
                 <div className="flex items-center text-sm text-blue-400 space-x-4 mb-4">
