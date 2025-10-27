@@ -8,9 +8,9 @@ const posts = [
   {
     id: '1',
     title: 'The Power of Pen and Paper in the Digital Age',
-    date: 'October 27, 2025',
+    date: 'October 10, 2025',
     author: 'Admin',
-    image: '/post1.png',
+    image: '/post1.jpeg',
     excerpt:
       'In an era ruled by screens, typing, and AI, the simple act of writing with a pen still holds incredible power...',
     content: `Full detailed content of The Power of Pen and Paper in the Digital Age.`,
@@ -18,9 +18,9 @@ const posts = [
   {
     id: '2',
     title: 'Top 10 Stationery Essentials Every Student and Professional Should Own',
-    date: 'October 24, 2025',
+    date: 'September 24, 2025',
     author: 'Admin',
-    image: '/post2.png',
+    image: '/post2.jpeg',
     excerpt:
       'Whether you’re a student preparing for exams or a professional managing projects, having the right stationery can make all the difference...',
     content: `Detailed explanation about top 10 stationery items.`,
@@ -51,7 +51,7 @@ export default function BlogPage() {
               <img
                 src={post.image}
                 alt={post.title}
-                className="w-full h-64 object-cover"
+                className="w-full h-64 object-contain"
               />
               <div className="p-8">
                 <div className="flex items-center text-sm text-blue-400 space-x-4 mb-4">
